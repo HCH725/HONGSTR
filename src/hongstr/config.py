@@ -99,3 +99,11 @@ DVG_PIVOT_RIGHT = int(os.getenv("DVG_PIVOT_RIGHT", "3"))
 MACD_FAST = int(os.getenv("MACD_FAST", "12"))
 MACD_SLOW = int(os.getenv("MACD_SLOW", "26"))
 MACD_SIGNAL = int(os.getenv("MACD_SIGNAL", "9"))
+
+# Smoke Test (C13)
+SMOKE_TESTNET_ENABLED = os.getenv("SMOKE_TESTNET_ENABLED", "true").lower() == "true"
+SMOKE_NOTIONAL_USD = float(os.getenv("SMOKE_NOTIONAL_USD", "60.0"))
+SMOKE_SL_PCT = float(os.getenv("SMOKE_SL_PCT", "0.005"))
+SMOKE_TP_PCT = float(os.getenv("SMOKE_TP_PCT", "0.005"))
+SMOKE_RUNTIME_SEC = int(os.getenv("SMOKE_RUNTIME_SEC", "25"))
+DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
