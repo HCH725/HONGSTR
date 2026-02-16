@@ -1,173 +1,185 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-import pytz
+import uuid
+import hashlib
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+
 from hongstr.semantics.core import SemanticsV1
-from hongstr.backtest.metrics import calc_metrics, filter_by_split
-from hongstr.config import TIMEZONE
+from hongstr.backtest.metrics import calc_metrics
 
 class BacktestEngine:
-    def __init__(self, semantics: SemanticsV1, data: pd.DataFrame, initial_capital: float = 10000.0):
+    def __init__(
+        self, 
+        semantics: SemanticsV1, 
+        data: pd.DataFrame, 
+        initial_capital: float = 10000.0,
+        size_notional_usd: float = 1000.0
+    ):
         """
-        data: DataFrame with OHLCV, indexed by datetime (Asia/Taipei aware preferably).
+        data: DataFrame with OHLCV, indexed by datetime (UTC aware).
+              Timestamp convention: Bar Start Time.
         """
         self.semantics = semantics
-        self.data = data
+        self.data = data.sort_index()
         self.capital = initial_capital
-        self.position = 0.0 # Signed size (positive=long, negative=short)
+        self.initial_capital = initial_capital
+        self.size_notional_usd = size_notional_usd
+        
+        self.position_qty = 0.0 # Signed
         self.entry_price = 0.0
         self.equity = initial_capital
         
         self.trades = []
         self.equity_curve = []
         
-    def run(self, strategy_stub=None):
+        # Pending order for next_open fill
+        self.pending_order: Optional[Dict[str, Any]] = None
+
+    def run(self, symbol: str, strategy_stub=None):
         """
-        Main loop.
-        strategy_stub: function(row) -> signal ('BUY', 'SELL', 'EXIT')
+        Main loop using next_open fill semantics.
+        strategy_stub: function(row) -> direction string ("LONG", "SHORT", "FLAT", None)
         """
-        print(f"Starting Backtest with Semantics {self.semantics.version}...")
+        df = self.data
         
-        # Ensure index is sorted
-        df = self.data.sort_index()
-        
-        for ts, row in df.iterrows():
-            # 1. Funding Logic
-            # Delegate schedule check to Semantics Layer (Source of Truth)
-            if self.semantics.is_funding_timestamp(ts):
-                self._apply_funding(row['close'])
+        for i in range(len(df)):
+            ts = df.index[i]
+            row = df.iloc[i]
             
-            # 2. Strategy Signal
-            signal = None
-            if strategy_stub:
-                signal = strategy_stub(row)
+            # 1. Execute Pending Order (next_open)
+            # A signal from Bar T is executed at Open of Bar T+1
+            if self.pending_order:
+                self._execute_pending(ts, row['open'], symbol)
             
-            # 3. Execution (Market Orders)
-            if signal == 'BUY':
-                self._open_position(ts, row['close'], 1.0, 'LONG') # Fixed 1.0 unit for v1
-            elif signal == 'SELL':
-                self._open_position(ts, row['close'], 1.0, 'SHORT')
-            elif signal == 'EXIT':
-                self._close_position(ts, row['close'])
-                
-            # 4. TP/SL check (Bracket)
-            # Only if position exists
-            if self.position != 0:
-                self._check_bracket(ts, row['high'], row['low'])
-            
-            # 5. Mark to Market
+            # 2. Update Equity (Mark to Market using high/low/close of current bar?)
+            # Usually mark to market at bar close.
             self._update_equity(row['close'])
-            self.equity_curve.append({'time': ts, 'equity': self.equity})
+            self.equity_curve.append({
+                'ts': ts.isoformat(),
+                'equity': self.equity,
+                'cash': self.capital,
+                'position_notional': float(self.position_qty * row['close'])
+            })
+
+            # 3. Strategy Signal (on Bar T Close)
+            if strategy_stub:
+                # We pass the current row. If it's the last bar, we can't execute next_open.
+                if i < len(df) - 1:
+                    signal_dir = strategy_stub(row) 
+                    if signal_dir:
+                        self._process_signal(ts, signal_dir)
 
         # Finalize
-        self.equity_df = pd.DataFrame(self.equity_curve).set_index('time')
-        return self._generate_report()
-
-    def _apply_funding(self, price):
-        if self.position == 0:
-            return
-        # Dummy Funding Rate (0.01% per interval default simulation)
-        rate = 0.0001 
-        notional = self.position * price
-        funding_pnl = self.semantics.calc_funding(notional, rate)
-        self.capital += funding_pnl
-        # Note: In real life, deducted from balance. Here capital tracks realized + cash.
-
-    def _open_position(self, ts, price, size, side):
-        if self.position != 0:
-            return # Simple mode: one pos at a time
-            
-        # Slippage
-        exec_price = self.semantics.apply_slippage(price, 'BUY' if side == 'LONG' else 'SELL')
+        self.equity_df = pd.DataFrame(self.equity_curve)
+        if not self.equity_df.empty:
+            self.equity_df['ts'] = pd.to_datetime(self.equity_df['ts'])
+            self.equity_df.set_index('ts', inplace=True)
         
-        # Fee
-        notional = size * exec_price
+        return self._generate_report(symbol)
+
+    def _process_signal(self, ts, direction):
+        """Queue an order for the next bar's open."""
+        # Simple Logic: Only queue if it changes position
+        if direction == "LONG" and self.position_qty > 0: return
+        if direction == "SHORT" and self.position_qty < 0: return
+        if direction == "FLAT" and self.position_qty == 0: return
+        
+        self.pending_order = {
+            "ts_signal": ts,
+            "direction": direction,
+            "signal_id": hashlib.md5(f"{ts}_{direction}".encode()).hexdigest()[:8]
+        }
+
+    def _execute_pending(self, ts, open_price, symbol):
+        order = self.pending_order
+        direction = order['direction']
+        self.pending_order = None
+        
+        # 1. Close existing if needed
+        if self.position_qty != 0:
+            if direction == "FLAT" or (direction == "LONG" and self.position_qty < 0) or (direction == "SHORT" and self.position_qty > 0):
+                self._close_position(ts, open_price, symbol, "Signal Flip" if direction != "FLAT" else "Signal Exit")
+        
+        # 2. Open new if needed
+        if direction in ["LONG", "SHORT"]:
+            side = direction # LONG or SHORT
+            exec_price = self.semantics.apply_slippage(open_price, "BUY" if side == "LONG" else "SELL")
+            
+            qty = self.size_notional_usd / exec_price
+            notional = qty * exec_price
+            fee = self.semantics.calc_fee(notional)
+            
+            self.position_qty = qty if side == "LONG" else -qty
+            self.entry_price = exec_price
+            self.capital -= fee
+            
+            self.trades.append({
+                "trade_id": str(uuid.uuid4())[:8],
+                "signal_id": order['signal_id'],
+                "ts_entry": ts.isoformat(),
+                "ts_exit": None,
+                "symbol": symbol,
+                "side": side,
+                "qty": float(self.position_qty),
+                "entry_price": float(exec_price),
+                "exit_price": None,
+                "pnl": 0.0,
+                "pnl_pct": 0.0,
+                "fees": float(fee),
+                "reason": "Entry"
+            })
+
+    def _close_position(self, ts, price, symbol, reason):
+        if self.position_qty == 0: return
+        
+        side_close = "SELL" if self.position_qty > 0 else "BUY"
+        exec_price = self.semantics.apply_slippage(price, side_close)
+        
+        notional = abs(self.position_qty) * exec_price
         fee = self.semantics.calc_fee(notional)
         
-        self.position = size if side == 'LONG' else -size
-        self.entry_price = exec_price
-        self.capital -= fee
-        
-        self.trades.append({
-            'entry_time': ts,
-            'entry_price': exec_price,
-            'size': self.position,
-            'side': side,
-            'fee': fee
-        })
-
-    def _close_position(self, ts, price):
-        if self.position == 0:
-            return
-            
-        side = 'SELL' if self.position > 0 else 'BUY'
-        exec_price = self.semantics.apply_slippage(price, side)
-        
-        notional = abs(self.position) * exec_price
-        fee = self.semantics.calc_fee(notional)
-        
-        # PnL
-        pnl = (exec_price - self.entry_price) * self.position
+        pnl = (exec_price - self.entry_price) * self.position_qty
+        pnl_pct = pnl / (abs(self.position_qty) * self.entry_price)
         
         self.capital += pnl
         self.capital -= fee
         
-        # Update last trade
         if self.trades:
-            self.trades[-1]['exit_time'] = ts
-            self.trades[-1]['exit_price'] = exec_price
-            self.trades[-1]['pnl'] = pnl
-            self.trades[-1]['exit_fee'] = fee
-            self.trades[-1]['net_pnl'] = pnl - self.trades[-1]['fee'] - fee
-            
-        self.position = 0
-        self.entry_price = 0
+            t = self.trades[-1]
+            t["ts_exit"] = ts.isoformat()
+            t["exit_price"] = float(exec_price)
+            t["pnl"] = float(pnl)
+            t["pnl_pct"] = float(pnl_pct)
+            t["fees"] += float(fee) 
+            t["reason"] = reason
 
-    def _check_bracket(self, ts, high, low):
-        # Simulated TP/SL (e.g., 2% TP, 1% SL)
-        if self.position == 0:
-            return
-            
-        tp_pct = 0.02
-        sl_pct = 0.01
-        
-        if self.position > 0: # Long
-            tp_price = self.entry_price * (1 + tp_pct)
-            sl_price = self.entry_price * (1 - sl_pct)
-            
-            # Conservative: check SL first? Or check overlap?
-            # If Low <= SL, trigger SL
-            if low <= sl_price:
-                self._close_position(ts, sl_price) # Fill at SL
-            elif high >= tp_price:
-                self._close_position(ts, tp_price)
-                
-        elif self.position < 0: # Short
-            tp_price = self.entry_price * (1 - tp_pct)
-            sl_price = self.entry_price * (1 + sl_pct)
-            
-            if high >= sl_price:
-                self._close_position(ts, sl_price)
-            elif low <= tp_price:
-                self._close_position(ts, tp_price)
+        self.position_qty = 0
+        self.entry_price = 0
 
     def _update_equity(self, current_price):
         unrealized = 0
-        if self.position != 0:
-            unrealized = (current_price - self.entry_price) * self.position
+        if self.position_qty != 0:
+            unrealized = (current_price - self.entry_price) * self.position_qty
         self.equity = self.capital + unrealized
 
-    def _generate_report(self):
-        full_metrics = calc_metrics(self.equity_df, self.trades)
+    def _generate_report(self, symbol):
+        metrics = calc_metrics(self.equity_df, self.trades)
         
-        splits = {}
-        for split_name in ["TRAIN", "VAL", "OOS"]:
-             sub_eq, sub_tr = filter_by_split(self.equity_df, self.trades, split_name)
-             splits[split_name] = calc_metrics(sub_eq, sub_tr)
-             
-        return {
-            "semantics_version": self.semantics.version,
-            "full_metrics": full_metrics,
-            "splits": splits,
+        report = {
+            "symbol": symbol,
+            "metrics": metrics,
+            "config": {
+                "initial_capital": float(self.initial_capital),
+                "size_notional_usd": float(self.size_notional_usd),
+                "fill_mode": "next_open",
+                "timestamp_convention": "bar_start_utc"
+            },
+            "equity_curve": self.equity_curve,
             "trades": self.trades
         }
+        
+        if len(self.trades) == 0:
+            report["no_trades_reason"] = "Strategy never triggered or insufficient data for next_open fill"
+            
+        return report

@@ -1,0 +1,48 @@
+{
+  "run_id": "171644",
+  "timestamp": "2026-02-16T17:16:44.261891",
+  "start_equity": 10000.0,
+  "end_equity": 10000.0,
+  "total_return": 0.0,
+  "cagr": 0.0,
+  "max_drawdown": 0.0,
+  "sharpe": null,
+  "trades_count": 0,
+  "win_rate": 0.0,
+  "avg_trade_return": 0.0,
+  "exposure_time": 0.0,
+  "start_ts": "2024-01-01T00:00:00+00:00",
+  "end_ts": "2024-01-01T00:24:00+00:00",
+  "per_symbol": {
+    "BTCUSDT_1m": {
+      "start_equity": 10000.0,
+      "end_equity": 10000.0,
+      "total_return": 0.0,
+      "cagr": 0.0,
+      "max_drawdown": 0.0,
+      "sharpe": null,
+      "trades_count": 0,
+      "win_rate": 0.0,
+      "avg_trade_return": 0.0,
+      "exposure_time": 0.0,
+      "start_ts": "2024-01-01T00:00:00+00:00",
+      "end_ts": "2024-01-01T00:24:00+00:00"
+    }
+  },
+  "config": {
+    "initial_capital": 10000.0,
+    "size_mode": "notional_usd",
+    "size_notional_usd": 1000.0,
+    "fee_bps": 4.0,
+    "slippage_bps": 2.0,
+    "fill_mode": "next_open",
+    "timestamp_convention": "bar_start_utc",
+    "symbols": [
+      "BTCUSDT"
+    ],
+    "timeframes": [
+      "1m"
+    ]
+  },
+  "no_trades_reason": "Strategy never triggered or insufficient data for next_open fill"
+}
