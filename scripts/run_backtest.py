@@ -12,6 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../src"))
 
 from hongstr.semantics.core import SemanticsV1
 from hongstr.backtest.engine import BacktestEngine
+from hongstr.backtest.metrics import calc_metrics
 from hongstr.signal.resample import resample_bars
 from hongstr.signal.types import Bar
 from hongstr.signal.strategies.vwap_supertrend import VWAPSupertrendStrategy
@@ -179,21 +180,61 @@ def main():
         
     # Combine trades from all symbols/TFs
     all_trades = []
+    equity_dfs = []
+    
     for k, res in all_results.items():
         all_trades.extend(res['trades'])
         
+        # Log Counts
+        counts = res.get('counts', {})
+        bars_n = counts.get('bars', 0)
+        sigs_n = counts.get('signals', 0)
+        trds_n = counts.get('trades', 0)
+        reason = res.get('no_trades_reason', '')
+        print(f"  {k}: Bars={bars_n}, Signals={sigs_n}, Trades={trds_n} {f'({reason})' if reason else ''}")
+        
+        # Prepare for aggregation
+        eq_curve = res.get('equity_curve', [])
+        if eq_curve:
+            df_eq = pd.DataFrame(eq_curve)
+            df_eq['ts'] = pd.to_datetime(df_eq['ts'])
+            df_eq.set_index('ts', inplace=True)
+            # Use just the equity column, rename to key to distinguish
+            equity_dfs.append(df_eq['equity'].rename(k))
+
     # Global Summary
-    # Simple aggregation for now: Average total return or sum?
-    # Usually we want a portfolio view, but C15 focus is isolated runs.
-    # We'll export a summary that lists per-symbol metrics.
-    
-    # Combined Summary (Global)
-    # If single symbol/tf, we promote its metrics to root.
-    # If multiple, we should ideally aggregate (notional weighting), but for MVP 
-    # we'll just use the first as base and notify it's per-symbol.
-    first_res = list(all_results.values())[0]
-    global_metrics = first_res['metrics'].copy()
-    
+    if not equity_dfs:
+        print("No equity curves generated.")
+        # Fallback empty metrics
+        global_metrics = calc_metrics(pd.DataFrame(), []) 
+    else:
+        # Align all curves
+        # Use outer join to cover full range. 
+        # Missing values (e.g. before start or after end) should be filled.
+        # Before start: initial_capital. After end: last equity.
+        agg_df = pd.concat(equity_dfs, axis=1)
+        
+        # ffill/bfill defaults. 
+        # If a backtest hasn't started yet for a symbol, its equity is effectively initial_capital.
+        agg_df.fillna(args.initial_capital, inplace=True)
+        
+        # Sum equities?
+        # If we run 3 symbols, we have 3 independent accounts of 10k each.
+        # Total Portfolio Value = Sum(Equity_i).
+        agg_equity = agg_df.sum(axis=1)
+        
+        # Re-calc metrics on aggregated curve
+        # calc_metrics expects a DataFrame with 'equity' column
+        metrics_input_df = pd.DataFrame(agg_equity, columns=['equity'])
+        # Also need cash/pos for perfect metrics? calc_metrics mainly uses equity for Sharpe/DD.
+        # It calculates returns from equity diffs.
+        
+        try:
+            global_metrics = calc_metrics(metrics_input_df, all_trades)
+        except Exception as e:
+            print(f"Error calculating global metrics: {e}")
+            global_metrics = {}
+
     summary = {
         "run_id": run_id,
         "timestamp": datetime.utcnow().isoformat(),
@@ -212,8 +253,9 @@ def main():
         }
     }
     
+    # Check if GLOBAL filtering happened
     if len(all_trades) == 0:
-        summary["no_trades_reason"] = "Strategy never triggered or insufficient data for next_open fill"
+        summary["no_trades_reason"] = "No trades in any symbol/timeframe."
     
     # Save Files
     with open(out_dir / "summary.json", 'w') as f:

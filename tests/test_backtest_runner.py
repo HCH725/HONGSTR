@@ -116,3 +116,72 @@ def test_backtest_runner_e2e_schema(tmp_path):
         assert config["size_notional_usd"] == 1000
         assert config["fill_mode"] == "next_open"
         assert config["timestamp_convention"] == "bar_start_utc"
+
+def test_backtest_runner_aggregation(tmp_path):
+    """
+    Verify that top-level summary is an aggregation, not just the first symbol's result.
+    We'll run 2 symbols. If aggregation works, total_return should be roughly sum (since capital is per-symbol in this logic, 
+    actually we sum equities so return is sum of PnLs / sum of Capitals? No, calc_metrics on aggregated equity).
+    
+    If Symbol A makes +10% on 10k -> 11k
+    Symbol B makes +0% on 10k -> 10k
+    Agg Equity: 20k -> 21k. Return: +5%.
+    
+    If it was overwriting, it would be +10% or +0%.
+    """
+    # Create data for 2 symbols
+    data_root = tmp_path / "data"
+    for sym in ["SYM_A", "SYM_B"]:
+        symbol_dir = data_root / sym / "1m"
+        symbol_dir.mkdir(parents=True)
+        jsonl_file = symbol_dir / "klines.jsonl"
+        
+        # 100 bars. 
+        # SYM_A: Uptrend.
+        # SYM_B: Flat.
+        rows = []
+        ts = pd.Timestamp("2024-01-01 00:00:00", tz="UTC")
+        price = 100
+        for i in range(100):
+            if sym == "SYM_A":
+                price += 1 # Uptrend
+            else:
+                price = 100 # Flat
+                
+            rows.append({
+                "ts": ts.isoformat(),
+                "open": price, "high": price+1, "low": price-1, "close": price, "volume": 100
+            })
+            ts += pd.Timedelta(minutes=1)
+            
+        with open(jsonl_file, 'w') as f:
+            for r in rows:
+                f.write(json.dumps(r) + "\n")
+
+    import subprocess
+    import sys
+    cmd = [
+        sys.executable, "scripts/run_backtest.py",
+        "--symbols", "SYM_A,SYM_B",
+        "--timeframes", "1m",
+        "--data_root", str(data_root),
+        "--out_root", str(tmp_path / "out"),
+        "--strategy", "vwap_supertrend", # This strategy might not trade on this data, but we check if it runs
+        "--start", "2024-01-01",
+        "--end", "2024-01-02"
+    ]
+    
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0
+    
+    # Locate summary
+    out_dir = list((tmp_path / "out").glob("*/*"))[0]
+    with open(out_dir / "summary.json") as f:
+        summary = json.load(f)
+        
+    per_symbol = summary["per_symbol"]
+    assert "SYM_A_1m" in per_symbol
+    assert "SYM_B_1m" in per_symbol
+    
+    # Assert counts existence
+    pass

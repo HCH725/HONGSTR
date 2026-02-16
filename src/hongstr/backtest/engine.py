@@ -35,6 +35,7 @@ class BacktestEngine:
         
         # Pending order for next_open fill
         self.pending_order: Optional[Dict[str, Any]] = None
+        self.signals_count = 0
 
     def run(self, symbol: str, strategy_stub=None):
         """
@@ -76,10 +77,11 @@ class BacktestEngine:
             self.equity_df['ts'] = pd.to_datetime(self.equity_df['ts'])
             self.equity_df.set_index('ts', inplace=True)
         
-        return self._generate_report(symbol)
+        return self._generate_report(symbol, len(df))
 
     def _process_signal(self, ts, direction):
         """Queue an order for the next bar's open."""
+        self.signals_count += 1
         # Simple Logic: Only queue if it changes position
         if direction == "LONG" and self.position_qty > 0: return
         if direction == "SHORT" and self.position_qty < 0: return
@@ -163,12 +165,17 @@ class BacktestEngine:
             unrealized = (current_price - self.entry_price) * self.position_qty
         self.equity = self.capital + unrealized
 
-    def _generate_report(self, symbol):
+    def _generate_report(self, symbol, total_bars):
         metrics = calc_metrics(self.equity_df, self.trades)
         
         report = {
             "symbol": symbol,
             "metrics": metrics,
+            "counts": {
+                "bars": total_bars,
+                "signals": self.signals_count,
+                "trades": len(self.trades)
+            },
             "config": {
                 "initial_capital": float(self.initial_capital),
                 "size_notional_usd": float(self.size_notional_usd),
@@ -180,6 +187,11 @@ class BacktestEngine:
         }
         
         if len(self.trades) == 0:
-            report["no_trades_reason"] = "Strategy never triggered or insufficient data for next_open fill"
+            if self.signals_count == 0:
+                report["no_trades_reason"] = "strategy_emitted_no_signals"
+            elif total_bars < 2:
+                report["no_trades_reason"] = "insufficient_bars_for_next_open"
+            else:
+                report["no_trades_reason"] = "signals_emitted_but_all_filtered_or_unfilled"
             
         return report
