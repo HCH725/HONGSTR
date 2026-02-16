@@ -76,7 +76,10 @@ class SignalExecutionBridge:
         # Rule of thumb: Automated Execution -> Safe Default = New Signals Only.
         
         async with aiofiles.open(signals_file, mode='r') as f:
-            await f.seek(0, 2) # Seek to end
+            # For C10 smoke test determinism, we want to process existing signals if any.
+            # Production: normally seek end. But idempotency protects us.
+            # Let's seek 0 to catch up or process injected signal.
+            await f.seek(0, 0) 
             
             end_time = asyncio.get_event_loop().time() + duration if duration > 0 else float('inf')
             

@@ -32,14 +32,34 @@ class ExecutionEngine:
             # Returning None stops this signal.
             return None
 
+    def _persist_execution(self, event_type: str, data: dict):
+        # types: "INTENT", "RESULT"
+        # file: data/state/execution_{type}.jsonl
+        try:
+            filename = f"execution_{event_type.lower()}.jsonl"
+            path = os.path.join(self.state_dir, filename)
+            with open(path, 'a') as f:
+                entry = data.copy()
+                entry['ts'] = str(pd.Timestamp.now())
+                f.write(json.dumps(entry, default=str) + "\n")
+                f.flush()
+                os.fsync(f.fileno())
+        except Exception as e:
+            send_alert(f"Failed to persist execution: {e}", "WARN")
+
     def execute_signal(self, signal: SignalEvent):
+        # Persist Intent
+        self._persist_execution("INTENT", {"signal": signal.__dict__})
+
         if OFFLINE_MODE:
             send_alert(f"Signal ignored (OFFLINE): {signal.symbol}", "WARN")
             return
 
         # 1. Validate Signal
         selection_data = self.load_selection()
-        if not selection_data: 
+        if not selection_data:
+            send_alert("Selection Artifact Missing/Invalid. Ignoring signal.", "WARN")
+            self._persist_execution("SKIPPED", {"reason": "No Selection Artifact", "signal_id": str(signal.ts)})
             return
             
         # 2. Risk Checks
@@ -79,6 +99,7 @@ class ExecutionEngine:
         )
         
         res = self.broker.place_order(req)
+        self._persist_execution("RESULT", {"order": req.__dict__, "result": res.__dict__})
         
         if res.status == 'FILLED' or res.status == 'NEW': 
              send_alert(f"Entry {side} {signal.symbol} Executed @ {res.avg_price}", "INFO")
