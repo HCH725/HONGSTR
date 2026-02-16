@@ -93,12 +93,34 @@ bash scripts/retention_cleanup.sh
 | :--- | :--- | :--- | :--- |
 | `realtime_ws` | Always On | Live feed & signal generation | 14d gzip, 45d deletion |
 | `daily_etl` | 02:00 | Sync historical & derived data | N/A |
-| `daily_healthcheck`| 02:30 | Verify system integrity | N/A |
-| `retention_cleanup`| 03:00 | Disk space management | Keep latest 50 runs |
+| `daily_healthcheck` | 02:30 | Verify system integrity | N/A |
+| `retention_cleanup` | 03:00 | Disk space management | Keep latest 50 runs |
 
-## Troubleshooting
+## Verification & PKG-4 Commands
 
-- **Python not found**: The services use `__REPO_ROOT__/.venv/bin/python`. Ensure the path is correct after deployment.
-- **Permission Denied**: Check executable permissions: `chmod +x scripts/*.sh`.
-- **WS Disconnect**: `run_realtime_service.sh` has a backoff-loop (2s to 60s) to handle intermittent network issues.
-- **Modify Schedule**: Edit the `StartCalendarInterval` in the corresponding `.plist`, then `bootout` and `bootstrap` again.
+After deployment, you can verify everything is working with:
+
+```bash
+# Run the automated verification script
+chmod +x scripts/verify_local_services.sh
+./scripts/verify_local_services.sh
+```
+
+### Deep Inspection
+
+If a service shows a non-zero exit code in `launchctl list`, use:
+
+```bash
+# Print detailed state of a job
+launchctl print gui/$(id -u)/com.hongstr.realtime_ws
+
+# Check launchd-specific logs
+tail -f logs/launchd_realtime_ws.err.log
+```
+
+## Common Issues & Troubleshooting
+
+1. **"Already bootstrapped"**: If you updated a plist, you must `bootout` before `bootstrap` again.
+2. **$PATH issues**: Launchd has a minimal PATH. The plists explicitly set `/usr/local/bin:/usr/bin:/bin`, but if your `python3` or `git` is elsewhere, you may need to edit the `EnvironmentVariables` in the `.plist`.
+3. **Permissions**: Ensure all scripts are executable: `chmod +x scripts/*.sh`.
+4. **Data Missing**: If healthcheck fails, verify `data/derived/` contains klines. Run `bash scripts/daily_etl.sh` manually once to prime the data.
