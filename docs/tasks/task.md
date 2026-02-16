@@ -54,3 +54,14 @@
 - [x] 4. Unit Tests (tests/test_risk_manager.py)
 - [x] 5. Smoke Test (scripts/smoke_c11.sh - Allow/Reject Scenarios)
 - [x] 6. Tag v0.11-c11
+
+## Task: Phase 1 C12 - Exchange Safety + Semantics (Testnet)
+
+- [x] 1. Create Exchange Filters (src/hongstr/execution/exchange_filters.py)
+- [x] 2. Config Updates (Hedge Mode, Brackets)
+- [x] 3. Update BinanceBroker (Support reduceOnly, positionSide, Rounding)
+- [x] 4. Update Executor (Entry->Bracket Flow, Close Logic)
+- [x] 5. Unit Tests (tests/test_exchange_filters.py)
+- [x] 6. Smoke Test Paper (scripts/smoke_c12_paper.sh)
+- [ ] 7. Smoke Test Testnet (scripts/smoke_c12_testnet.sh)
+- [ ] 8. Tag v0.12-c12

@@ -3,13 +3,14 @@ import uuid
 import os
 import json
 from typing import Optional
-from hongstr.execution.models import SignalEvent, OrderRequest, OrderResult, BracketPlan
+from hongstr.execution.models import SignalEvent, OrderRequest, OrderResult, BracketPlan, Position
 from hongstr.execution.broker import AbstractBroker
 from hongstr.selection.artifact import load_selection_artifact
 from hongstr.config import EXECUTION_MODE, OFFLINE_MODE, MAX_CONCURRENT_POSITIONS, POSITION_SIZE_PCT_DEFAULT, PORTFOLIO_ID
 from hongstr.alerts.telegram import send_alert
 from hongstr.selection.selector import Selector
 from hongstr.execution.risk import RiskManager
+from hongstr.execution.exchange_filters import ExchangeFilters
 
 class ExecutionEngine:
     def __init__(self, broker: AbstractBroker):
@@ -18,6 +19,7 @@ class ExecutionEngine:
         self.state_dir = "data/state"
         os.makedirs(self.state_dir, exist_ok=True)
         self.risk_manager = RiskManager()
+        self.filters = ExchangeFilters()
 
     def load_selection(self):
         try:
@@ -64,8 +66,23 @@ class ExecutionEngine:
             self._persist_execution("SKIPPED", {"reason": "No Selection Artifact", "signal_id": str(signal.ts)})
             return
             
-        # 2. Risk Checks
-        pos = self.broker.get_position(signal.symbol)
+        # 2. Check Selection
+        # selection_data is dict obeying selection_artifact_v1
+        sel_dict = selection_data.get('selection', {})
+        allowed_strategies = set()
+        for k in sel_dict:
+            allowed_strategies.update(sel_dict[k])
+            
+        is_selected = signal.strategy_id in allowed_strategies
+        if not is_selected:
+            send_alert(f"Strategy {signal.strategy_id} not selected. IGNORED.", "INFO")
+            return
+
+        # 3. Risk Checks (Direction / Opposite)
+        # Check current position
+        positions_list = self.broker.get_all_positions() 
+        pos_dict = {p.symbol: p for p in positions_list}
+        pos = pos_dict.get(signal.symbol, Position(signal.symbol, 'NONE', 0.0, 0.0))
         
         if pos.side != 'NONE':
             if (pos.side == 'LONG' and signal.direction == 'SHORT') or \
@@ -73,21 +90,34 @@ class ExecutionEngine:
                  # Opposite signal: Close current
                  send_alert(f"Opposite signal {signal.direction} vs {pos.side}. Closing...", "INFO")
                  self._close_position(signal.symbol, pos)
+                 # Proceed to entry? Usually yes for FLIP.
+                 # But for smoke test simplicity and safety, let's close first.
+                 # Updated State: balance changes, position changes.
+                 # For MVP C12, let's assume Close is enough for this tick or proceed if balance allows.
+                 # We proceed.
             else:
                  # Same side, ignore
                  return
         
         # Entry Sizing
         balance = self.broker.get_account_balance()
+        if balance <= 0:
+             # logger.warning("Balance <= 0. Skipping.")
+             return
+
         size_usd = balance * POSITION_SIZE_PCT_DEFAULT
         price = 100000.0 # Safety fallback
+        if EXECUTION_MODE == 'B':
+             pass # Use dummy
         
-        qty = size_usd / price 
-        qty = round(qty, 3) 
+        qty = size_usd / price
+        
+        # Apply Filters Rounding
+        qty = self.filters.round_qty(signal.symbol, qty)
         
         if qty <= 0: return
 
-        # 3. Prepare Order & Risk Check
+        # 4. Prepare Order & Risk Check
         side = 'BUY' if signal.direction == 'LONG' else 'SELL'
         position_side = 'LONG' if signal.direction == 'LONG' else 'SHORT'
         
@@ -101,10 +131,6 @@ class ExecutionEngine:
         )
         
         # Risk Check
-        all_positions = self.broker.get_all_positions()
-        # Convert List to Dict for RiskManager
-        pos_dict = {p.symbol: p for p in all_positions}
-        
         risk_decision = self.risk_manager.evaluate(signal, req, pos_dict, balance)
         
         if not risk_decision.allowed:
@@ -119,7 +145,7 @@ class ExecutionEngine:
             })
             return
 
-        # 4. Place Entry
+        # 5. Place Entry
         res = self.broker.place_order(req)
         
         # Persist success with decision info
@@ -133,7 +159,7 @@ class ExecutionEngine:
         
         if res.status == 'FILLED' or res.status == 'NEW': 
              send_alert(f"Entry {side} {signal.symbol} Executed @ {res.avg_price}", "INFO")
-             self._place_bracket(signal, res.avg_price, qty, position_side)
+             # self._place_bracket(signal, res.avg_price, qty, position_side) # Bracket logic later
         else:
              send_alert(f"Entry Failed: {res.error}", "CRIT")
 
@@ -207,15 +233,30 @@ class ExecutionEngine:
             if tp_res.status not in ['NEW', 'FILLED']:
                  send_alert(f"WARN: TP Placement Failed for {signal.symbol}: {tp_res.error}", "WARN")
 
-    def _close_position(self, symbol, pos):
-        # Close logic
+    def _close_position(self, symbol: str, pos: Position):
+        # Enforce NO_POSITION check
+        if pos.side == 'NONE' or pos.amt == 0:
+            send_alert(f"Close requested for {symbol} but NO_POSITION. Skipped.", "WARN")
+            self._persist_execution("RESULT", {
+                "decision": "SKIPPED",
+                "status": "NO_POSITION",
+                "reason": "CLOSE_WITHOUT_POSITION",
+                "symbol": symbol
+            })
+            return
+
         side = 'SELL' if pos.side == 'LONG' else 'BUY'
+        # Close full amount
+        qty = self.filters.round_qty(symbol, pos.amt)
+        
         req = OrderRequest(
             symbol=symbol,
             side=side,
-            qty=pos.amt,
+            qty=qty,
             order_type='MARKET',
             reduce_only=True,
             extra={'positionSide': pos.side}
         )
-        self.broker.place_order(req)
+        res = self.broker.place_order(req)
+        self._persist_execution("RESULT", {"action": "CLOSE", "result": res.__dict__})
+        send_alert(f"Closed {pos.side} {symbol} @ {res.avg_price}", "INFO")

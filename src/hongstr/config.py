@@ -50,9 +50,13 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 TELEGRAM_ALERT_CHAT_ID = os.getenv("TELEGRAM_ALERT_CHAT_ID", TELEGRAM_CHAT_ID)
 
 # Binance Testnet
+# Binance Testnet
 BINANCE_TESTNET_BASE_URL = os.getenv("BINANCE_TESTNET_BASE_URL", "https://testnet.binancefuture.com")
 BINANCE_API_KEY = os.getenv("BINANCE_API_KEY", "")
 BINANCE_SECRET_KEY = os.getenv("BINANCE_SECRET_KEY", "")
+BINANCE_HEDGE_MODE = os.getenv("BINANCE_HEDGE_MODE", "true").lower() == "true"
+ENABLE_BRACKETS = os.getenv("ENABLE_BRACKETS", "true").lower() == "true"
+DEFAULT_TESTNET_SYMBOL = os.getenv("DEFAULT_TESTNET_SYMBOL", "BTCUSDT")
 
 # Reconcile
 RECONCILE_INTERVAL_SEC = int(os.getenv("RECONCILE_INTERVAL_SEC", "10"))

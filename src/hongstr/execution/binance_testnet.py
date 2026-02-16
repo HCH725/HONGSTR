@@ -6,17 +6,24 @@ import pandas as pd
 from typing import List, Optional
 from hongstr.execution.broker import AbstractBroker
 from hongstr.execution.models import OrderRequest, OrderResult, Position
-from hongstr.config import BINANCE_TESTNET_BASE_URL, BINANCE_API_KEY, BINANCE_SECRET_KEY, OFFLINE_MODE
+from hongstr.config import (
+    BINANCE_TESTNET_BASE_URL, 
+    BINANCE_API_KEY, 
+    BINANCE_SECRET_KEY, 
+    OFFLINE_MODE,
+    BINANCE_HEDGE_MODE
+)
+from hongstr.execution.exchange_filters import ExchangeFilters
 from hongstr.alerts.telegram import send_alert
 
 class BinanceFuturesTestnetBroker(AbstractBroker):
-    def __init__(self):
-        self.base_url = BINANCE_TESTNET_BASE_URL
-        self.key = BINANCE_API_KEY
+    def __init__(self, semantics: str = "Testnet"):
         self.base_url = BINANCE_TESTNET_BASE_URL
         self.key = BINANCE_API_KEY
         self.secret = BINANCE_SECRET_KEY
+        self.semantics = semantics
         self._margin_checked = set()
+        self.filters = ExchangeFilters()
 
     def _ensure_isolated_margin(self, symbol: str):
         if OFFLINE_MODE: return
@@ -74,53 +81,43 @@ class BinanceFuturesTestnetBroker(AbstractBroker):
             raise RuntimeError("OFFLINE_MODE")
 
         self._ensure_isolated_margin(order.symbol)
+        
+        # Apply Filters
+        qty = self.filters.round_qty(order.symbol, order.qty)
+        price = self.filters.round_price(order.symbol, order.price) if order.price else None
 
         endpoint = "/fapi/v1/order"
         
-        # Map fields
-        # Hedge mode: needs positionSide.
-        # OrderRequest.side = BUY/SELL
-        # OrderRequest has NO positionSide? We need to infer from side/intent?
-        # NO, C5 requirement: "Hedge mode: long/short tracked independently"
-        # Since we are automating strategies, usually we map Strategy 'LONG' signal to 'LONG' position side.
-        # BUT OrderRequest is just BUY/SELL. 
-        # Broker needs to know if this is Opening LONG, Closing LONG, Opening SHORT, Closing SHORT.
-        # Let's rely on 'extra' or convention.
-        # Convention: Strategies output LONG/SHORT direction.
-        # Entry LONG: side=BUY, positionSide=LONG
-        # Exit LONG: side=SELL, positionSide=LONG (reduceOnly=True usually, but strictly positionSide must match)
+        # Determine Position Side
+        # In Hedge Mode, closing requires explicit positionSide matching the position being closed.
+        # Opening requires explicit positionSide (LONG for Buy, SHORT for Sell usually).
+        # We rely on 'extra' or default logic.
         
-        # We need to enhance OrderRequest or Executor logic to pass positionSide.
-        # Use order.extra['positionSide'] if present, else default?
-        
-        position_side = order.extra.get('positionSide', 'BOTH') if order.extra else 'BOTH'
+        pos_side = 'BOTH' # Default for One-way
+        if BINANCE_HEDGE_MODE:
+            if order.extra and 'positionSide' in order.extra:
+                pos_side = order.extra['positionSide']
+            else:
+                # Fallback: BUY -> LONG, SELL -> SHORT? 
+                # Risky if closing. But Executor should have set extra.
+                pos_side = 'LONG' if order.side == 'BUY' else 'SHORT'
         
         params = {
             "symbol": order.symbol,
             "side": order.side,
             "type": order.order_type,
-            "quantity": order.qty,
-            "positionSide": position_side 
+            "quantity": qty,
+            "positionSide": pos_side
         }
         
-        if order.price:
-            params["price"] = order.price
+        if price:
+            params["price"] = price
             params["timeInForce"] = "GTC"
             
-        if order.reduce_only:
-             # In hedge mode, reduceOnly param is NOT valid. You must use closePosition or proper side logic.
-             # Actually for LIMIT orders in Hedge Mode, you just place opposite side order on same positionSide.
-             # It acts as reduce if net position is closed.
-             # Binance API: "reduceOnly" is True or False. valid in One-way.
-             # In Hedge Mode: reduceOnly is not sent. 
-             # WE MUST KNOW IF WE ARE IN HEDGE MODE. 
-             # Spec says: "Hedge mode: long/short tracked independently".
-             # So we assume Hedge Mode is ON.
-             # Thus, do NOT send reduceOnly=True. Send side=SELL, positionSide=LONG to close long.
-             pass
-        else:
-             # Not reduce only
-             pass
+        # ReduceOnly logic
+        if not BINANCE_HEDGE_MODE and order.reduce_only:
+            params["reduceOnly"] = "true"
+        # In Hedge Mode, reduceOnly is implied by closing opposite side.
 
         # If client_order_id
         if order.client_order_id:
@@ -138,9 +135,10 @@ class BinanceFuturesTestnetBroker(AbstractBroker):
                     pd.Timestamp.now()
                 )
             else:
-                 return OrderResult("err", "REJECTED", 0, 0, pd.Timestamp.now(), error=r.text)
+                err = r.json()
+                return OrderResult("", "EXCHANGE_REJECTED", 0.0, 0.0, pd.Timestamp.now(), error=f"{err.get('code')} {err.get('msg')}")
         except Exception as e:
-            return OrderResult("err", "ERROR", 0, 0, pd.Timestamp.now(), error=str(e))
+            return OrderResult("", "EXCHANGE_ERROR", 0.0, 0.0, pd.Timestamp.now(), error=str(e))
 
     def cancel_order(self, symbol: str, order_id: str) -> bool:
         if OFFLINE_MODE: return False
