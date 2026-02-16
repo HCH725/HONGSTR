@@ -114,6 +114,16 @@ MANDATORY: Update this file after each conversation (C1->C6).
   - `pytest tests/test_funding_schedule.py`: Passed.
   - Smoke Test: Passed.
 
+## [C6-HOTFIX-IDE] 2026-02-17 01:45 (GMT+8)
+
+- **Action**: Force-reinstall dependencies + Editable install.
+- **Commands**:
+  - `pip install -U pandas numpy pytz python-dotenv requests`
+  - `pip install -e .`
+- **Goal**: Fix persistent Pyright "missing-module-attribute" by refreshing site-packages linking.
+- **Verification**: `python -c "import pandas; import hongstr"` (Success).
+- **Next**: User must Reload Window.
+
 ## [C4] Strategy Pool + Portfolio + Regime
 
 - **Date**: 2026-02-16 20:20 (GMT+8)
@@ -211,3 +221,34 @@ MANDATORY: Update this file after each conversation (C1->C6).
 - **Next Actions**:
   - Phase 0 Complete. Freeze `v0.6-c6`.
   - Proceed to Phase 1 Planning.
+
+## [C6-HOTFIX-IDE] 2026-02-17 01:55 (GMT+8)
+
+- **Action**: Force-reinstall dependencies + Editable install.
+- **Commands**:
+  - `pip install -U pandas numpy pytz python-dotenv requests`
+  - `pip install -e .`
+- **Goal**: Fix persistent Pyright "missing-module-attribute" by refreshing site-packages linking.
+- **Verification**: `python -c "import pandas; import hongstr"` (Success).
+- **Status**: RESOLVED (VSCode diagnostics clean).
+
+## [C7] Real-time Data Feeds (Binance WebSocket)
+
+- **Date**: 2026-02-16 22:45 (GMT+8)
+- **Built Items**:
+  - `src/hongstr/realtime`: Types, WebSocket client, StreamManager.
+  - `scripts/run_ws.py`: Smoke test script.
+  - `tests/test_realtime_ws.py`: Unit tests.
+- **Files Changed**:
+  - `src/hongstr/config.py`
+  - `src/hongstr/realtime/types.py`
+  - `src/hongstr/realtime/binance_ws.py`
+  - `src/hongstr/realtime/stream_manager.py`
+  - `scripts/run_ws.py`
+  - `tests/test_realtime_ws.py`
+- **Config**: Added `REALTIME_*` keys to `config.py`.
+- **Persistence**: JSONL files in `data/realtime/{date}/`.
+- **Verification**:
+  - Unit tests passed (`pytest tests/test_realtime_ws.py`).
+  - Smoke test ran successfully (`python scripts/run_ws.py`).
+- **Next Actions**: Proceed to C8 (Signal Engine).

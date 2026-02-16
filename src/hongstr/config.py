@@ -50,3 +50,12 @@ BINANCE_SECRET_KEY = os.getenv("BINANCE_SECRET_KEY", "")
 
 # Reconcile
 RECONCILE_INTERVAL_SEC = int(os.getenv("RECONCILE_INTERVAL_SEC", "10"))
+
+# Realtime Feeds (C7)
+REALTIME_ENABLED = os.getenv("REALTIME_ENABLED", "true").lower() == "true"
+REALTIME_SYMBOLS = os.getenv("REALTIME_SYMBOLS", "BTCUSDT,ETHUSDT").split(",")
+REALTIME_STREAMS = os.getenv("REALTIME_STREAMS", "aggTrade,kline_1m").split(",")
+REALTIME_OUT_DIR = os.getenv("REALTIME_OUT_DIR", str(DATA_DIR / "realtime"))
+REALTIME_WS_BASE = os.getenv("REALTIME_WS_BASE", "wss://stream.binance.com:9443/stream")
+REALTIME_RUN_SECONDS = int(os.getenv("REALTIME_RUN_SECONDS", "30"))
+REALTIME_RECONNECT_MAX_DELAY = int(os.getenv("REALTIME_RECONNECT_MAX_DELAY", "60"))
