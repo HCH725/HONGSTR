@@ -9,6 +9,7 @@ from hongstr.selection.artifact import load_selection_artifact
 from hongstr.config import EXECUTION_MODE, OFFLINE_MODE, MAX_CONCURRENT_POSITIONS, POSITION_SIZE_PCT_DEFAULT, PORTFOLIO_ID
 from hongstr.alerts.telegram import send_alert
 from hongstr.selection.selector import Selector
+from hongstr.execution.risk import RiskManager
 
 class ExecutionEngine:
     def __init__(self, broker: AbstractBroker):
@@ -16,6 +17,7 @@ class ExecutionEngine:
         self.selector = Selector({}) 
         self.state_dir = "data/state"
         os.makedirs(self.state_dir, exist_ok=True)
+        self.risk_manager = RiskManager()
 
     def load_selection(self):
         try:
@@ -85,9 +87,9 @@ class ExecutionEngine:
         
         if qty <= 0: return
 
-        # 3. Place Entry (MARKET)
+        # 3. Prepare Order & Risk Check
         side = 'BUY' if signal.direction == 'LONG' else 'SELL'
-        position_side = 'LONG' if signal.direction == 'LONG' else 'SHORT' # Hedge mode
+        position_side = 'LONG' if signal.direction == 'LONG' else 'SHORT'
         
         req = OrderRequest(
             symbol=signal.symbol,
@@ -98,8 +100,36 @@ class ExecutionEngine:
             extra={'positionSide': position_side}
         )
         
+        # Risk Check
+        all_positions = self.broker.get_all_positions()
+        # Convert List to Dict for RiskManager
+        pos_dict = {p.symbol: p for p in all_positions}
+        
+        risk_decision = self.risk_manager.evaluate(signal, req, pos_dict, balance)
+        
+        if not risk_decision.allowed:
+            send_alert(f"Risk Reject: {risk_decision.reason}", "WARN")
+            self._persist_execution("RESULT", {
+                "signal": signal.__dict__,
+                "order": req.__dict__,
+                "decision": "REJECTED",
+                "status": "REJECTED_RISK",
+                "reason": risk_decision.reason,
+                "details": risk_decision.details
+            })
+            return
+
+        # 4. Place Entry
         res = self.broker.place_order(req)
-        self._persist_execution("RESULT", {"order": req.__dict__, "result": res.__dict__})
+        
+        # Persist success with decision info
+        res_data = {
+            "order": req.__dict__, 
+            "result": res.__dict__,
+            "decision": "ALLOWED",
+            "reason": "ALLOWED"
+        }
+        self._persist_execution("RESULT", res_data)
         
         if res.status == 'FILLED' or res.status == 'NEW': 
              send_alert(f"Entry {side} {signal.symbol} Executed @ {res.avg_price}", "INFO")

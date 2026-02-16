@@ -38,6 +38,10 @@ LEVERAGE_DEFAULT = int(os.getenv("LEVERAGE_DEFAULT", "2"))
 LEVERAGE_MAX = int(os.getenv("LEVERAGE_MAX", "3"))
 MAX_CONCURRENT_POSITIONS = int(os.getenv("MAX_CONCURRENT_POSITIONS", "3"))
 MAX_TOTAL_EXPOSURE_PCT = float(os.getenv("MAX_TOTAL_EXPOSURE_PCT", "0.95")) # 95%
+MAX_TOTAL_EXPOSURE = float(os.getenv("MAX_TOTAL_EXPOSURE", "50000.0")) # Cap absolute notional
+MAX_ORDER_NOTIONAL = float(os.getenv("MAX_ORDER_NOTIONAL", "5000.0"))
+ALLOW_LONG = os.getenv("ALLOW_LONG", "true").lower() == "true"
+ALLOW_SHORT = os.getenv("ALLOW_SHORT", "true").lower() == "true"
 POSITION_SIZE_PCT_DEFAULT = float(os.getenv("POSITION_SIZE_PCT_DEFAULT", "0.1")) # 10% per trade
 
 # Alerts

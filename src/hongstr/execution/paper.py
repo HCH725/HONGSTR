@@ -161,3 +161,6 @@ class PaperBroker(AbstractBroker):
 
     def get_position(self, symbol: str) -> Position:
         return self.positions.get(symbol, Position(symbol, 'NONE', 0.0, 0.0))
+
+    def get_all_positions(self) -> List[Position]:
+        return list(self.positions.values())

@@ -45,3 +45,12 @@
 - [x] 3. Create Tests (tests/test_bridge.py)
 - [x] 4. Smoke Test & Verify
 - [x] 5. Tag v0.10-c10
+
+## Task: Phase 1 C11 - Risk Management (Execution Guardrails)
+
+- [x] 1. Config Updates (Risk Parameters)
+- [x] 2. Create Risk Module (src/hongstr/execution/risk.py)
+- [x] 3. Update Executor (Integrate Risk Checks)
+- [x] 4. Unit Tests (tests/test_risk_manager.py)
+- [x] 5. Smoke Test (scripts/smoke_c11.sh - Allow/Reject Scenarios)
+- [x] 6. Tag v0.11-c11

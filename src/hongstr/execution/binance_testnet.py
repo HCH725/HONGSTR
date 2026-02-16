@@ -196,3 +196,28 @@ class BinanceFuturesTestnetBroker(AbstractBroker):
             return Position(symbol, 'NONE', 0, 0)
         except:
             return Position(symbol, 'NONE', 0, 0)
+
+    def get_all_positions(self) -> List[Position]:
+        if OFFLINE_MODE: return []
+        endpoint = "/fapi/v2/positionRisk"
+        try:
+            r = requests.get(f"{self.base_url}{endpoint}", headers=self._headers(), params=self._sign({}))
+            if r.status_code == 200:
+                data = r.json()
+                # Group by symbol
+                pos_map = {}
+                for p in data:
+                    sym = p['symbol']
+                    amt = float(p['positionAmt'])
+                    if abs(amt) > 0:
+                         # Decide side
+                         side = 'LONG' if amt > 0 else 'SHORT'
+                         # If hedge mode, we might see 2 entries per symbol. 
+                         # Logic similar to get_position but applied to all.
+                         # Simplified: Just grab what's active.
+                         pos_map[sym] = Position(sym, side, abs(amt), float(p['entryPrice']))
+                return list(pos_map.values())
+            return []
+        except Exception as e:
+            send_alert(f"Binance get_all_positions failed: {e}", "WARN")
+            return []

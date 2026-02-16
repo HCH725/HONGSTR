@@ -19,6 +19,11 @@ class AbstractBroker(ABC):
     def get_position(self, symbol: str) -> Position:
         """Should return net position for symbol (or hedge side if specified in symbol/context)"""
         pass
+
+    @abstractmethod
+    def get_all_positions(self) -> List[Position]:
+        """Return all active positions"""
+        pass
     
     @abstractmethod
     def get_account_balance(self) -> float:
