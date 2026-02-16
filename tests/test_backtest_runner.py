@@ -78,8 +78,9 @@ def test_backtest_runner_e2e_schema(tmp_path):
     # We will just run it. vwap_supertrend might not trigger on 10 bars, but summary.json should exist.
     
     import subprocess
+    import sys
     cmd = [
-        "python", "scripts/run_backtest.py",
+        sys.executable, "scripts/run_backtest.py",
         "--symbols", "BTCUSDT",
         "--timeframes", "1m",
         "--data_root", str(data_root),

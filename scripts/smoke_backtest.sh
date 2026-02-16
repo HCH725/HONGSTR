@@ -2,6 +2,14 @@
 export PYTHONPATH=src
 export STRATEGY_TIMEFRAME_SIGNAL=1m
 
+# Pick python
+PY="${PY:-./.venv/bin/python}"
+if [ ! -x "$PY" ]; then
+    PY="python3"
+fi
+
+echo "Using PY=$PY"
+
 echo "--- Preparing Smoke Environment ---"
 SMOKE_ROOT="tmp/smoke_data"
 rm -rf "$SMOKE_ROOT"
@@ -10,7 +18,7 @@ cp tests/fixtures/klines_1m_sample.jsonl "$SMOKE_ROOT/BTCUSDT/1m/klines.jsonl"
 
 echo "--- Running Backtest Runner (Smoke) ---"
 # We use 1m timeframe because our fixture is short.
-python scripts/run_backtest.py \
+"$PY" scripts/run_backtest.py \
     --symbols "BTCUSDT" \
     --timeframes "1m" \
     --data_root "$SMOKE_ROOT" \

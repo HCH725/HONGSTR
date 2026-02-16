@@ -1,0 +1,15 @@
+{
+  "initial_capital": 10000.0,
+  "size_mode": "notional_usd",
+  "size_notional_usd": 1000.0,
+  "fee_bps": 4.0,
+  "slippage_bps": 2.0,
+  "fill_mode": "next_open",
+  "timestamp_convention": "bar_start_utc",
+  "symbols": [
+    "BTCUSDT"
+  ],
+  "timeframes": [
+    "1m"
+  ]
+}

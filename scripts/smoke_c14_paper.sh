@@ -3,9 +3,17 @@ export PYTHONPATH=src
 export EXECUTION_MODE=B
 export PORTFOLIO_ID=HONG
 
+# Pick python
+PY="${PY:-./.venv/bin/python}"
+if [ ! -x "$PY" ]; then
+    PY="python3"
+fi
+
+echo "Using PY=$PY"
+
 # 1. Unit Tests (Minimal subset)
 echo "Running Unit Tests..."
-python -m pytest -q tests/test_bridge.py tests/test_signal_engine_io.py tests/test_signal_resample.py tests/test_realtime_ws.py tests/test_risk_manager.py
+"$PY" -m pytest -q tests/test_bridge.py tests/test_signal_engine_io.py tests/test_signal_resample.py tests/test_realtime_ws.py tests/test_risk_manager.py
 if [ $? -ne 0 ]; then
     echo "Unit Tests Failed."
     exit 1
@@ -35,7 +43,7 @@ EOF
 
 echo "Running All-in-One Runner (20s)..."
 # Using dry run / paper mode
-python scripts/run_all_paper.py --seconds 20
+"$PY" scripts/run_all_paper.py --seconds 20
 
 # 3. Verify
 if [ -f data/state/execution_result.jsonl ]; then
