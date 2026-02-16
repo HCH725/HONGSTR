@@ -47,4 +47,6 @@ env/
 data/
 logs/
 secrets/
-*.db
+
+# Temp
+tmp/
