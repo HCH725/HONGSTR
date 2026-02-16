@@ -96,11 +96,7 @@ def main():
     )
     
     # Strategy Init
-    if args.strategy == "vwap_supertrend":
-        strategy = VWAPSupertrendStrategy()
-    else:
-        print(f"Unsupported strategy: {args.strategy}")
-        sys.exit(1)
+    # We will Init strategy inside the loop to allow per-TF config
 
     all_results = {}
     
@@ -139,7 +135,32 @@ def main():
             if not resampled_bars:
                 print(f"    Insufficient data for resampling to {tf}")
                 continue
-                
+            
+            # Strategy Configuration per Timeframe
+            # Defaults
+            atr_period = 10
+            atr_mult = 3.0
+            
+            if tf == "4h":
+                # Looser for 4h to generate more signals? 
+                # Or just standard params might be too tight or too lagging.
+                # Let's try to make it more sensitive for 4h: 
+                # smaller period or smaller mult?
+                # Actually default config ST_ATR_PERIOD=10, MULT=3.
+                # Maybe 4h needs shorter period to react faster? e.g. 7, 2.0?
+                atr_period = 10
+                atr_mult = 2.0 # Detect trend changes earlier
+            
+            # Init Strategy for this run
+            # Important: The strategy class checks env var STRATEGY_TIMEFRAME_SIGNAL.
+            # We must force it to accept current TF.
+            os.environ["STRATEGY_TIMEFRAME_SIGNAL"] = tf
+            
+            if args.strategy == "vwap_supertrend":
+                strategy = VWAPSupertrendStrategy(atr_period=atr_period, atr_mult=atr_mult)
+            else:
+                 sys.exit(1)
+
             # Convert back to DataFrame for Engine
             df_tf = pd.DataFrame([b.__dict__ for b in resampled_bars])
             df_tf.set_index('ts', inplace=True)
@@ -159,7 +180,11 @@ def main():
                 # To optimize: strategies should ideally have an update(bar) method
                 # For Phase 1 C15, we'll slice a window of bars
                 idx = df_tf.index.get_loc(row.name)
-                current_bars = resampled_bars[:idx+1]
+                # Optimization: Strategy only needs last N+5 bars
+                lookback = atr_period + 20
+                start_idx = max(0, idx - lookback + 1)
+                current_bars = resampled_bars[start_idx:idx+1]
+                
                 # vwap_supertrend.on_bars wants (symbol, tf, bars)
                 signal_event = strategy.on_bars(symbol, tf, current_bars)
                 if signal_event:
@@ -167,6 +192,9 @@ def main():
                 return None
 
             result = engine.run(symbol, strategy_stub=strategy_wrapper)
+            
+            # Capture Debug Counts
+            result['debug_counts'] = strategy.debug_counts
             
             res_key = f"{symbol}_{tf}"
             all_results[res_key] = result
@@ -239,7 +267,10 @@ def main():
         "run_id": run_id,
         "timestamp": datetime.utcnow().isoformat(),
         **global_metrics, # total_return, sharpe, max_dd, etc.
-        "per_symbol": {k: res['metrics'] for k, res in all_results.items()},
+        "per_symbol": {
+            k: {**res['metrics'], "debug": res.get('debug_counts', {})} 
+            for k, res in all_results.items()
+        },
         "config": {
             "initial_capital": args.initial_capital,
             "size_mode": "notional_usd",
