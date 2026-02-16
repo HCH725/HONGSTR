@@ -27,12 +27,12 @@
 
 ## Task: Phase 1 C9 - Strategy Implementation
 
-- [ ] 0. Preflight & Skeleton (src/hongstr/signal/strategies)
-- [ ] 1. Config Updates (Strategy Params)
-- [ ] 2. Implement Indicators (src/hongstr/signal/indicators.py)
-- [ ] 3. Implement Strategies (VWAP Supertrend, RSI Div, MACD Div)
-- [ ] 4. Wire Strategies into Engine
-- [ ] 5. Tests (Indicators, Strategies, Engine)
-- [ ] 6. Smoke Scripts (run_signal_strategies.py, smoke_c9.sh)
-- [ ] 7. Verification & Docs
-- [ ] 8. Commit & Tag
+- [x] 0. Preflight & Skeleton (src/hongstr/signal/strategies)
+- [x] 1. Config Updates (Strategy Params)
+- [x] 2. Implement Indicators (src/hongstr/signal/indicators.py)
+- [x] 3. Implement Strategies (VWAP Supertrend, RSI Div, MACD Div)
+- [x] 4. Wire Strategies into Engine
+- [x] 5. Tests (Indicators, Strategies, Engine)
+- [x] 6. Smoke Scripts (run_signal_strategies.py, smoke_c9.sh)
+- [x] 7. Verification & Docs
+- [x] 8. Commit & Tag
