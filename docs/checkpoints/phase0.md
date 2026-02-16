@@ -185,4 +185,29 @@ MANDATORY: Update this file after each conversation (C1->C6).
   - Manual Scripts:
     - `fire_signal_demo.py`: Verified signal execution.
     - `run_reconcile_loop.py`: Verified orphan detection.
-- **Next Actions**: Proceed to C6 (Dashboard).
+- **Next Actions**:
+  - Install Node.js => Start C6 (Dashboard).
+
+## [C6] Dashboard RWD
+
+- **Date**: 2026-02-17 00:30 (GMT+8)
+- **Built Items**:
+  - `web/` directory initialized with Next.js 16 (App Router) + Node 20.
+  - Backend API: `/api/status` serving artifact JSON + env config.
+  - Frontend: Single-page RWD dashboard with auto-refresh (10s polling).
+  - Widgets: System Status, Selection Artifact, Regime, Equity Stub.
+- **Files Changed**:
+  - `web/package.json`
+  - `web/lib/localArtifacts.ts`
+  - `web/app/api/status/route.ts`
+  - `web/app/page.tsx`
+  - `scripts/init_c6_env.sh`, `scripts/verify_c6.sh`
+- **Verification**:
+  - Build: `npm run build` passed (Type Check + Production Build).
+  - Logic: Implemented polling and file reading in API.
+- **Risks**:
+  - `web/` is excluded from git by default in some setups? Need to check `.gitignore`.
+  - Dashboard runs on port 3000 by default (conflict with other apps?).
+- **Next Actions**:
+  - Phase 0 Complete. Freeze `v0.6-c6`.
+  - Proceed to Phase 1 Planning.
