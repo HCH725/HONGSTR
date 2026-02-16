@@ -84,6 +84,20 @@ chmod +x scripts/verify_local_services.sh
 ./scripts/verify_local_services.sh
 ```
 
+### Verify latest completed backtest
+
+To instantly verify the latest *completed* backtest (skipping running ones):
+
+```bash
+export LATEST_DIR="$(bash scripts/get_latest_completed_dir.sh)"; ./.venv/bin/python scripts/verify_latest.py
+```
+
+To wait for the latest run to complete (timeout 20m) and then verify:
+
+```bash
+end=$((SECONDS+1200)); while [ $SECONDS -lt $end ]; do L=$(ls -1dt data/backtests/*/* 2>/dev/null | head -n 1); if [ -f "$L/summary.json" ]; then export LATEST_DIR="$L"; break; fi; sleep 5; done; ./.venv/bin/python scripts/verify_latest.py
+```
+
 ### Deep Inspection
 
 If a service fails:
