@@ -251,4 +251,19 @@ MANDATORY: Update this file after each conversation (C1->C6).
 - **Verification**:
   - Unit tests passed (`pytest tests/test_realtime_ws.py`).
   - Smoke test ran successfully (`python scripts/run_ws.py`).
-- **Next Actions**: Proceed to C8 (Signal Engine).
+
+## [C8] Signal Engine (Real-time buffering + resampling + strategy signals)
+
+- **Date**: 2026-02-16 22:55 (GMT+8)
+- **Built Items**:
+  - `src/hongstr/signal`: Bar/SignalEvent types, Resampler, SignalEngine, Strategies (MA Cross).
+  - `scripts/run_signal_engine.py`: Engine runner.
+  - `tests/test_signal_resample.py`, `tests/test_signal_engine_io.py`: Unit tests.
+- **Files Changed**:
+  - `src/hongstr/config.py`
+  - `src/hongstr/signal/` (types, resample, engine, strategies/)
+  - `scripts/run_signal_engine.py`, `scripts/smoke_c8.sh`
+- **Verification**:
+  - Unit tests passed (`pytest tests/test_signal_resample.py tests/test_signal_engine_io.py`).
+  - Smoke test ran (`scripts/smoke_c8.sh`).
+- **Next Actions**: Proceed to C9 (Signal -> Execution Integration).

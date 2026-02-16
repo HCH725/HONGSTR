@@ -59,3 +59,21 @@ REALTIME_OUT_DIR = os.getenv("REALTIME_OUT_DIR", str(DATA_DIR / "realtime"))
 REALTIME_WS_BASE = os.getenv("REALTIME_WS_BASE", "wss://stream.binance.com:9443/stream")
 REALTIME_RUN_SECONDS = int(os.getenv("REALTIME_RUN_SECONDS", "30"))
 REALTIME_RECONNECT_MAX_DELAY = int(os.getenv("REALTIME_RECONNECT_MAX_DELAY", "60"))
+
+# Signal Engine (C8)
+SIGNAL_ENABLED = os.getenv("SIGNAL_ENABLED", "true").lower() == "true"
+SIGNAL_TFS = os.getenv("SIGNAL_TFS", "1m,5m,15m,1h,4h").split(",")
+SIGNAL_INPUT_ROOT = os.getenv("SIGNAL_INPUT_ROOT", REALTIME_OUT_DIR)
+SIGNAL_OUTPUT_ROOT = os.getenv("SIGNAL_OUTPUT_ROOT", str(DATA_DIR / "signals"))
+SIGNAL_STATE_ROOT = os.getenv("SIGNAL_STATE_ROOT", str(DATA_DIR / "state"))
+SIGNAL_ENGINE_MODE = os.getenv("SIGNAL_ENGINE_MODE", "tail_jsonl")
+SIGNAL_MAX_BARS = int(os.getenv("SIGNAL_MAX_BARS", "2000"))
+
+# Signal Engine (C8)
+SIGNAL_ENABLED = os.getenv("SIGNAL_ENABLED", "true").lower() == "true"
+SIGNAL_TFS = os.getenv("SIGNAL_TFS", "1m,5m,15m,1h,4h").split(",")
+SIGNAL_INPUT_ROOT = os.getenv("SIGNAL_INPUT_ROOT", REALTIME_OUT_DIR)
+SIGNAL_OUTPUT_ROOT = os.getenv("SIGNAL_OUTPUT_ROOT", str(DATA_DIR / "signals"))
+SIGNAL_STATE_ROOT = os.getenv("SIGNAL_STATE_ROOT", str(DATA_DIR / "state"))
+SIGNAL_ENGINE_MODE = os.getenv("SIGNAL_ENGINE_MODE", "tail_jsonl")
+SIGNAL_MAX_BARS = int(os.getenv("SIGNAL_MAX_BARS", "2000"))
