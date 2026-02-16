@@ -110,9 +110,10 @@ def main():
         df_1m = load_1m_data(args.data_root, symbol)
         
         if df_1m.empty:
+            py_exe = sys.executable
             print(f"Data missing for {symbol}. Expected in {args.data_root}/{symbol}/1m/")
-            print(f"Please run: python scripts/ingest_historical.py --symbol {symbol}")
-            print(f"Then: python scripts/aggregate_data.py --symbol {symbol}")
+            print(f"Please run: {py_exe} scripts/ingest_historical.py --symbol {symbol}")
+            print(f"Then: {py_exe} scripts/aggregate_data.py --symbol {symbol}")
             continue
             
         # Filter by date
