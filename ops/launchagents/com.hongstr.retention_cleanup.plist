@@ -8,7 +8,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>cd __REPO_ROOT__ && bash scripts/retention_cleanup.sh</string>
+        <string>cd __REPO_ROOT__ &amp;&amp; bash scripts/retention_cleanup.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
