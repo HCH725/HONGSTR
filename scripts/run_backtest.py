@@ -126,9 +126,10 @@ def main():
             print(f"  Timeframe: {tf}")
             
             # Resample 1m -> TF
+            # Optimization: Use itertuples for much faster iteration than iterrows
             bars_1m = [
-                Bar(ts=ts, symbol=symbol, open=row['open'], high=row['high'], low=row['low'], close=row['close'], volume=row['volume'], closed=True)
-                for ts, row in df_1m.iterrows()
+                Bar(ts=row.Index, symbol=symbol, open=row.open, high=row.high, low=row.low, close=row.close, volume=row.volume, closed=True)
+                for row in df_1m.itertuples()
             ]
             resampled_bars = resample_bars(bars_1m, tf)
             
