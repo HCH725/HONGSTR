@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hongstr.daily_etl</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>cd __REPO_ROOT__ && bash scripts/daily_etl.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PY</key>
+        <string>__REPO_ROOT__/.venv/bin/python</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/logs/launchd_daily_etl.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/logs/launchd_daily_etl.err.log</string>
+</dict>
+</plist>

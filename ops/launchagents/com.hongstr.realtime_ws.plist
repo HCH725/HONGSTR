@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hongstr.realtime_ws</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>cd __REPO_ROOT__ && bash scripts/run_realtime_service.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PY</key>
+        <string>__REPO_ROOT__/.venv/bin/python</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/logs/launchd_realtime_ws.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/logs/launchd_realtime_ws.err.log</string>
+</dict>
+</plist>
