@@ -285,3 +285,20 @@ MANDATORY: Update this file after each conversation (C1->C6).
   - Unit tests passed (`pytest tests/`).
   - Smoke test passed (`scripts/smoke_c9.sh` connected and ran).
 - **Tag**: `v0.9-c9`
+
+## [C10] Execution Bridge (Signal -> Executor)
+
+- **Date**: 2026-02-16 23:45 (GMT+8)
+- **Built Items**:
+  - `src/hongstr/bridge/signal_to_execution.py`: Reads signals, calls executor.
+  - `src/hongstr/execution/paper.py`: Updated with Semantics integration.
+  - `scripts/run_bridge.py`: Integrated runner (C7+C8+Bridge).
+  - `tests/test_bridge.py`: Unit tests.
+- **Files Changed**:
+  - `src/hongstr/config.py`
+  - `src/hongstr/bridge/*`
+  - `src/hongstr/execution/`
+- **Verification**:
+  - Unit tests passed (`pytest tests/test_bridge.py`).
+  - Smoke test passed (`scripts/smoke_c10.sh`).
+- **Tag**: `v0.10-c10`

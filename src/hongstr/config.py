@@ -28,8 +28,10 @@ REQUIRED_DERIVED_TFS = ["5m", "15m", "1h", "4h"]
 
 # Execution
 # Modes: A=Backtest, B=Paper, C=Testnet
-EXECUTION_MODE = os.getenv("EXECUTION_MODE", "A").upper()
+EXECUTION_MODE = os.getenv("EXECUTION_MODE", "B").upper() # Default to Paper
 OFFLINE_MODE = os.getenv("OFFLINE_MODE", "0") == "1"
+EXECUTION_STATE_DIR = os.getenv("EXECUTION_STATE_DIR", str(DATA_DIR / "state"))
+EXECUTION_PAPER_DIR = os.getenv("EXECUTION_PAPER_DIR", str(DATA_DIR / "paper"))
 
 # Risk
 LEVERAGE_DEFAULT = int(os.getenv("LEVERAGE_DEFAULT", "2"))

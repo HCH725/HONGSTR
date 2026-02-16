@@ -36,3 +36,12 @@
 - [x] 6. Smoke Scripts (run_signal_strategies.py, smoke_c9.sh)
 - [x] 7. Verification & Docs
 - [x] 8. Commit & Tag
+
+## Task: Phase 1 C10 - Execution Bridge (Signal -> Executor)
+
+- [x] 0. Config Updates (Execution Modes, Review)
+- [x] 1. Create Bridge Module (src/hongstr/bridge/signal_to_execution.py)
+- [x] 2. Create Runner Script (scripts/run_bridge.py)
+- [x] 3. Create Tests (tests/test_bridge.py)
+- [x] 4. Smoke Test & Verify
+- [x] 5. Tag v0.10-c10
