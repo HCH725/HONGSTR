@@ -2,45 +2,40 @@
 
 This guide covers how to set up HONGSTR as background services on a local Mac mini using macOS `launchd`.
 
-## Prerequisites
+## Data Architecture & Lifecycle
 
-1. **Python Environment**: Ensure a virtual environment exists at the project root.
+HONGSTR relies on a clear distinction between realtime and historical data:
+
+- **Raw Data (`data/realtime/`)**:
+  - **Source**: Captured from Binance WS by `realtime_ws` service.
+  - **Purpose**: Low-latency signal generation and live execution.
+  - **Retention**: Kept for 14 days; compressed (gzip) until 45 days, then deleted.
+- **Derived Data (`data/derived/`)**:
+  - **Source**: Processed from 1m klines via `daily_etl` service.
+  - **Purpose**: **Offline Backtesting**. All resampling (5m, 1h, etc.) happens from here.
+  - **Retention**: Persistent primary historical source.
+- **Backtest Runs (`data/backtests/`)**:
+  - **Retention**: Deleted after 90 days or if total runs exceed 50.
+
+## Installation / Quickstart
+
+1. **Deploy Plists**:
 
     ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
+    mkdir -p ~/Library/LaunchAgents
+    REPO_ROOT=$(pwd)
+    for f in ops/launchagents/*.plist; do
+        sed "s|__REPO_ROOT__|$REPO_ROOT|g" "$f" > ~/Library/LaunchAgents/$(basename "$f")
+    done
     ```
 
-2. **Environment Variables**: Create and configure `.env`.
+2. **Bootstrap Services**:
 
     ```bash
-    cp .env.example .env
-    # Edit .env with your Binance keys and preferences
+    for f in ~/Library/LaunchAgents/com.hongstr.*.plist; do
+        launchctl bootstrap gui/$(id -u) "$f" 2>/dev/null || launchctl enable gui/$(id -u)/$(basename "$f" .plist)
+    done
     ```
-
-## Installation
-
-The project uses placeholders in LaunchAgent plists. Follow these steps to install them for the current user.
-
-```bash
-# 1. Create target directory
-mkdir -p ~/Library/LaunchAgents
-
-# 2. Replace __REPO_ROOT__ with current path and copy to LaunchAgents
-# One-liner to deploy all plists:
-REPO_ROOT=$(pwd)
-for f in ops/launchagents/*.plist; do
-    name=$(basename "$f")
-    sed "s|__REPO_ROOT__|$REPO_ROOT|g" "$f" > ~/Library/LaunchAgents/"$name"
-done
-
-# 3. Load the services
-# Note: In macOS, bootstrapping loads and starts the service if RunAtLoad=true
-for f in ~/Library/LaunchAgents/com.hongstr.*.plist; do
-    launchctl bootstrap gui/$(id -u) "$f"
-done
-```
 
 ## Service Management
 
@@ -51,41 +46,27 @@ done
 launchctl list | grep hongstr
 ```
 
-### Stop / Unload Services
+### Observability Tools
+
+We provide specialized scripts for monitoring:
+
+- **Watch Realtime**: `bash scripts/watch_realtime.sh --symbol BTCUSDT --lines 20`
+- **Check Data Paths**: `bash scripts/check_data_paths.sh`
+
+### Manual Execution
 
 ```bash
-# To stop and unload all
-for f in ~/Library/LaunchAgents/com.hongstr.*.plist; do
-    launchctl bootout gui/$(id -u) "$f"
-done
-```
-
-### Manual Execution (Without launchd)
-
-If you want to run the scripts manually to test:
-
-```bash
-# Realtime WS
 bash scripts/run_realtime_service.sh
-
-# ETL
 bash scripts/daily_etl.sh
-
-# Healthcheck
 bash scripts/daily_backtest_healthcheck.sh
-
-# Cleanup
 bash scripts/retention_cleanup.sh
 ```
 
 ## Logs & Data
 
-- **Background Logs**: `logs/launchd_<job_name>.out.log` and `logs/launchd_<job_name>.err.log`.
-- **Application Logs**:
-  - `logs/realtime_ws.log`: Continuous WS feed.
-  - `logs/daily_etl.log`: Ingestion/Aggregation results.
-  - `logs/daily_healthcheck.log`: Backtest verification details.
-- **Reporting**: `data/reports/daily_backtest_health.csv` (Daily performance check).
+- **Background Logs**: `logs/launchd_<job_name>.out.log`
+- **Application Logs**: `logs/realtime_ws.log`, `logs/daily_etl.log`
+- **Health Reports**: `data/reports/daily_backtest_health.csv`
 
 ## Job Schedule & Lifecycle
 
@@ -98,29 +79,22 @@ bash scripts/retention_cleanup.sh
 
 ## Verification & PKG-4 Commands
 
-After deployment, you can verify everything is working with:
-
 ```bash
-# Run the automated verification script
 chmod +x scripts/verify_local_services.sh
 ./scripts/verify_local_services.sh
 ```
 
 ### Deep Inspection
 
-If a service shows a non-zero exit code in `launchctl list`, use:
+If a service fails:
 
 ```bash
-# Print detailed state of a job
 launchctl print gui/$(id -u)/com.hongstr.realtime_ws
-
-# Check launchd-specific logs
 tail -f logs/launchd_realtime_ws.err.log
 ```
 
 ## Common Issues & Troubleshooting
 
-1. **"Already bootstrapped"**: If you updated a plist, you must `bootout` before `bootstrap` again.
-2. **$PATH issues**: Launchd has a minimal PATH. The plists explicitly set `/usr/local/bin:/usr/bin:/bin`, but if your `python3` or `git` is elsewhere, you may need to edit the `EnvironmentVariables` in the `.plist`.
-3. **Permissions**: Ensure all scripts are executable: `chmod +x scripts/*.sh`.
-4. **Data Missing**: If healthcheck fails, verify `data/derived/` contains klines. Run `bash scripts/daily_etl.sh` manually once to prime the data.
+1. **WS Connected but no files?**: Run `bash scripts/watch_realtime.sh` to check if logs show "WebSocket connected" and if files in `data/realtime` are growing.
+2. **Derived data missing?**: Run `bash scripts/check_data_paths.sh`. If it shows missing files, run `bash scripts/daily_etl.sh` manually.
+3. **Permissions**: Ensure scripts are executable: `chmod +x scripts/*.sh`.
