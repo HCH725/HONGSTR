@@ -267,3 +267,21 @@ MANDATORY: Update this file after each conversation (C1->C6).
   - Unit tests passed (`pytest tests/test_signal_resample.py tests/test_signal_engine_io.py`).
   - Smoke test ran (`scripts/smoke_c8.sh`).
 - **Next Actions**: Proceed to C9 (Signal -> Execution Integration).
+
+## [C9] Strategy Implementation
+
+- **Date**: 2026-02-16 23:30 (GMT+8)
+- **Built Items**:
+  - `src/hongstr/signal/strategies/`: VWAPSupertrend, RSIDivergence, MACDDivergence.
+  - `src/hongstr/signal/indicators.py`: Technical indicators (EMA, RSI, Supertrend, etc.).
+  - `scripts/run_signal_strategies.py`: Integrated runner for C7+C8+C9.
+  - `scripts/smoke_c9.sh`: Smoke test script.
+- **Files Changed**:
+  - `src/hongstr/config.py` (Added strategy configs)
+  - `src/hongstr/signal/engine.py` (Strategy loading and execution)
+  - `src/hongstr/signal/strategies/*`
+  - `tests/test_indicators.py`, `tests/test_strategy_vwap_supertrend.py`
+- **Verification**:
+  - Unit tests passed (`pytest tests/`).
+  - Smoke test passed (`scripts/smoke_c9.sh` connected and ran).
+- **Tag**: `v0.9-c9`

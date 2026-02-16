@@ -24,3 +24,15 @@
 - [x] 4. Tests (Buffer, Engine, Persistence)
 - [x] 5. Smoke Script (run_signal_engine.py)
 - [x] 6. Final Verify & Commit
+
+## Task: Phase 1 C9 - Strategy Implementation
+
+- [ ] 0. Preflight & Skeleton (src/hongstr/signal/strategies)
+- [ ] 1. Config Updates (Strategy Params)
+- [ ] 2. Implement Indicators (src/hongstr/signal/indicators.py)
+- [ ] 3. Implement Strategies (VWAP Supertrend, RSI Div, MACD Div)
+- [ ] 4. Wire Strategies into Engine
+- [ ] 5. Tests (Indicators, Strategies, Engine)
+- [ ] 6. Smoke Scripts (run_signal_strategies.py, smoke_c9.sh)
+- [ ] 7. Verification & Docs
+- [ ] 8. Commit & Tag

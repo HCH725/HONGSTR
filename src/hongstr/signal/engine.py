@@ -21,23 +21,41 @@ logger = logging.getLogger(__name__)
 class SignalEngine:
     def __init__(self, config: EngineConfig):
         self.config = config
-        self.strategies: List[BaseStrategy] = []
         
-        # Buffers: symbol -> 1m bars
-        # For simplicity, we just keep 1m bars and resample on demand or cache resampled
-        # To strictly follow "rolling buffers", we keep a deque of 1m bars.
+        # Buffer: symbol -> deque of 1m bars
         self.bars_1m: Dict[str, Deque[Bar]] = defaultdict(lambda: deque(maxlen=config.max_bars))
         
-        # State tracking: symbol -> timeframe -> last_processed_ts
+        # State: latest emitted signal hash to dedup
+        self._emitted_signals: Set[str] = set()
+        
+        self.strategies: List[BaseStrategy] = []
+        self._load_strategies()
+        
+        # Persistence
+        self.signal_file: Optional[aiofiles.threadpool.AsyncTextIOWrapper] = None
+        self.current_date_str = ""
         self.processed_state: Dict[str, Dict[str, pd.Timestamp]] = defaultdict(dict)
-        
-        # Output file handles
-        self.signal_file = None
-        
-        self.running = False
-        
-        # Register default strategy
-        self.add_strategy(MACrossStrategy(strategy_id="ma_cross_v1"))
+
+    def _load_strategies(self):
+        from ..config import STRATEGY_ENABLED, STRATEGY_LIST
+        from .strategies.ma_cross import MACrossStrategy
+        from .strategies.vwap_supertrend import VWAPSupertrendStrategy
+        from .strategies.rsi_divergence import RSIDivergenceStrategy
+        from .strategies.macd_divergence import MACDDivergenceStrategy
+
+        if not STRATEGY_ENABLED:
+            return
+
+        for strat_name in STRATEGY_LIST:
+            strat_name = strat_name.strip()
+            if strat_name == "ma_cross":
+                self.strategies.append(MACrossStrategy())
+            elif strat_name == "vwap_supertrend":
+                self.strategies.append(VWAPSupertrendStrategy())
+            elif strat_name == "rsi_divergence":
+                self.strategies.append(RSIDivergenceStrategy())
+            elif strat_name == "macd_divergence":
+                self.strategies.append(MACDDivergenceStrategy())
 
     def add_strategy(self, strategy: BaseStrategy):
         self.strategies.append(strategy)
@@ -172,13 +190,21 @@ class SignalEngine:
             self.processed_state[symbol][tf] = last_ts
             
             for strat in self.strategies:
-                try:
-                    signal = strat.on_bars(symbol, tf, resampled)
-                    if signal:
-                        logger.info(f"Signal Generated: {signal}")
-                        await self._persist_signal(signal)
-                except Exception as e:
-                    logger.error(f"Strategy error: {e}")
+                if tf in strat.required_timeframes:
+                    try:
+                        signal = strat.on_bars(symbol, tf, resampled)
+                        if signal:
+                            # Dedup
+                            sig_key = f"{signal.ts}_{signal.symbol}_{signal.timeframe}_{signal.strategy_id}_{signal.direction}"
+                            if sig_key not in self._emitted_signals:
+                                logger.info(f"Signal Generated: {signal}")
+                                await self._persist_signal(signal)
+                                self._emitted_signals.add(sig_key)
+                                
+                                if len(self._emitted_signals) > 2000:
+                                    self._emitted_signals.clear()
+                    except Exception as e:
+                        logger.error(f"Strategy error {strat.strategy_id}: {e}")
 
     async def run_tail_jsonl(self, duration: int = 0):
         # Tail the latest/today specific file? 

@@ -53,7 +53,7 @@ RECONCILE_INTERVAL_SEC = int(os.getenv("RECONCILE_INTERVAL_SEC", "10"))
 
 # Realtime Feeds (C7)
 REALTIME_ENABLED = os.getenv("REALTIME_ENABLED", "true").lower() == "true"
-REALTIME_SYMBOLS = os.getenv("REALTIME_SYMBOLS", "BTCUSDT,ETHUSDT").split(",")
+REALTIME_SYMBOLS = os.getenv("REALTIME_SYMBOLS", "BTCUSDT,ETHUSDT,BNBUSDT").split(",")
 REALTIME_STREAMS = os.getenv("REALTIME_STREAMS", "aggTrade,kline_1m").split(",")
 REALTIME_OUT_DIR = os.getenv("REALTIME_OUT_DIR", str(DATA_DIR / "realtime"))
 REALTIME_WS_BASE = os.getenv("REALTIME_WS_BASE", "wss://stream.binance.com:9443/stream")
@@ -69,11 +69,23 @@ SIGNAL_STATE_ROOT = os.getenv("SIGNAL_STATE_ROOT", str(DATA_DIR / "state"))
 SIGNAL_ENGINE_MODE = os.getenv("SIGNAL_ENGINE_MODE", "tail_jsonl")
 SIGNAL_MAX_BARS = int(os.getenv("SIGNAL_MAX_BARS", "2000"))
 
-# Signal Engine (C8)
-SIGNAL_ENABLED = os.getenv("SIGNAL_ENABLED", "true").lower() == "true"
-SIGNAL_TFS = os.getenv("SIGNAL_TFS", "1m,5m,15m,1h,4h").split(",")
-SIGNAL_INPUT_ROOT = os.getenv("SIGNAL_INPUT_ROOT", REALTIME_OUT_DIR)
-SIGNAL_OUTPUT_ROOT = os.getenv("SIGNAL_OUTPUT_ROOT", str(DATA_DIR / "signals"))
-SIGNAL_STATE_ROOT = os.getenv("SIGNAL_STATE_ROOT", str(DATA_DIR / "state"))
-SIGNAL_ENGINE_MODE = os.getenv("SIGNAL_ENGINE_MODE", "tail_jsonl")
-SIGNAL_MAX_BARS = int(os.getenv("SIGNAL_MAX_BARS", "2000"))
+# Strategy (C9)
+STRATEGY_ENABLED = os.getenv("STRATEGY_ENABLED", "true").lower() == "true"
+STRATEGY_LIST = os.getenv("STRATEGY_LIST", "vwap_supertrend,rsi_divergence,macd_divergence").split(",")
+STRATEGY_TIMEFRAME_BASE = os.getenv("STRATEGY_TIMEFRAME_BASE", "1m")
+STRATEGY_TIMEFRAME_SIGNAL = os.getenv("STRATEGY_TIMEFRAME_SIGNAL", "1h")
+
+# Strategy Params
+ST_ATR_PERIOD = int(os.getenv("ST_ATR_PERIOD", "10"))
+ST_ATR_MULT = float(os.getenv("ST_ATR_MULT", "3.0"))
+VWAP_ANCHOR = os.getenv("VWAP_ANCHOR", "session") # session or day
+VWAP_BAND_STD = float(os.getenv("VWAP_BAND_STD", "1.0"))
+
+RSI_PERIOD = int(os.getenv("RSI_PERIOD", "14"))
+DVG_LOOKBACK = int(os.getenv("DVG_LOOKBACK", "50"))
+DVG_PIVOT_LEFT = int(os.getenv("DVG_PIVOT_LEFT", "3"))
+DVG_PIVOT_RIGHT = int(os.getenv("DVG_PIVOT_RIGHT", "3"))
+
+MACD_FAST = int(os.getenv("MACD_FAST", "12"))
+MACD_SLOW = int(os.getenv("MACD_SLOW", "26"))
+MACD_SIGNAL = int(os.getenv("MACD_SIGNAL", "9"))
