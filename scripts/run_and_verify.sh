@@ -2,44 +2,100 @@
 set -euo pipefail
 
 # Deterministic Backtest Runner & Verifier
-# Usage: ./scripts/run_and_verify.sh [optional extra args for run_backtest.py]
+# Usage: ./scripts/run_and_verify.sh [--mode foreground|background] [args for run_backtest.py]
 
-# 1. Setup deterministic output
+MODE="foreground"
+PASSTHROUGH_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --mode)
+      MODE="$2"
+      shift 2
+      ;;
+    *)
+      PASSTHROUGH_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_FILE="logs/backtest_${TIMESTAMP}.log"
-mkdir -p logs
+# Add random suffix to ensure uniqueness even if called rapidly
+RAND=$(echo $RANDOM | md5sum | head -c 4 || echo "0000") 
+RUN_ID="${TIMESTAMP}_${RAND}"
 
-echo "Starting Deterministic Backtest Run: $TIMESTAMP"
-echo "Log: $LOG_FILE"
+# Deterministic Output Directory
+REPO_ROOT=$(pwd)
+DATE_STR=$(date -u +%Y-%m-%d)
+OUT_DIR="${REPO_ROOT}/data/backtests/${DATE_STR}/${RUN_ID}"
+LOG_DIR="${REPO_ROOT}/logs"
+LOG_FILE="${LOG_DIR}/backtest_${RUN_ID}.log"
 
-# 2. Run Backtest
-# We use -u for unbuffered output to see logs in real-time
-set +e
-./.venv/bin/python -u scripts/run_backtest.py \
-  --run_id "$TIMESTAMP" \
-  "$@" 2>&1 | tee "$LOG_FILE"
-EXIT_CODE=${PIPESTATUS[0]}
-set -e
+mkdir -p "$LOG_DIR" "$OUT_DIR"
 
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "Backtest failed with exit code $EXIT_CODE"
-    exit $EXIT_CODE
-fi
+echo "=== HONGSTR Backtest Runner ==="
+echo "RUN_ID:  $RUN_ID"
+echo "OUT_DIR: $OUT_DIR"
+echo "MODE:    $MODE"
+echo "LOG:     $LOG_FILE"
 
-# 3. Read Captured Directory from Log
-# More robust: grep last occurrence
-COMPLETED_DIR=$(grep "^COMPLETED_DIR=" "$LOG_FILE" | tail -n 1 | cut -d= -f2 | tr -d '\r')
+# Prepare Python Command
+# We explicitly pass --out_dir to enforce deterministic output
+CMD=(
+  "./.venv/bin/python" "-u" "scripts/run_backtest.py"
+  "--out_dir" "$OUT_DIR"
+  "--run_id" "$RUN_ID"
+  "${PASSTHROUGH_ARGS[@]}"
+)
 
-if [ -z "$COMPLETED_DIR" ]; then
-    echo "Error: Could not determine COMPLETED_DIR from output."
-    echo "Check logs: $LOG_FILE"
+if [ "$MODE" == "background" ]; then
+  echo "Starting backtest in background..."
+  "${CMD[@]}" > "$LOG_FILE" 2>&1 &
+  PID=$!
+  echo "PID: $PID"
+  
+  # Polling Loop
+  echo "Waiting for summary.json in $OUT_DIR (timeout 20m)..."
+  START_TIME=$SECONDS
+  TIMEOUT=$((20 * 60))
+  
+  while true; do
+    if [ -f "${OUT_DIR}/summary.json" ]; then
+      echo "Success: summary.json found."
+      break
+    fi
+    
+    # Check if process died
+    if ! kill -0 $PID 2>/dev/null; then
+       echo "Error: Backtest process $PID died without creating summary.json."
+       echo "Tail of log:"
+       tail -n 10 "$LOG_FILE"
+       exit 1
+    fi
+    
+    ELAPSED=$(($SECONDS - $START_TIME))
+    if [ $ELAPSED -gt $TIMEOUT ]; then
+      echo "Error: Timeout waiting for summary.json."
+      exit 1
+    fi
+    
+    sleep 5
+  done
+  
+else
+  # Foreground
+  echo "Starting backtest in foreground..."
+  # Use tee to show output and save to log
+  "${CMD[@]}" 2>&1 | tee "$LOG_FILE"
+  
+  if [ ! -f "${OUT_DIR}/summary.json" ]; then
+    echo "Error: summary.json not found in $OUT_DIR after execution."
     exit 1
+  fi
 fi
 
-echo "Backtest completed at: $COMPLETED_DIR"
-
-# 4. Verify
-echo "--- Verifying ---"
-./.venv/bin/python scripts/verify_latest.py --dir "$COMPLETED_DIR"
-
+# Verify
+echo "--- Verifying Results ---"
+./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR"
 echo "Done."

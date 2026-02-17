@@ -23,6 +23,8 @@ if args.dir:
         summary_path = p
     else:
         print(f"Error: summary.json not found in {args.dir}", file=sys.stderr)
+        print("Directory contents:", file=sys.stderr)
+        os.system(f"ls -la {args.dir} >&2")
         sys.exit(1)
 else:
     # Legacy/Fallback Logic
