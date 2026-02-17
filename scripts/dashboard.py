@@ -74,6 +74,27 @@ def format_delta(dt):
     else:
         return f"{int(seconds/3600)}h ago"
 
+def load_benchmark_data():
+    path = PROJECT_ROOT / "reports" / "benchmark_latest.json"
+    return load_json(path)
+
+def safe_get(d, *keys, default=None):
+    for k in keys:
+        if isinstance(d, dict):
+            d = d.get(k, default)
+        else:
+            return default
+    return d
+
+def fmt_pct(x):
+    return f"{x:.2%}" if isinstance(x, (float, int)) else "N/A"
+
+def fmt_float(x):
+    return f"{x:.2f}" if isinstance(x, (float, int)) else "N/A"
+
+def fmt_int(x):
+    return f"{int(x)}" if isinstance(x, (float, int)) else "N/A"
+
 # --- Sidebar ---
 st.sidebar.title("HONGSTR Local")
 
@@ -339,8 +360,70 @@ if selected_run_display != "No Runs Found":
     else:
         st.error(f"Failed to load summary.json from {run_dir}")
 
-    # --- Panel C: Optimization ---
-    st.header("C. Optimization")
+    # --- Panel C: Benchmark (FULL vs SHORT) ---
+    st.header("C. Benchmark (FULL vs SHORT)")
+    bench_data = load_benchmark_data()
+    
+    if bench_data:
+        # File info
+        bench_path = PROJECT_ROOT / "reports" / "benchmark_latest.json"
+        mt = get_file_mtime(bench_path)
+        size = os.path.getsize(bench_path) / 1024
+        st.caption(f"Updated: {format_delta(mt)} | Size: {size:.1f} KB")
+
+        # Top Summary
+        st.subheader("Top Summary")
+        c1, c2 = st.columns(2)
+        
+        for idx, kind in enumerate(["FULL", "SHORT"]):
+            with (c1 if idx==0 else c2):
+                st.markdown(f"**{kind}**")
+                top = safe_get(bench_data, kind, "top")
+                if top:
+                    st.write(f"Period: {top.get('start_ts', '')[:10]} -> {top.get('end_ts', '')[:10]}")
+                    st.write(f"Return: {fmt_pct(top.get('total_return'))}")
+                    st.write(f"MDD: {fmt_pct(top.get('max_drawdown'))}")
+                    st.write(f"Sharpe: {fmt_float(top.get('sharpe'))}")
+                    st.write(f"Trades: {fmt_int(top.get('trades_count'))}")
+                    st.write(f"WinRate: {fmt_pct(top.get('win_rate'))}")
+                else:
+                    st.info("No data")
+
+        # Per-Symbol (4h)
+        st.subheader("Per-Symbol (4h)")
+        
+        # Merge logic
+        # We want rows: BTCUSDT_4h, ETHUSDT_4h, BNBUSDT_4h
+        # Cols: FULL_Ret, SHORT_Ret...
+        
+        symbols = ["BTCUSDT_4h", "ETHUSDT_4h", "BNBUSDT_4h"]
+        rows = []
+        for sym in symbols:
+            row = {"Symbol": sym}
+            for kind in ["FULL", "SHORT"]:
+                d = safe_get(bench_data, kind, "per_symbol_4h", sym)
+                if d:
+                    for k_short, k_long in [("total_return", "Ret"), ("max_drawdown", "MDD"), ("sharpe", "Sharpe"), ("trades_count", "Trades"), ("win_rate", "Win"), ("signal_emitted", "Signals")]:
+                        val = d.get(k_short)
+                        if k_long in ["Ret", "MDD", "Win"]:
+                            fmt_val = fmt_pct(val)
+                        elif k_long in ["Sharpe"]:
+                            fmt_val = fmt_float(val)
+                        else:
+                            fmt_val = fmt_int(val)
+                        row[f"{kind}_{k_long}"] = fmt_val
+                else:
+                     for k_long in ["Ret", "MDD", "Sharpe", "Trades", "Win", "Signals"]:
+                         row[f"{kind}_{k_long}"] = "N/A"
+            rows.append(row)
+            
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    else:
+         st.info("No benchmark_latest.json yet. Run scripts/benchmark_suite.sh first.")
+
+    # --- Panel D: Optimization ---
+    st.header("D. Optimization")
     opt_path = run_dir / "optimizer.json"
     opt_data = load_json(opt_path)
     

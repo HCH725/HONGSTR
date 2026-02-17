@@ -166,3 +166,20 @@ tail -f logs/launchd_realtime_ws.err.log
 1. **WS Connected but no files?**: Run `bash scripts/watch_realtime.sh` to check if logs show "WebSocket connected" and if files in `data/realtime` are growing.
 2. **Derived data missing?**: Run `bash scripts/check_data_paths.sh`. If it shows missing files, run `bash scripts/daily_etl.sh` manually.
 3. **Permissions**: Ensure scripts are executable: `chmod +x scripts/*.sh`.
+
+## Benchmark Reporting
+
+To generate and view the latest benchmark report (FULL vs SHORT):
+
+1. **Run Benchmark Suite** (Runs backtests + generates `reports/benchmark_latest.json`):
+
+   ```bash
+   bash scripts/benchmark_suite.sh
+   # Or manually:
+   # bash scripts/run_backtest.py ...
+   # python scripts/report_benchmark.py
+   ```
+
+2. **View in Dashboard**:
+   - Open Dashboard: `./scripts/run_dashboard.sh`
+   - Scroll to **Section C. Benchmark** to see the comparison table.
