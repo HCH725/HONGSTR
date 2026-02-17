@@ -1,5 +1,5 @@
 
-import json, os, pathlib, sys, glob
+import json, os, pathlib, sys, glob, argparse
 
 def get_latest_summary_path():
     # Try finding the latest summary.json in data/backtests
@@ -10,22 +10,37 @@ def get_latest_summary_path():
     files.sort(key=os.path.getmtime, reverse=True)
     return pathlib.Path(files[0])
 
-latest_dir = os.environ.get("LATEST_DIR")
+# Parse Args
+parser = argparse.ArgumentParser()
+parser.add_argument("--dir", type=str, help="Explicit backtest directory to verify")
+args = parser.parse_args()
+
 summary_path = None
 
-if latest_dir:
-    p = pathlib.Path(latest_dir) / "summary.json"
+if args.dir:
+    p = pathlib.Path(args.dir) / "summary.json"
     if p.exists():
         summary_path = p
     else:
-        print(f"LATEST_DIR ({latest_dir}) has no summary.json yet, falling back to latest completed run...", file=sys.stderr)
+        print(f"Error: summary.json not found in {args.dir}", file=sys.stderr)
+        sys.exit(1)
+else:
+    # Legacy/Fallback Logic
+    latest_dir = os.environ.get("LATEST_DIR")
 
-if not summary_path:
-    summary_path = get_latest_summary_path()
-    if summary_path and not latest_dir:
-         pass # Normal auto-discovery
-    elif summary_path:
-         print(f"Using fallback summary: {summary_path}", file=sys.stderr)
+    if latest_dir:
+        p = pathlib.Path(latest_dir) / "summary.json"
+        if p.exists():
+            summary_path = p
+        else:
+            print(f"LATEST_DIR ({latest_dir}) has no summary.json yet, falling back to latest completed run...", file=sys.stderr)
+
+    if not summary_path:
+        summary_path = get_latest_summary_path()
+        if summary_path and not latest_dir:
+             pass # Normal auto-discovery
+        elif summary_path:
+             print(f"Using fallback summary: {summary_path}", file=sys.stderr)
 
 if not summary_path:
     print("No completed backtest found (summary.json missing). Backtest may still be running.", file=sys.stderr)

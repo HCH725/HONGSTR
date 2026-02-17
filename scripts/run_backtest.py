@@ -79,15 +79,24 @@ def main():
     parser.add_argument("--slippage_bps", type=float, default=2.0)
     parser.add_argument("--data_root", type=str, default="data/derived")
     parser.add_argument("--out_root", type=str, default="data/backtests")
+    parser.add_argument("--out_dir", type=str, help="Explicit output directory")
+    parser.add_argument("--run_id", type=str, help="Explicit Run ID (default: timestamp)")
     args = parser.parse_args()
 
     # 1. Prepare Environment
     symbols = [s.strip() for s in args.symbols.split(",")]
     timeframes = [tf.strip() for tf in args.timeframes.split(",")]
     
-    run_id = datetime.utcnow().strftime("%H%M%S")
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
-    out_dir = Path(args.out_root) / date_str / run_id
+
+    if args.out_dir:
+        out_dir = Path(args.out_dir)
+        run_id = args.run_id if args.run_id else "custom"
+        # If run_id provided with out_dir, we just use out_dir as is, run_id is for metadata.
+    else:
+        run_id = args.run_id if args.run_id else datetime.utcnow().strftime("%H%M%S")
+        out_dir = Path(args.out_root) / date_str / run_id
+    
     out_dir.mkdir(parents=True, exist_ok=True)
     
     semantics = SemanticsV1(
@@ -290,8 +299,11 @@ def main():
         summary["no_trades_reason"] = "No trades in any symbol/timeframe."
     
     # Save Files
-    with open(out_dir / "summary.json", 'w') as f:
+    # Atomic write for summary.json to avoid partial reads by verify scripts
+    temp_summary = out_dir / "summary.json.tmp"
+    with open(temp_summary, 'w') as f:
         json.dump(summary, f, indent=2)
+    temp_summary.rename(out_dir / "summary.json")
         
     with open(out_dir / "config.json", 'w') as f:
         json.dump(summary["config"], f, indent=2)
@@ -314,6 +326,7 @@ def main():
 
     print(f"--- Backtest Finished ---")
     print(f"Results saved to: {out_dir}")
+    print(f"COMPLETED_DIR={out_dir}")
 
 if __name__ == "__main__":
     main()

@@ -94,9 +94,19 @@ export LATEST_DIR="$(bash scripts/get_latest_completed_dir.sh)"; ./.venv/bin/pyt
 
 To wait for the latest run to complete (timeout 20m) and then verify:
 
+### Deterministic Workflow (Recommended)
+
+To run a backtest with a guaranteed unique ID and immediate verification:
+
 ```bash
-end=$((SECONDS+1200)); while [ $SECONDS -lt $end ]; do L=$(ls -1dt data/backtests/*/* 2>/dev/null | head -n 1); if [ -f "$L/summary.json" ]; then export LATEST_DIR="$L"; break; fi; sleep 5; done; ./.venv/bin/python scripts/verify_latest.py
+./scripts/run_and_verify.sh \
+  --symbols BTCUSDT,ETHUSDT,BNBUSDT \
+  --timeframes 1h,4h \
+  --start 2023-01-01 \
+  --end 2024-02-01
 ```
+
+This script handles `RUN_ID` generation, logging, and calls `verify_latest.py --dir` automatically.
 
 ### Deep Inspection
 
