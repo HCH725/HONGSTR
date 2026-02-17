@@ -112,6 +112,47 @@ selected_run_display = st.sidebar.selectbox(
 # Metrics Timeframe
 metrics_tf = st.sidebar.selectbox("Metrics Timeframe", ["4h", "1h"], index=0)
 
+# --- Mode Detection ---
+def detect_execution_mode():
+    """
+    Detects execution mode based on priority:
+    1. ENV VAR: HONGSTR_EXEC_MODE or EXECUTION_MODE
+    2. STATE FILES: data/state/*.json, logs/*heartbeat*.json => LOCAL_SERVICES
+    3. DEFAULT: LOCAL
+    """
+    # 1. Env Var
+    for key in ["HONGSTR_EXEC_MODE", "EXECUTION_MODE"]:
+        val = os.environ.get(key)
+        if val:
+            return val.upper()
+            
+    # Check .env file manually
+    env_path = PROJECT_ROOT / ".env"
+    if env_path.exists():
+        try:
+            with open(env_path) as f:
+                for line in f:
+                    if line.startswith("HONGSTR_EXEC_MODE=") or line.startswith("EXECUTION_MODE="):
+                        return line.strip().split("=", 1)[1].upper()
+        except: pass
+
+    # 2. State Files (LOCAL_SERVICES detection)
+    # Check for active service indicators
+    data_dir = PROJECT_ROOT / "data"
+    patterns = [
+        str(data_dir / "state" / "*.json"),
+        str(data_dir / "realtime" / "state" / "*.json"),
+        str(PROJECT_ROOT / "logs" / "*heartbeat*.json"),
+        str(PROJECT_ROOT / "logs" / "*state*.json")
+    ]
+    
+    for pat in patterns:
+        if glob.glob(pat):
+            return "LOCAL_SERVICES"
+            
+    # 3. Default
+    return "LOCAL"
+
 # --- Panel A: Environment Control ---
 st.header("A. Environment Control")
 
@@ -119,22 +160,18 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Execution Mode")
-    # Read .env or config
-    env_path = PROJECT_ROOT / ".env"
-    mode = "UNKNOWN"
-    if env_path.exists():
-        # Simple parse
-        with open(env_path) as f:
-            for line in f:
-                if line.startswith("EXECUTION_MODE="):
-                    mode = line.strip().split("=")[1]
-    st.info(f"Mode: **{mode}**")
+    mode = detect_execution_mode()
+    
+    # Color coding
+    color = "blue"
+    if mode == "LOCAL_SERVICES": color = "green"
+    elif mode in ["PAPER", "LIVE"]: color = "red"
+    
+    st.markdown(f"Mode: :{color}[**{mode}**]")
     
     # Services Heartbeats
     st.write("**Services Heartbeat**")
     state_dir = data_dir / "state"
-    # Assuming heartbeat files or just state files
-    # Check data/state/*.json mtimes?
     services = glob.glob(str(state_dir / "*.json"))
     if not services:
         st.caption("No service state files found.")

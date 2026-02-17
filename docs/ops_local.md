@@ -155,6 +155,12 @@ launchctl print gui/$(id -u)/com.hongstr.realtime_ws
 tail -f logs/launchd_realtime_ws.err.log
 ```
 
+**Execution Mode**:
+
+- Defaults to `LOCAL`.
+- Shows `LOCAL_SERVICES` if state files exist in `data/state` or `logs/`.
+- Override via `export HONGSTR_EXEC_MODE=PAPER`.
+
 ## Common Issues & Troubleshooting
 
 1. **WS Connected but no files?**: Run `bash scripts/watch_realtime.sh` to check if logs show "WebSocket connected" and if files in `data/realtime` are growing.
