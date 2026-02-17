@@ -129,9 +129,26 @@ export LATEST_DIR="$(bash scripts/get_latest_completed_dir.sh)"
 
 `verify_latest.py` now explicitly checks for the presence of `BTCUSDT`, `ETHUSDT`, and `BNBUSDT` keys in the summary. If any are missing, it will print `MISSING` and exit with an error code.
 
-### Deep Inspection
+### Local Monitoring Dashboard
 
-If a service fails:
+Monitor system health, data freshness, and strategy details (Regime/Selection) via a local Streamlit app.
+
+```bash
+./scripts/run_dashboard.sh
+```
+
+This will open `http://localhost:8501` in your browser.
+
+**Features**:
+
+- **Environment Control**: Execution mode, service heartbeats, and data freshness checks (1m klines).
+- **HONG Detail**: Current Regime (fixed 4h source), Strategy Selection, and detailed Backtest Performance (switchable 1h/4h).
+- **Auto-Refresh**: Updates every 10s (toggle in sidebar).
+
+**Troubleshooting**:
+
+- If `ModuleNotFoundError: No module named 'streamlit'`, run `./scripts/run_dashboard.sh` again (it auto-installs dependencies).
+- Metrics or Regime showing "MISSING": Ensure `data/derived/...` and `data/state` artifacts exist.
 
 ```bash
 launchctl print gui/$(id -u)/com.hongstr.realtime_ws
