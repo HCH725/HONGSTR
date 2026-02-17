@@ -280,6 +280,7 @@ if selected_run_display != "No Runs Found":
         
         st.table(pd.DataFrame(rows))
         
+
         # 4. Equity Curve
         st.subheader("4. Equity Curve")
         eq_path = run_dir / "equity_curve.jsonl"
@@ -297,9 +298,48 @@ if selected_run_display != "No Runs Found":
                 st.error(f"Error reading equity curve: {e}")
         else:
             st.info("No equity_curve.jsonl found.")
-            
+
     else:
         st.error(f"Failed to load summary.json from {run_dir}")
+
+    # --- Panel C: Optimization ---
+    st.header("C. Optimization")
+    opt_path = run_dir / "optimizer.json"
+    opt_data = load_json(opt_path)
+    
+    if opt_data:
+        # Layout: Best Params | Best Portfolio Metrics
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Best Parameters")
+            best = opt_data.get("best", {})
+            params = best.get("params", {})
+            if params:
+                st.json(params)
+            else:
+                st.write("No params found.")
+        
+        with c2:
+            st.subheader("Best Metrics (Portfolio)")
+            metrics_port = best.get("metrics_portfolio", {})
+            if metrics_port:
+                # Format nicely
+                disp_metrics = {k: f"{v:.4f}" if isinstance(v, (float)) else v for k,v in metrics_port.items()}
+                st.json(disp_metrics)
+            else:
+                st.write("No portfolio metrics.")
+        
+        # Top K Table
+        st.subheader("Top K Models")
+        top_k = opt_data.get("top_k", [])
+        if top_k:
+            df_top = pd.DataFrame(top_k)
+            st.dataframe(df_top, use_container_width=True)
+        else:
+            st.info("No top_k results recorded (Single run?).")
+
+    else:
+        st.warning("No optimization artifact for this run.")
 
 else:
     st.info("Select a backtest run to see details.")

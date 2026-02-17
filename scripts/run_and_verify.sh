@@ -95,6 +95,10 @@ else
   fi
 fi
 
+# Generate Optimizer Artifact (Stub)
+echo "--- Generating Optimizer Artifact ---"
+./.venv/bin/python scripts/generate_optimizer_artifact.py --dir "$OUT_DIR"
+
 # Verify
 echo "--- Verifying Results ---"
 ./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR"
