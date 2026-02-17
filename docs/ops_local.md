@@ -183,3 +183,18 @@ To generate and view the latest benchmark report (FULL vs SHORT):
 2. **View in Dashboard**:
    - Open Dashboard: `./scripts/run_dashboard.sh`
    - Scroll to **Section C. Benchmark** to see the comparison table.
+
+## Regime Performance (Regime Bucketing)
+
+The system automatically segments backtest results into **BULL**, **BEAR**, and **NEUTRAL** regimes based on BTCUSDT 4h EMA signals.
+
+1. **How to Generate**:
+   Use `bash scripts/run_and_verify.sh`. It now automatically calls `scripts/generate_regime_report.py` after the backtest completes.
+
+2. **Artifact**:
+   Located at `data/backtests/<date>/<run_id>/regime_report.json`.
+
+3. **Dashboard View**:
+   Section **D. Regime Performance (Fixed 4h)** shows:
+   - Aggregated metrics (Return, MDD, Sharpe) per regime.
+   - Per-Symbol breakdown for BTC/ETH/BNB in each regime.

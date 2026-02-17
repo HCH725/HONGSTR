@@ -99,6 +99,10 @@ fi
 echo "--- Generating Optimizer Artifact ---"
 ./.venv/bin/python scripts/generate_optimizer_artifact.py --dir "$OUT_DIR"
 
+# Generate Regime Report
+echo "--- Generating Regime Report ---"
+./.venv/bin/python scripts/generate_regime_report.py --dir "$OUT_DIR"
+
 # Verify
 echo "--- Verifying Results ---"
 ./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR"

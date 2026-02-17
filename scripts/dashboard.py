@@ -422,8 +422,60 @@ if selected_run_display != "No Runs Found":
     else:
          st.info("No benchmark_latest.json yet. Run scripts/benchmark_suite.sh first.")
 
-    # --- Panel D: Optimization ---
-    st.header("D. Optimization")
+    # --- Panel D: Regime Performance (Fixed 4h) ---
+    st.header("D. Regime Performance (Fixed 4h)")
+    regime_rep_path = run_dir / "regime_report.json"
+    regime_rep = load_json(regime_rep_path)
+    
+    if regime_rep:
+        # File info
+        mt = get_file_mtime(regime_rep_path)
+        st.caption(f"Artifact: regime_report.json | Generated: {format_delta(mt)}")
+        
+        buckets = regime_rep.get("buckets", {})
+        
+        # 3 Columns for Overall Metrics
+        c1, c2, c3 = st.columns(3)
+        for idx, label in enumerate(["BULL", "NEUTRAL", "BEAR"]):
+            with (c1 if idx==0 else c2 if idx==1 else c3):
+                st.markdown(f"**{label}**")
+                b = buckets.get(label, {})
+                if b and b.get("trades_count", 0) > 0 or b.get("total_return", 0) != 0:
+                    st.write(f"Return: {fmt_pct(b.get('total_return'))}")
+                    st.write(f"MDD: {fmt_pct(b.get('max_drawdown'))}")
+                    st.write(f"Sharpe: {fmt_float(b.get('sharpe'))}")
+                    st.write(f"Trades: {fmt_int(b.get('trades_count'))}")
+                    st.write(f"WinRate: {fmt_pct(b.get('win_rate'))}")
+                else:
+                    st.info("No activity in this regime.")
+                    
+        # Per Symbol Table
+        st.subheader("Per-Symbol Metrics")
+        rows = []
+        target_syms = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+        
+        for sym in target_syms:
+            row = {"Symbol": sym}
+            for label in ["BULL", "NEUTRAL", "BEAR"]:
+                sdata = safe_get(buckets, label, "per_symbol", sym)
+                if sdata:
+                    row[f"{label}_Ret"] = fmt_pct(sdata.get("total_return"))
+                    row[f"{label}_Win"] = fmt_pct(sdata.get("win_rate"))
+                    row[f"{label}_Trades"] = fmt_int(sdata.get("trades_count"))
+                else:
+                    row[f"{label}_Ret"] = "N/A"
+                    row[f"{label}_Win"] = "N/A"
+                    row[f"{label}_Trades"] = "0"
+            rows.append(row)
+            
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    else:
+        st.warning("No regime_report.json found for this run.")
+        st.info("Tip: Run scripts/run_and_verify.sh to generate all artifacts.")
+
+    # --- Panel E: Optimization ---
+    st.header("E. Optimization")
     opt_path = run_dir / "optimizer.json"
     opt_data = load_json(opt_path)
     
