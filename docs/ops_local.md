@@ -106,6 +106,29 @@ To run a backtest (2023-2024, BTC/ETH/BNB, 1h+4h) and automatically verify resul
 ./scripts/run_and_verify.sh --mode background --symbols BTCUSDT,ETHUSDT,BNBUSDT --start 2023-01-01 --end 2024-02-01
 ```
 
+### Backtest Quality Gate
+
+The `run_and_verify.sh` script now includes an automatic quality gate check (`scripts/gate_summary.py`).
+It verifies the following criteria for BTC/ETH/BNB (1h & 4h):
+
+| Timeframe | Metric | Fail Threshold | Soft Goal |
+| --- | --- | --- | --- |
+| Any | Trades | < 30 | - |
+| Any | Max Drawdown | <= -25% | > -15% |
+| Any | Exposure | > 98% | - |
+| Any | Sharpe | < -0.2 | > 0.5 |
+
+**Manual Gate Check**:
+
+```bash
+export LATEST_DIR="$(bash scripts/get_latest_completed_dir.sh)"
+./.venv/bin/python scripts/gate_summary.py --dir "$LATEST_DIR"
+```
+
+### Explicit Verification Output
+
+`verify_latest.py` now explicitly checks for the presence of `BTCUSDT`, `ETHUSDT`, and `BNBUSDT` keys in the summary. If any are missing, it will print `MISSING` and exit with an error code.
+
 ### Deep Inspection
 
 If a service fails:

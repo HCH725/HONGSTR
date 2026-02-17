@@ -98,4 +98,12 @@ fi
 # Verify
 echo "--- Verifying Results ---"
 ./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR"
+
+# Gate
+echo "--- Checking Quality Gate ---"
+if ! ./.venv/bin/python scripts/gate_summary.py --dir "$OUT_DIR" --timeframes 1h,4h --symbols BTCUSDT,ETHUSDT,BNBUSDT --strict_timeframes; then
+    echo "Backtest failed quality gate."
+    exit 2
+fi
+
 echo "Done."

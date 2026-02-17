@@ -13,6 +13,8 @@ def get_latest_summary_path():
 # Parse Args
 parser = argparse.ArgumentParser()
 parser.add_argument("--dir", type=str, help="Explicit backtest directory to verify")
+parser.add_argument("--symbols", type=str, default="BTCUSDT,ETHUSDT,BNBUSDT", help="Comma-separated symbols")
+parser.add_argument("--timeframes", type=str, default="4h", help="Comma-separated timeframes")
 args = parser.parse_args()
 
 summary_path = None
@@ -55,16 +57,30 @@ top_keys = ["run_id","timestamp","start_equity","end_equity","total_return","max
 print("=== TOP ===")
 print({k:d.get(k) for k in top_keys})
 
-print("\n=== PER_SYMBOL (4h only) ===")
+symbols = [s.strip() for s in args.symbols.split(",")]
+timeframes = [t.strip() for t in args.timeframes.split(",")]
+
+print(f"\n=== PER_SYMBOL ({args.timeframes} only) ===")
 ps = d.get("per_symbol", {})
-for k in sorted(ps.keys()):
-    if not k.endswith("_4h"):
-        continue
-    v = ps[k]
-    out = {kk:v.get(kk) for kk in ["total_return","max_drawdown","sharpe","trades_count","win_rate","exposure_time","start_ts","end_ts"]}
-    # Handle both potential key names for debug
-    if "debug" in v:
-        out["debug_counts"] = v["debug"]
-    elif "debug_counts" in v:
-        out["debug_counts"] = v["debug_counts"]
-    print(f"{k}: {out}")
+missing_keys = []
+
+for sym in symbols:
+    for tf in timeframes:
+        k = f"{sym}_{tf}"
+        if k not in ps:
+            print(f"{k}: MISSING")
+            missing_keys.append(k)
+            continue
+            
+        v = ps[k]
+        out = {kk:v.get(kk) for kk in ["total_return","max_drawdown","sharpe","trades_count","win_rate","exposure_time","start_ts","end_ts"]}
+        # Handle both potential key names for debug
+        if "debug" in v:
+            out["debug_counts"] = v["debug"]
+        elif "debug_counts" in v:
+            out["debug_counts"] = v["debug_counts"]
+        print(f"{k}: {out}")
+
+if missing_keys:
+    print(f"\nError: Missing results for {', '.join(missing_keys)}", file=sys.stderr)
+    sys.exit(2)
