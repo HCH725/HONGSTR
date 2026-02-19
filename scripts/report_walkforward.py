@@ -100,6 +100,27 @@ def infer_regime(window_name: str) -> str:
     return "MIXED"
 
 
+def _latest_reason_token(
+    *,
+    quick_mode: bool,
+    failed_windows: Optional[List[str]],
+    failure_reasons: Optional[List[str]],
+    existing_token: str,
+) -> str:
+    """Normalize latest-pointer update reason tokens."""
+    if quick_mode:
+        return "LATEST_NOT_UPDATED_QUICK_MODE"
+    windows = failed_windows or []
+    reasons = [
+        reason.lower() for reason in (failure_reasons or []) if isinstance(reason, str)
+    ]
+    if windows and any(
+        ("no data" in reason or "insufficient" in reason) for reason in reasons
+    ):
+        return "LATEST_NOT_UPDATED_NO_DATA"
+    return existing_token
+
+
 def build_report(
     config_windows: List[dict],
     suite_rows: List[dict],
@@ -391,12 +412,23 @@ def main() -> int:
             )
             report["latest_pointer_policy"] = "block_update_quick"
         elif report["windows_failed"] > 0 or has_terminal_fail:
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_FAILED"
+            failed_windows = [
+                window["name"] for window in report["failed_windows_summary"]
+            ]
+            failure_reasons = [
+                window.get("error") or "" for window in report["failed_windows_summary"]
+            ]
+            report["latest_warning_reason"] = _latest_reason_token(
+                quick_mode=False,
+                failed_windows=failed_windows,
+                failure_reasons=failure_reasons,
+                existing_token="LATEST_NOT_UPDATED_FAILED",
+            )
             failed_names = (
                 ",".join(w["name"] for w in report["failed_windows_summary"]) or "none"
             )
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_FAILED status={report['status']} "
+                f"{report['latest_warning_reason']} status={report['status']} "
                 f"completed={report['windows_completed']}/{report['windows_total']} "
                 f"failed_windows={failed_names}"
             )
