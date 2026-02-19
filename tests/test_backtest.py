@@ -8,7 +8,7 @@ from hongstr.semantics.core import SemanticsV1
 @pytest.fixture
 def synthetic_data():
     # Create 48 hours of data (hourly)
-    idx = pd.date_range("2024-01-01 00:00:00", periods=48, freq="1h", tz="Asia/Taipei")
+    idx = pd.date_range("2024-02-01 00:00:00", periods=48, freq="1h", tz="Asia/Taipei")
     df = pd.DataFrame({
         "open": np.linspace(100, 105, 48),
         "high": np.linspace(101, 106, 48),
@@ -31,19 +31,19 @@ def test_backtest_smoke(synthetic_data):
             
         strategy.count += 1
         if strategy.count == 1:
-            return 'BUY'
+            return 'LONG'
         if strategy.count == 48:
-            return 'EXIT'
+            return 'FLAT'
         return None
         
-    results = engine.run(strategy)
+    results = engine.run("BTCUSDT", strategy)
     
-    assert results["semantics_version"] == "1.0.0"
+    # Baseline engine contract: result includes top-level metrics + trades.
+    assert "metrics" in results
+    assert "trades" in results
     assert len(results["trades"]) > 0
-    # Check OOS split
-    # Data is 2024 -> Should be in OOS bucket
-    assert "OOS" in results["splits"]
-    assert results["splits"]["OOS"]["total_trades"] > 0
-    assert results["splits"]["TRAIN"].get("total_trades", 0) == 0
-    
-    print("Backtest Results:", results["full_metrics"])
+    assert results["metrics"]["trades_count"] > 0
+    assert "start_equity" in results["metrics"]
+    assert "end_equity" in results["metrics"]
+
+    print("Backtest Results:", results["metrics"])
