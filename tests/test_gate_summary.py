@@ -1,17 +1,13 @@
-import unittest
-import sys
 import os
-import json
-import tempfile
-import shutil
-from pathlib import Path
-from unittest.mock import MagicMock
+import sys
+import unittest
 
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
 # Import the script module (a bit hacky, but works for script testing)
 from scripts import gate_summary
+
 
 class TestGateSummary(unittest.TestCase):
     def setUp(self):
@@ -82,12 +78,12 @@ class TestGateSummary(unittest.TestCase):
                 }
             }
         }
-        
+
         # Manually invoke logic similar to main (mocking isn't easy for script main)
         # We just verify check_metrics works on these.
         for k, v in data["per_symbol"].items():
             gate_summary.check_metrics(k, v, self.result)
-            
+
         self.assertEqual(len(self.result.errors), 0)
 
 if __name__ == "__main__":

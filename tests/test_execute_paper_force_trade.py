@@ -1,13 +1,12 @@
-import pytest
 import os
-import json
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # Add scripts to path
 sys.path.append(str(Path(__file__).parent.parent))
 from scripts.execute_paper import main as execute_main
+
 
 def test_force_trade_rejected_on_production(tmp_path):
     """Verify that --force_trade is rejected if not in testnet mode."""
@@ -22,7 +21,7 @@ def test_force_trade_allowed_on_testnet_dry_run(tmp_path):
     """Verify that --force_trade is allowed on testnet and defaults to dry-run."""
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
-    
+
     # Mock search for selection.json to avoid failure
     with patch("scripts.execute_paper.get_latest_selection", return_value=None):
         with patch.dict(os.environ, {"BINANCE_FUTURES_TESTNET": "1"}):
@@ -30,7 +29,7 @@ def test_force_trade_allowed_on_testnet_dry_run(tmp_path):
                 with patch("scripts.execute_paper.generate_markdown_report"):
                     with patch("sys.argv", ["execute_paper.py", "--force_trade", "--data_dir", str(tmp_path)]):
                         execute_main()
-                        
+
                         args, _ = mock_save.call_args
                         data = args[1]
                         assert data["decision"] == "TRADE"
@@ -47,7 +46,7 @@ def test_force_trade_respects_notional_limit(tmp_path):
                 # Force a trade with 100 USDT but max limit 50
                 with patch("sys.argv", ["execute_paper.py", "--force_trade", "--force_notional_usd", "100.0", "--max_notional_usd", "50.0", "--data_dir", str(tmp_path)]):
                     execute_main()
-                    
+
                     args, _ = mock_save.call_args
                     data = args[1]
                     assert len(data["orders"]) == 0

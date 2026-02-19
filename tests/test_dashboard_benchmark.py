@@ -1,9 +1,9 @@
-import unittest
-import sys
-import os
 import json
-import tempfile
+import os
 import shutil
+import sys
+import tempfile
+import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -22,16 +22,17 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
 import scripts.dashboard as dashboard
 
+
 class TestDashboardBenchmark(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
         self.original_root = dashboard.PROJECT_ROOT
         dashboard.PROJECT_ROOT = Path(self.test_dir)
-        
+
         # Create reports dir
         self.reports_dir = Path(self.test_dir) / "reports"
         self.reports_dir.mkdir()
-        
+
     def tearDown(self):
         shutil.rmtree(self.test_dir)
         dashboard.PROJECT_ROOT = self.original_root
@@ -57,7 +58,7 @@ class TestDashboardBenchmark(unittest.TestCase):
             }
         }
         (self.reports_dir / "benchmark_latest.json").write_text(json.dumps(data))
-        
+
         loaded = dashboard.load_benchmark_data()
         self.assertIsNotNone(loaded)
         self.assertEqual(loaded["FULL"]["top"]["total_return"], 0.1)

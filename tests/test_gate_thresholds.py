@@ -1,20 +1,20 @@
-import pytest
-import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-import pandas as pd
+from unittest.mock import patch
+
+import pytest
 
 # Add scripts to path to import generate_gate
 sys.path.append(str(Path(__file__).parent.parent))
 
 from scripts.generate_gate_artifact import generate_gate
 
+
 @pytest.fixture
 def mock_artifacts(tmp_path):
     run_dir = tmp_path / "mock_run"
     run_dir.mkdir()
-    
+
     # Fake config
     config = {
         "min_trades_per_day": 1.0, # 1 trade per day
@@ -25,7 +25,7 @@ def mock_artifacts(tmp_path):
         "max_exposure": 0.5,
         "thresholds": {"SHORT": {"ANY": {"min_sharpe": 0.0, "max_mdd": -1.0}}}
     }
-    
+
     # Fake Summary (10 days)
     summary = {
         "start_ts": "2024-01-01T00:00:00Z",
@@ -37,7 +37,7 @@ def mock_artifacts(tmp_path):
             "ETHUSDT": {"trades_count": 5}
         }
     }
-    
+
     # Fake Regime Report
     regime = {
         "buckets": {
@@ -46,19 +46,19 @@ def mock_artifacts(tmp_path):
             "NEUTRAL": {}
         }
     }
-    
+
     return run_dir, config, summary, regime
 
 def test_adaptive_pass(mock_artifacts):
     run_dir, config, summary, regime = mock_artifacts
-    
+
     with patch("scripts.generate_gate_artifact.load_json") as mock_load:
         with patch("scripts.generate_gate_artifact.save_json_atomic") as mock_save:
             # Mock returns: regime, summary, config
             mock_load.side_effect = [regime, summary, config]
-            
+
             generate_gate(run_dir, "SHORT", ["BTCUSDT", "ETHUSDT"], "4h")
-            
+
             # Verify Pass
             args, _ = mock_save.call_args
             gate_data = args[1]
@@ -69,13 +69,13 @@ def test_adaptive_pass(mock_artifacts):
 def test_adaptive_fail_portfolio(mock_artifacts):
     run_dir, config, summary, regime = mock_artifacts
     summary["trades_count"] = 5 # Below required 10
-    
+
     with patch("scripts.generate_gate_artifact.load_json") as mock_load:
         with patch("scripts.generate_gate_artifact.save_json_atomic") as mock_save:
             mock_load.side_effect = [regime, summary, config]
-            
+
             generate_gate(run_dir, "SHORT", ["BTCUSDT", "ETHUSDT"], "4h")
-            
+
             args, _ = mock_save.call_args
             gate_data = args[1]
             assert gate_data["results"]["overall"]["pass"] is False
@@ -84,13 +84,13 @@ def test_adaptive_fail_portfolio(mock_artifacts):
 def test_per_symbol_warn(mock_artifacts):
     run_dir, config, summary, regime = mock_artifacts
     summary["per_symbol"]["ETHUSDT"]["trades_count"] = 2 # Below 5
-    
+
     with patch("scripts.generate_gate_artifact.load_json") as mock_load:
         with patch("scripts.generate_gate_artifact.save_json_atomic") as mock_save:
             mock_load.side_effect = [regime, summary, config]
-            
+
             generate_gate(run_dir, "SHORT", ["BTCUSDT", "ETHUSDT"], "4h")
-            
+
             args, _ = mock_save.call_args
             gate_data = args[1]
             assert gate_data["results"]["overall"]["pass"] is True # Should pass with WARN
@@ -101,13 +101,13 @@ def test_per_symbol_fail(mock_artifacts):
     run_dir, config, summary, regime = mock_artifacts
     config["per_symbol_trade_check"] = "FAIL"
     summary["per_symbol"]["ETHUSDT"]["trades_count"] = 2
-    
+
     with patch("scripts.generate_gate_artifact.load_json") as mock_load:
         with patch("scripts.generate_gate_artifact.save_json_atomic") as mock_save:
             mock_load.side_effect = [regime, summary, config]
-            
+
             generate_gate(run_dir, "SHORT", ["BTCUSDT", "ETHUSDT"], "4h")
-            
+
             args, _ = mock_save.call_args
             gate_data = args[1]
             assert gate_data["results"]["overall"]["pass"] is False
@@ -117,13 +117,13 @@ def test_per_symbol_fail(mock_artifacts):
 def test_exposure_warn(mock_artifacts):
     run_dir, config, summary, regime = mock_artifacts
     summary["exposure_time"] = 0.8 # > 0.5 max
-    
+
     with patch("scripts.generate_gate_artifact.load_json") as mock_load:
         with patch("scripts.generate_gate_artifact.save_json_atomic") as mock_save:
             mock_load.side_effect = [regime, summary, config]
-            
+
             generate_gate(run_dir, "SHORT", ["BTCUSDT", "ETHUSDT"], "4h")
-            
+
             args, _ = mock_save.call_args
             gate_data = args[1]
             assert gate_data["results"]["overall"]["pass"] is True
@@ -134,13 +134,13 @@ def test_exposure_fail(mock_artifacts):
     run_dir, config, summary, regime = mock_artifacts
     summary["exposure_time"] = 0.8
     config["exposure_check"] = "FAIL"
-    
+
     with patch("scripts.generate_gate_artifact.load_json") as mock_load:
         with patch("scripts.generate_gate_artifact.save_json_atomic") as mock_save:
             mock_load.side_effect = [regime, summary, config]
-            
+
             generate_gate(run_dir, "SHORT", ["BTCUSDT", "ETHUSDT"], "4h")
-            
+
             args, _ = mock_save.call_args
             gate_data = args[1]
             assert gate_data["results"]["overall"]["pass"] is False

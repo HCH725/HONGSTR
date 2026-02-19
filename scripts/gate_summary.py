@@ -1,9 +1,9 @@
 import argparse
 import json
-import sys
 import os
+import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List
 
 # Thresholds
 THRESHOLDS = {
@@ -32,7 +32,7 @@ class GateResult:
 
     def warn(self, msg: str):
         self.warnings.append(msg)
-        
+
     def success(self, msg: str):
         self.passes.append(msg)
 
@@ -52,17 +52,17 @@ def check_metrics(name: str, metrics: Dict, result: GateResult):
     mdd = metrics.get("max_drawdown", 0.0) or 0.0
     exposure = metrics.get("exposure_time", 0.0) or 0.0
     sharpe = metrics.get("sharpe", 0.0) or 0.0
-    
+
     # 1. Hard Fails
     if trades < THRESHOLDS["hard_fail"]["trades_count_min"]:
         result.fail(f"[{name}] Trades {trades} < {THRESHOLDS['hard_fail']['trades_count_min']}")
-        
+
     if mdd <= THRESHOLDS["hard_fail"]["max_drawdown_limit"]:
         result.fail(f"[{name}] MaxDD {mdd:.4f} <= {THRESHOLDS['hard_fail']['max_drawdown_limit']}")
-        
+
     if exposure > THRESHOLDS["hard_fail"]["exposure_time_max"]:
         result.fail(f"[{name}] Exposure {exposure:.4f} > {THRESHOLDS['hard_fail']['exposure_time_max']}")
-        
+
     if sharpe < THRESHOLDS["hard_fail"]["sharpe_min"]:
         result.fail(f"[{name}] Sharpe {sharpe:.4f} < {THRESHOLDS['hard_fail']['sharpe_min']}")
 
@@ -75,17 +75,17 @@ def main():
     parser.add_argument("--summary", type=str, help="Direct path to summary.json")
     parser.add_argument("--symbols", type=str, default="BTCUSDT,ETHUSDT,BNBUSDT", help="Comma-separated symbols")
     parser.add_argument("--timeframes", type=str, default="1h,4h", help="Comma-separated timeframes")
-    
+
     # Store True by default, allow --no_strict to disable
     parser.add_argument("--strict_timeframes", action="store_true", default=True, help="Fail if any TF missing")
     parser.add_argument("--no_strict_timeframes", action="store_false", dest="strict_timeframes", help="Disable strict TF check")
-    
+
     args = parser.parse_args()
-    
+
     # Resolve Summary Path
     summary_path = None
     run_dir = None
-    
+
     if args.summary:
         summary_path = Path(args.summary)
         run_dir = summary_path.parent
@@ -98,11 +98,11 @@ def main():
         if latest:
             run_dir = Path(latest)
             summary_path = run_dir / "summary.json"
-            
+
     if not summary_path or not summary_path.exists():
         print(f"ERROR: summary.json not found at {summary_path}", file=sys.stderr)
         sys.exit(1)
-        
+
     try:
         with open(summary_path, 'r') as f:
             data = json.load(f)
@@ -123,23 +123,23 @@ def main():
     # Setup Check List
     target_symbols = [s.strip() for s in args.symbols.split(",")]
     target_tfs = [t.strip() for t in args.timeframes.split(",")]
-    
+
     result = GateResult()
-    
+
     # 1. Print Portfolio Summary
     print("[Portfolio]")
     p_trades = data.get("trades_count", 0)
     p_sharpe = data.get("sharpe", 0.0)
     p_ret = data.get("total_return", 0.0)
     print(f"Trades: {p_trades}, Sharpe: {p_sharpe:.4f}, Return: {p_ret:.4f}")
-    
+
     # 2. Print Per-Symbol Table
     per_symbol = data.get("per_symbol", {})
-    
+
     print("-" * 80)
     print(f"{'Name':<15} | {'Trades':<6} | {'Return':<8} | {'MDD':<8} | {'Sharpe':<8} | {'Exp':<8}")
     print("-" * 80)
-    
+
     for sym in target_symbols:
         for tf in target_tfs:
             key = f"{sym}_{tf}"
@@ -161,19 +161,19 @@ def main():
         overall = gate_data["results"]["overall"]
         passed = overall.get("pass", False)
         reasons = overall.get("reasons", [])
-        
+
         if passed:
-            print(f"\n[GATE PASSED] Adaptive Gate checks passed.")
+            print("\n[GATE PASSED] Adaptive Gate checks passed.")
             sys.exit(0)
         else:
-            print(f"\n[GATE FAILED] Adaptive Gate checks failed:")
+            print("\n[GATE FAILED] Adaptive Gate checks failed:")
             for r in reasons:
                 print(f"  - {r}")
             sys.exit(2)
     else:
         # Fallback to Legacy Logic (Hardcoded) if gate.json missing
         print("\n[WARNING] gate.json not found. Falling back to legacy hardcoded checks.")
-        # ... logic omitted for brevity, or we can just fail/warn. 
+        # ... logic omitted for brevity, or we can just fail/warn.
         # For this task, we expect gate.json to exist.
         if args.strict_timeframes:
              # Basic check to ensure we don't pass blindly if gate.json is missing

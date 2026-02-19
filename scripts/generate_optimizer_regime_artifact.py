@@ -2,9 +2,10 @@ import argparse
 import json
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from pathlib import Path
+from typing import Dict, Optional
+
 
 def load_json(path: Path) -> Optional[Dict]:
     if not path.exists():
@@ -26,17 +27,17 @@ def generate_optimizer_regime(run_dir: Path, regime_tf: str = "4h", top_k_val: i
     summary_path = run_dir / "summary.json"
     regime_path = run_dir / "regime_report.json"
     optimizer_path = run_dir / "optimizer.json"
-    
+
     summary = load_json(summary_path)
     regime_report = load_json(regime_path)
     optimizer = load_json(optimizer_path)
-    
+
     if not summary or not regime_report:
         print(f"Error: summary.json or regime_report.json missing in {run_dir}", file=sys.stderr)
         return
 
     buckets_data = regime_report.get("buckets", {})
-    
+
     # We want to map the 'best' params from optimizer.json (or defaults) to these buckets
     best_params = {}
     if optimizer and "best" in optimizer:
@@ -54,14 +55,14 @@ def generate_optimizer_regime(run_dir: Path, regime_tf: str = "4h", top_k_val: i
     result_buckets = {}
     for regime in ["BULL", "BEAR", "NEUTRAL"]:
         reg_metrics = buckets_data.get(regime, {})
-        
+
         # Candidate construction
-        # Since we currently only have one run's detailed regime slicing, 
+        # Since we currently only have one run's detailed regime slicing,
         # we treat it as the top-1 candidate for all regimes it has data for.
-        
+
         candidates = []
         warnings = []
-        
+
         trades_count = reg_metrics.get("trades_count", 0)
         if trades_count > 0:
             candidates.append({
@@ -73,7 +74,7 @@ def generate_optimizer_regime(run_dir: Path, regime_tf: str = "4h", top_k_val: i
                 },
                 "metrics": reg_metrics
             })
-            
+
             if trades_count < 30:
                 warnings.append(f"Insufficient samples: trades {trades_count} < 30")
         else:
@@ -104,6 +105,6 @@ if __name__ == "__main__":
     parser.add_argument("--run_dir", required=True, help="Backtest run directory")
     parser.add_argument("--regime_tf", default="4h", help="Regime timeframe")
     parser.add_argument("--topk", type=int, default=5, help="Top K results to keep")
-    
+
     args = parser.parse_args()
     generate_optimizer_regime(Path(args.run_dir), args.regime_tf, args.topk)

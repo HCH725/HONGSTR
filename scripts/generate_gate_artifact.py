@@ -2,9 +2,10 @@ import argparse
 import json
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from pathlib import Path
+from typing import Dict, List, Optional
+
 import pandas as pd
 
 # Default Config
@@ -49,16 +50,16 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
     regime_path = run_dir / "regime_report.json"
     summary_path = run_dir / "summary.json"
     config_path = Path("configs/gate_thresholds.json")
-    
+
     regime_data = load_json(regime_path)
     summary_data = load_json(summary_path)
-    
+
     # Load Config or Default
     gate_config = load_json(config_path)
     if not gate_config:
         print(f"Warning: {config_path} not found. Using defaults.", file=sys.stderr)
         gate_config = DEFAULT_CONFIG
-        
+
     if not regime_data or not summary_data:
         print(f"Error: Run artifacts missing in {run_dir} (regime or summary)", file=sys.stderr)
         sys.exit(1)
@@ -67,14 +68,14 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
     start_ts = pd.Timestamp(summary_data["start_ts"])
     end_ts = pd.Timestamp(summary_data["end_ts"])
     window_days = (end_ts - start_ts).days + 1
-    
+
     # Calculate Required Trades
     min_trades_per_day = gate_config.get("min_trades_per_day", 0.5)
     portfolio_min = gate_config.get("min_trades_portfolio_min", 30)
     symbol_min = gate_config.get("min_trades_per_symbol_min", 5)
-    
+
     required_trades = max(portfolio_min, int(window_days * min_trades_per_day))
-    
+
     # Thresholds Lookup
     thresholds = gate_config.get("thresholds", DEFAULT_CONFIG["thresholds"])
     norm_mode = mode.upper()
@@ -102,7 +103,7 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
             # Handle potential missing symbol in summary if no trades
             sym_data = per_symbol_data.get(f"{sym}_1h", {}) # Try 1h first? or iterate all keys?
             # Actually summary keys are usually SYM_TF. We should verify.
-            # But let's look at regime data per symbol if available? 
+            # But let's look at regime data per symbol if available?
             # Regime report aggregates by regime. Summary aggregates by sym_tf.
             # Let's sum trades for symbol across TFs from summary per_symbol
             s_trades = 0
@@ -111,7 +112,7 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
                 if k.startswith(sym):
                     s_trades += v.get("trades_count", 0)
                     found = True
-            
+
             if s_trades < symbol_min:
                 msg = f"Symbol {sym} Trades {s_trades} < {symbol_min}"
                 if per_symbol_check == "FAIL":
@@ -129,14 +130,14 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
     if exposure_check != "OFF":
         max_exp = gate_config.get("max_exposure", 1.0)
         # Check global exposure time or max exposure?
-        # User requested max_exposure semantics. 
+        # User requested max_exposure semantics.
         # Summary has exposure_time. It doesn't have peak leverage.
-        # Assuming we check exposure_time for now as proxy for "over-exposed" 
-        # OR if we had max_exposure metrics. 
+        # Assuming we check exposure_time for now as proxy for "over-exposed"
+        # OR if we had max_exposure metrics.
         # Retaining logic from previous issue: "Exposure 0.99 > 0.98".
         obs_exp = summary_data.get("exposure_time", 0.0)
-        
-        # NOTE: logic in previous fail was > 0.98. 
+
+        # NOTE: logic in previous fail was > 0.98.
         # If gate_config has max_exposure 1.0, and obs is 0.99, it passes.
         # If gate_config has max_exposure 0.98, and obs is 0.99, it fails.
         if obs_exp > max_exp:
@@ -154,10 +155,10 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
         mdd = float(bucket.get("max_drawdown", 0.0))
         # Total trades in this regime
         reg_trades = int(bucket.get("trades_count", 0))
-        
+
         # Fallback to ANY if specific regime not defined
         thresh = effective_thresholds.get(reg, effective_thresholds.get("ANY", {}))
-        
+
         if not thresh:
              # Should not happen with default config
              thresh = {"min_sharpe": 0.0, "max_mdd": -1.0}
@@ -169,12 +170,12 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
         if sharpe < thresh.get("min_sharpe", 0):
             reg_pass = False
             reg_reasons.append(f"sharpe {sharpe:.2f} < {thresh['min_sharpe']:.2f}")
-        
+
         # Check MDD
         if mdd < thresh.get("max_mdd", -1.0):
             reg_pass = False
             reg_reasons.append(f"max_mdd {mdd:.2f} < {thresh['max_mdd']:.2f}")
-            
+
         # We generally don't check trade count PER REGIME for failure here if we check global
         # But we could if config had it. Config structure in prompt doesn't strictly have per-regime min_trades.
         # It has global dynamic. So we skip per-regime trade check or keep it loose?
@@ -188,7 +189,7 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
             "pass": reg_pass,
             "reasons": reg_reasons
         }
-        
+
         if not reg_pass:
             overall_pass = False
             for r in reg_reasons:
@@ -227,8 +228,8 @@ if __name__ == "__main__":
     parser.add_argument("--mode", required=True, choices=["FULL", "SHORT", "custom"], help="Backtest mode")
     parser.add_argument("--symbols", required=True, help="Comma-separated symbols")
     parser.add_argument("--timeframe", default="4h", help="Regime timeframe")
-    
+
     args = parser.parse_args()
-    
+
     symbols_list = [s.strip() for s in args.symbols.split(",")]
     generate_gate(Path(args.dir), args.mode, symbols_list, args.timeframe)

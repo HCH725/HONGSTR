@@ -1,9 +1,10 @@
-import pytest
-import pandas as pd
 import numpy as np
-import pytz
+import pandas as pd
+import pytest
+
 from hongstr.backtest.engine import BacktestEngine
 from hongstr.semantics.core import SemanticsV1
+
 
 @pytest.fixture
 def synthetic_data():
@@ -21,23 +22,23 @@ def synthetic_data():
 def test_backtest_smoke(synthetic_data):
     sem = SemanticsV1()
     engine = BacktestEngine(sem, synthetic_data)
-    
+
     # Simple Strategy: Buy on first candle, Exit on last
     def strategy(row):
         # We need a way to know index in this simple stub, but row is just series.
         # Stateful hack for test only
         if not hasattr(strategy, 'count'):
             strategy.count = 0
-            
+
         strategy.count += 1
         if strategy.count == 1:
             return 'LONG'
         if strategy.count == 48:
             return 'FLAT'
         return None
-        
+
     results = engine.run("BTCUSDT", strategy)
-    
+
     # Baseline engine contract: result includes top-level metrics + trades.
     assert "metrics" in results
     assert "trades" in results

@@ -1,5 +1,11 @@
 
-import json, os, pathlib, sys, glob, argparse
+import argparse
+import glob
+import json
+import os
+import pathlib
+import sys
+
 
 def get_latest_summary_path():
     # Try finding the latest summary.json in data/backtests
@@ -71,7 +77,7 @@ for sym in symbols:
             print(f"{k}: MISSING")
             missing_keys.append(k)
             continue
-            
+
         v = ps[k]
         out = {kk:v.get(kk) for kk in ["total_return","max_drawdown","sharpe","trades_count","win_rate","exposure_time","start_ts","end_ts"]}
         # Handle both potential key names for debug

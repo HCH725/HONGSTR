@@ -1,8 +1,8 @@
-import pytest
 import urllib.parse
-from unittest.mock import patch, MagicMock
-from hongstr.execution.binance_utils import build_signed_request
+from unittest.mock import MagicMock, patch
+
 from hongstr.execution.binance_testnet import BinanceFuturesTestnetBroker
+from hongstr.execution.binance_utils import build_signed_request
 from hongstr.execution.models import OrderRequest
 
 
@@ -24,28 +24,28 @@ def test_build_signed_request_deterministic():
     params = {"symbol": "BTCUSDT", "side": "BUY", "timestamp": 123456789}
     key = "my_api_key"
     secret = "my_secret"
-    
+
     url, headers, debug = build_signed_request("GET", base, path, params, key, secret, debug=True)
-    
+
     # Check headers
     assert headers["X-MBX-APIKEY"] == key
-    
+
     # Check URL structure
     parsed = urllib.parse.urlparse(url)
     assert parsed.scheme == "https"
     assert parsed.netloc == "test.com"
     assert parsed.path == path
-    
+
     query = urllib.parse.parse_qs(parsed.query)
     assert query["symbol"][0] == "BTCUSDT"
     assert query["side"][0] == "BUY"
     assert query["timestamp"][0] == "123456789"
     assert "signature" in query
     assert len(query["signature"][0]) == 64
-    
+
     # Check deterministic sorted pre-sign QS in debug
     assert "Pre-Sign QS:   side=BUY&symbol=BTCUSDT&timestamp=123456789" in debug
-           
+
     # Check redaction and debug info
     assert "my_secret" not in debug
     assert "my_api_key" not in debug
@@ -55,21 +55,21 @@ def test_build_signed_request_deterministic():
     assert "****" in debug
     assert "Sent Mode:     sent_with_final_url_only: true" in debug
     assert "Note: urlencode performed exactly once on sorted items." in debug
-    
+
 def test_signing_consistency():
     """Verify that the same params result in the same signature regardless of input order."""
     base = "https://test.com"
     path = "/v1/test"
     key = "key"
     secret = "secret"
-    
+
     # Different dict order, same content
     params1 = {"a": "1", "b": "2", "timestamp": 100}
     params2 = {"timestamp": 100, "b": "2", "a": "1"}
-    
+
     url1, _, _ = build_signed_request("GET", base, path, params1, key, secret)
     url2, _, _ = build_signed_request("GET", base, path, params2, key, secret)
-    
+
     assert url1 == url2
     assert "a=1&b=2&timestamp=100" in url1
 

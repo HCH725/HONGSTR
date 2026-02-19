@@ -1,17 +1,17 @@
-import pytest
 from hongstr.realtime.binance_ws import build_stream_url, parse_aggtrade, parse_kline
 from hongstr.realtime.types import AggTradeEvent, KlineEvent
+
 
 def test_build_stream_url():
     base_url = "wss://stream.binance.com:9443/stream"
     symbols = ["BTCUSDT", "ETHUSDT"]
     streams = ["aggTrade", "kline_1m"]
-    
+
     url = build_stream_url(base_url, symbols, streams)
-    
+
     expected_streams = "btcusdt@aggTrade/btcusdt@kline_1m/ethusdt@aggTrade/ethusdt@kline_1m"
     expected_url = f"{base_url}?streams={expected_streams}"
-    
+
     assert url == expected_url
 
 def test_parse_aggtrade():
@@ -28,9 +28,9 @@ def test_parse_aggtrade():
         "m": True,
         "M": True
     }
-    
+
     event = parse_aggtrade(payload)
-    
+
     assert isinstance(event, AggTradeEvent)
     assert event.symbol == "BNBBTC"
     assert event.price == 0.001
@@ -63,9 +63,9 @@ def test_parse_kline():
             "B": "123456"
         }
     }
-    
+
     event = parse_kline(payload)
-    
+
     assert isinstance(event, KlineEvent)
     assert event.symbol == "BNBBTC"
     assert event.kline.interval == "1m"

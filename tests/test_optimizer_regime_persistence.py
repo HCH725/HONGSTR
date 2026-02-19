@@ -1,10 +1,10 @@
-import unittest
 import json
 import os
 import shutil
-import tempfile
-from pathlib import Path
 import sys
+import tempfile
+import unittest
+from pathlib import Path
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -13,12 +13,13 @@ sys.path.append(str(PROJECT_ROOT / "src"))
 
 from hongstr.selection.selection import get_best_params_for_regime
 
+
 class TestOptimizerRegimePersistence(unittest.TestCase):
     def setUp(self):
         self.test_dir = Path(tempfile.mkdtemp())
         self.run_dir = self.test_dir / "test_run"
         self.run_dir.mkdir()
-        
+
         # 1. Mock summary.json
         self.summary_data = {
             "run_id": "test_run_123",
@@ -29,7 +30,7 @@ class TestOptimizerRegimePersistence(unittest.TestCase):
         }
         with open(self.run_dir / "summary.json", "w") as f:
             json.dump(self.summary_data, f)
-            
+
         # 2. Mock regime_report.json
         self.regime_data = {
             "buckets": {
@@ -58,7 +59,7 @@ class TestOptimizerRegimePersistence(unittest.TestCase):
         }
         with open(self.run_dir / "regime_report.json", "w") as f:
             json.dump(self.regime_data, f)
-            
+
         # 3. Mock optimizer.json
         self.opt_data = {
             "best": {
@@ -80,13 +81,13 @@ class TestOptimizerRegimePersistence(unittest.TestCase):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        
+
         reg_opt_path = self.run_dir / "optimizer_regime.json"
         self.assertTrue(reg_opt_path.exists())
-        
+
         with open(reg_opt_path, "r") as f:
             data = json.load(f)
-            
+
         self.assertEqual(data["schema_version"], 1)
         self.assertIn("BULL", data["buckets"])
         self.assertEqual(len(data["buckets"]["BULL"]["topk"]), 1)
@@ -97,17 +98,17 @@ class TestOptimizerRegimePersistence(unittest.TestCase):
         # Generate artifact first
         import subprocess
         subprocess.run(["python3", "scripts/generate_optimizer_regime_artifact.py", "--run_dir", str(self.run_dir)], check=True)
-        
+
         # Test API
         best_bull = get_best_params_for_regime(str(self.run_dir), "BULL")
         self.assertIsNotNone(best_bull)
         self.assertEqual(best_bull["atr_period"], 14)
-        
+
         # Test Fallback (remove optimizer_regime.json)
         os.remove(self.run_dir / "optimizer_regime.json")
         best_fallback = get_best_params_for_regime(str(self.run_dir), "BEAR")
         self.assertEqual(best_fallback["atr_period"], 14) # Should come from optimizer.json
-        
+
         # Test None fallback
         os.remove(self.run_dir / "optimizer.json")
         self.assertIsNone(get_best_params_for_regime(str(self.run_dir), "NEUTRAL"))

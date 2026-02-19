@@ -1,17 +1,18 @@
-import os
-import json
 import argparse
+import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 # Add src and scripts to path
 current_dir = Path(__file__).parent
 sys.path.append(str(current_dir.parent / "src"))
 sys.path.append(str(current_dir))
 
-from hongstr.execution.binance_testnet import BinanceFuturesTestnetBroker
 from execute_paper import generate_markdown_report
+
+from hongstr.execution.binance_testnet import BinanceFuturesTestnetBroker
+
 
 def load_json(path: Path) -> Optional[Dict]:
     if not path.exists(): return None
@@ -33,7 +34,7 @@ def main():
 
     report_path = Path(args.report)
     data = load_json(report_path)
-    
+
     if not data:
         print(f"No report found at {report_path}")
         return

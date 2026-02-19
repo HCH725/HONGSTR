@@ -1,11 +1,10 @@
-import unittest
 import json
-import os
 import shutil
-import tempfile
-from pathlib import Path
 import subprocess
 import sys
+import tempfile
+import unittest
+from pathlib import Path
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -16,7 +15,7 @@ class TestGateArtifact(unittest.TestCase):
         self.test_dir = Path(tempfile.mkdtemp())
         self.run_dir = self.test_dir / "test_run"
         self.run_dir.mkdir()
-        
+
         # Create a mock regime_report.json
         self.regime_data = {
             "buckets": {
@@ -39,7 +38,7 @@ class TestGateArtifact(unittest.TestCase):
         }
         with open(self.run_dir / "regime_report.json", "w") as f:
             json.dump(self.regime_data, f)
-        
+
         # Create a mock summary.json (Schema 2 Requirement)
         self.summary_data = {
             "start_ts": "2024-01-01T00:00:00Z",
@@ -63,7 +62,7 @@ class TestGateArtifact(unittest.TestCase):
         # BEAR: 0.05 < 0.1 (FAIL), -0.35 < -0.3 (FAIL)
         # NEUTRAL: 0.25 > 0.2 (OK), -0.05 > -0.25 (OK)
         # Portfolio: 50 trades > 30 required (OK)
-        
+
         cmd = [
             "python3", "scripts/generate_gate_artifact.py",
             "--dir", str(self.run_dir),
@@ -73,16 +72,16 @@ class TestGateArtifact(unittest.TestCase):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        
+
         gate_path = self.run_dir / "gate.json"
         self.assertTrue(gate_path.exists())
-        
+
         with open(gate_path, "r") as f:
             data = json.load(f)
-            
+
         self.assertEqual(data["schema_version"], 2)
         self.assertFalse(data["results"]["overall"]["pass"])
-        
+
         # Check reasons
         reasons = data["results"]["overall"]["reasons"]
         self.assertTrue(any("BEAR: sharpe 0.05 < 0.10" in r for r in reasons))
@@ -94,11 +93,11 @@ class TestGateArtifact(unittest.TestCase):
         # BULL: 0.4 > 0 (OK), -0.1 > -0.15 (OK)
         # BEAR: 0.05 > 0 (OK), -0.35 < -0.15 (FAIL) -> FAIL
         # Adjusting BEAR MDD to pass
-        
+
         self.regime_data["buckets"]["BEAR"]["max_drawdown"] = -0.05
         with open(self.run_dir / "regime_report.json", "w") as f:
             json.dump(self.regime_data, f)
-            
+
         cmd = [
             "python3", "scripts/generate_gate_artifact.py",
             "--dir", str(self.run_dir),
@@ -107,7 +106,7 @@ class TestGateArtifact(unittest.TestCase):
             "--timeframe", "4h"
         ]
         subprocess.run(cmd, check=True)
-        
+
         with open(self.run_dir / "gate.json", "r") as f:
             data = json.load(f)
         self.assertTrue(data["results"]["overall"]["pass"])

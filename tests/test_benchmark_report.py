@@ -1,11 +1,10 @@
-import unittest
 import json
-import os
 import shutil
-import tempfile
-from pathlib import Path
 import subprocess
 import sys
+import tempfile
+import unittest
+from pathlib import Path
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -16,7 +15,7 @@ class TestBenchmarkReport(unittest.TestCase):
         self.test_dir = Path(tempfile.mkdtemp())
         self.reports_dir = self.test_dir / "reports"
         self.reports_dir.mkdir()
-        
+
         # Create a mock benchmark_latest.json
         self.bench_data = {
             "schema_version": 1,
@@ -62,7 +61,7 @@ class TestBenchmarkReport(unittest.TestCase):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        
+
         output = result.stdout
         self.assertIn("BTCUSDT_4h", output)
         self.assertIn("15.00%", output)  # FULL return

@@ -8,11 +8,11 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root / "src"))
 
 from hongstr.config import (
-    REALTIME_SYMBOLS,
-    REALTIME_STREAMS,
     REALTIME_OUT_DIR,
+    REALTIME_RUN_SECONDS,
+    REALTIME_STREAMS,
+    REALTIME_SYMBOLS,
     REALTIME_WS_BASE,
-    REALTIME_RUN_SECONDS
 )
 from hongstr.realtime.stream_manager import StreamManager
 from hongstr.realtime.types import WSConfig
@@ -34,9 +34,9 @@ async def main():
         ws_base_url=REALTIME_WS_BASE,
         run_seconds=REALTIME_RUN_SECONDS
     )
-    
+
     manager = StreamManager(config, REALTIME_STREAMS)
-    
+
     try:
         await manager.run(duration=REALTIME_RUN_SECONDS)
     except KeyboardInterrupt:
@@ -44,9 +44,9 @@ async def main():
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         sys.exit(1)
-        
+
     logger.info(f"Total messages processed: {manager.msg_count}")
-    
+
     # List created files
     logger.info("Files created:")
     out_path = Path(REALTIME_OUT_DIR)

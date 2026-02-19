@@ -1,7 +1,7 @@
+import argparse
 import asyncio
 import logging
 import sys
-import argparse
 from pathlib import Path
 
 # Add src to path
@@ -10,12 +10,12 @@ sys.path.append(str(project_root / "src"))
 
 from hongstr.config import (
     REALTIME_SYMBOLS,
-    SIGNAL_TFS,
+    SIGNAL_ENGINE_MODE,
     SIGNAL_INPUT_ROOT,
+    SIGNAL_MAX_BARS,
     SIGNAL_OUTPUT_ROOT,
     SIGNAL_STATE_ROOT,
-    SIGNAL_ENGINE_MODE,
-    SIGNAL_MAX_BARS
+    SIGNAL_TFS,
 )
 from hongstr.signal.engine import SignalEngine
 from hongstr.signal.types import EngineConfig
@@ -29,18 +29,18 @@ async def main():
     parser.add_argument("--tfs", type=str, default=",".join(SIGNAL_TFS))
     parser.add_argument("--mode", type=str, default=SIGNAL_ENGINE_MODE)
     parser.add_argument("--duration", type=int, default=60)
-    
+
     args = parser.parse_args()
-    
+
     symbols = args.symbols.split(",")
     tfs = args.tfs.split(",")
-    
+
     logger.info("--- Starting Signal Engine ---")
     logger.info(f"Symbols: {symbols}")
     logger.info(f"Timeframes: {tfs}")
     logger.info(f"Mode: {args.mode}")
     logger.info(f"Duration: {args.duration}s")
-    
+
     config = EngineConfig(
         symbols=symbols,
         timeframes=tfs,
@@ -50,9 +50,9 @@ async def main():
         mode=args.mode,
         max_bars=SIGNAL_MAX_BARS
     )
-    
+
     engine = SignalEngine(config)
-    
+
     try:
         await engine.run(duration=args.duration)
     except KeyboardInterrupt:
@@ -60,7 +60,7 @@ async def main():
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         sys.exit(1)
-        
+
     logger.info("--- Signal Engine Complete ---")
 
 if __name__ == "__main__":

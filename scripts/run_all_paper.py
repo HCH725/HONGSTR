@@ -1,46 +1,54 @@
+import argparse
 import asyncio
+import json
+import logging
 import os
 import sys
-import logging
-import argparse
-import json
 from datetime import datetime
 
 # Path Hack
 sys.path.append(os.path.join(os.path.dirname(__file__), "../src"))
 
+from hongstr.bridge.signal_to_execution import SignalExecutionBridge
 from hongstr.config import (
-    REALTIME_SYMBOLS, REALTIME_STREAMS, REALTIME_OUT_DIR, REALTIME_WS_BASE,
-    SIGNAL_TFS, SIGNAL_OUTPUT_ROOT, SIGNAL_STATE_ROOT, SIGNAL_MAX_BARS,
-    EXECUTION_MODE, PROJECT_ROOT, PORTFOLIO_ID
+    PORTFOLIO_ID,
+    PROJECT_ROOT,
+    REALTIME_OUT_DIR,
+    REALTIME_STREAMS,
+    REALTIME_SYMBOLS,
+    REALTIME_WS_BASE,
+    SIGNAL_MAX_BARS,
+    SIGNAL_OUTPUT_ROOT,
+    SIGNAL_STATE_ROOT,
+    SIGNAL_TFS,
 )
+from hongstr.logging import setup_logging
 from hongstr.realtime.stream_manager import StreamManager
 from hongstr.realtime.types import WSConfig
 from hongstr.signal.engine import SignalEngine
 from hongstr.signal.types import EngineConfig
-from hongstr.bridge.signal_to_execution import SignalExecutionBridge
-from hongstr.logging import setup_logging
+
 
 async def main():
     parser = argparse.ArgumentParser(description="Run HONGSTR All-in-One (Paper/Testnet)")
     parser.add_argument("--seconds", type=int, default=30, help="Run duration in seconds")
     parser.add_argument("--mode", type=str, default="B", help="Execution Mode (B=Paper)")
     args = parser.parse_args()
-    
+
     # 1. Setup Logging
     setup_logging(level="INFO", log_dir="logs", name="run_all_paper")
     logger = logging.getLogger("run_all")
-    
+
     # 2. Config & Mode
     # Override env if arg provided
     if args.mode:
         os.environ["EXECUTION_MODE"] = args.mode
-    
+
     mode = os.environ.get("EXECUTION_MODE", "B")
-    
+
     logger.info(f"--- Starting HONGSTR (Mode: {mode}) ---")
     logger.info(f"Duration: {args.seconds}s")
-    
+
     # Fail-closed check
     if mode != 'B':
         # logic supports C too, but user request specifically titles this "run_all_paper" and asks for fail-closed on config?
@@ -48,9 +56,9 @@ async def main():
         # Let's enforce B for this script as requested.
         logger.error(f"Invalid Mode {mode}. This script is for Paper Mode (B).")
         sys.exit(1)
-        
+
     # 3. Components
-    
+
     # C7 Stream Manager
     ws_config = WSConfig(
         symbols=REALTIME_SYMBOLS,
@@ -62,7 +70,7 @@ async def main():
         config=ws_config,
         streams=REALTIME_STREAMS
     )
-    
+
     # C8 Signal Engine
     c8_config = EngineConfig(
         symbols=REALTIME_SYMBOLS,
@@ -74,10 +82,10 @@ async def main():
         max_bars=SIGNAL_MAX_BARS
     )
     c8_engine = SignalEngine(c8_config)
-    
+
     # C10 Bridge
     bridge = SignalExecutionBridge()
-    
+
     # Ensure signal file exists (Bridge needs it)
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     signals_dir = os.path.join(SIGNAL_OUTPUT_ROOT, date_str)
@@ -88,20 +96,20 @@ async def main():
 
     # 4. Run Loop
     logger.info("Launching Components...")
-    
+
     tasks = [
         asyncio.create_task(c7_manager.run(duration=args.seconds)),
         asyncio.create_task(c8_engine.run_tail_jsonl(duration=args.seconds)),
         asyncio.create_task(bridge.run(duration=args.seconds))
     ]
-    
+
     # 5. Smoke Injection Monitor
     # If no signals after X seconds, inject one.
     async def injector_loop():
         # Wait 80% of duration
         wait_time = args.seconds * 0.8
         await asyncio.sleep(wait_time)
-        
+
         # Check execution result
         res_file = os.path.join(PROJECT_ROOT, "data/state/execution_result.jsonl")
         has_result = False
@@ -109,13 +117,13 @@ async def main():
             with open(res_file, 'r') as f:
                 if len(f.readlines()) > 0:
                     has_result = True
-        
+
         if not has_result:
             logger.warning("No execution results found. Injecting SMOKE signal...")
             # Reuse logic from smoke_c12_paper.sh (json payload)
             # Must match Schema: ts, symbol, portfolio_id, strategy_id, etc.
             # Using defaults compatible with C12 smoke
-            
+
             payload = {
                 "ts": datetime.utcnow().isoformat(),
                 "symbol": "BTCUSDT",
@@ -126,7 +134,7 @@ async def main():
                 "regime": "TREND",
                 "confidence": 1.0
             }
-            
+
             # Note: Executor strictly checks selection artifact.
             # If "smoke_injector" isn't in selection, it will be skipped.
             # We must ensure selection allows it OR use a strategy that IS allowed.
@@ -151,12 +159,12 @@ async def main():
             # We should probably use a strategy that is likely selected (e.g. one from config STRATEGY_LIST)?
             # Config default: vwap_supertrend...
             # We'll use "vwap_supertrend" as strategy_id.
-            
+
             # payload['strategy_id'] = "vwap_supertrend"
             # But user might have changed selection.
             # Best effort: Just inject and hope.
             # Or: Check selection file and pick one?
-            
+
             selection_path = "data/selection/hong_selected.json"
             if os.path.exists(selection_path):
                  try:
@@ -167,13 +175,13 @@ async def main():
                              payload['strategy_id'] = bulls[0]
                  except:
                      pass
-            
+
             with open(signals_file, 'a') as f:
                 f.write(json.dumps(payload) + "\n")
             logger.info(f"Injected Signal: {payload['strategy_id']}")
 
     injector_task = asyncio.create_task(injector_loop())
-    
+
     try:
         await asyncio.gather(*tasks, injector_task)
     except Exception as e:
@@ -181,7 +189,7 @@ async def main():
     finally:
         logger.info("Stopping...")
         c7_manager.stop()
-        
+
     logger.info("--- HONGSTR Run Complete ---")
 
 if __name__ == "__main__":
