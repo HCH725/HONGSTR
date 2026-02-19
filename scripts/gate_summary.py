@@ -172,7 +172,7 @@ def main():
     target_symbols = [s.strip() for s in args.symbols.split(",")]
     target_tfs = [t.strip() for t in args.timeframes.split(",")]
 
-    result = GateResult()
+    GateResult()
 
     # 1. Print Portfolio Summary
     print("[Portfolio]")

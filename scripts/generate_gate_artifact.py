@@ -111,19 +111,15 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
         per_symbol_data = summary_data.get("per_symbol", {})
         for sym in symbols:
             # Handle potential missing symbol in summary if no trades
-            sym_data = per_symbol_data.get(
-                f"{sym}_1h", {}
-            )  # Try 1h first? or iterate all keys?
+            per_symbol_data.get(f"{sym}_1h", {})  # Try 1h first? or iterate all keys?
             # Actually summary keys are usually SYM_TF. We should verify.
             # But let's look at regime data per symbol if available?
             # Regime report aggregates by regime. Summary aggregates by sym_tf.
             # Let's sum trades for symbol across TFs from summary per_symbol
             s_trades = 0
-            found = False
             for k, v in per_symbol_data.items():
                 if k.startswith(sym):
                     s_trades += v.get("trades_count", 0)
-                    found = True
 
             if s_trades < symbol_min:
                 msg = f"Symbol {sym} Trades {s_trades} < {symbol_min}"

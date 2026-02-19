@@ -48,7 +48,7 @@ def generate_report(run_dir: Path, data_root: Path):
         print(f"Error: summary.json not found in {run_dir}")
         return
 
-    summary = json.loads(summary_path.read_text())
+    json.loads(summary_path.read_text())
 
     # 1. Compute Regime Series (BTC 4h)
     btc_4h_path = data_root / "derived" / "BTCUSDT" / "4h" / "klines.jsonl"
@@ -179,9 +179,7 @@ def generate_report(run_dir: Path, data_root: Path):
 
             count = len(grp)
             win = len(grp[grp["pnl"] > 0]) / count if count > 0 else 0.0
-            total_ret = grp[
-                "pnl_pct"
-            ].sum()  # Simple sum of trade returns for cross-verif?
+            grp["pnl_pct"].sum()  # Simple sum of trade returns for cross-verif?
 
             # Update bucket
             buckets[label]["trades_count"] = int(count)

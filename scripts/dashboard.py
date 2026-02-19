@@ -166,7 +166,7 @@ def detect_execution_mode():
                         "EXECUTION_MODE="
                     ):
                         return line.strip().split("=", 1)[1].upper()
-        except:
+        except:  # noqa: E722
             pass
 
     # 2. State Files (LOCAL_SERVICES detection)

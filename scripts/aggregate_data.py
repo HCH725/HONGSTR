@@ -44,7 +44,7 @@ def main():
             try:
                 record = json.loads(line)
                 data.append(record)
-            except:
+            except:  # noqa: E722
                 continue
 
     df_1m = pd.DataFrame(data)

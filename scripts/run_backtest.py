@@ -58,7 +58,7 @@ def load_1m_data(data_root: str, symbol: str) -> pd.DataFrame:
                                     else pd.to_datetime(record["ts"]).tz_convert("UTC")
                                 )
                         data.append(record)
-                except:
+                except:  # noqa: E722
                     continue
         df = pd.DataFrame(data)
         if not df.empty:

@@ -95,7 +95,7 @@ async def main():
     signals_file = os.path.join(signals_dir, "signals.jsonl")
     os.makedirs(signals_dir, exist_ok=True)
     if not os.path.exists(signals_file):
-        with open(signals_file, "w") as f:
+        with open(signals_file, "w"):
             pass
 
     # 4. Run Loop
@@ -177,7 +177,7 @@ async def main():
                         bulls = sel_data.get("selection", {}).get("BULL", [])
                         if bulls:
                             payload["strategy_id"] = bulls[0]
-                except:
+                except:  # noqa: E722
                     pass
 
             with open(signals_file, "a") as f:

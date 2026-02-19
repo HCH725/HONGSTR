@@ -76,7 +76,7 @@ async def main():
     if not os.path.exists(signals_dir):
         os.makedirs(signals_dir, exist_ok=True)
     if not os.path.exists(signals_file):
-        with open(signals_file, "w") as f:
+        with open(signals_file, "w"):
             pass
 
     # 3. Execution Bridge (C10)
