@@ -13,4 +13,9 @@
 
 ### 3) `walkforward_suite --quick` SKIP: insufficient local data
 - Expected when local dataset does not cover configured windows.
+- Reason token: `QUICK_SKIPPED_INSUFFICIENT_LOCAL_DATA`
+- Diagnostics:
+  - `reports/walkforward/<RUN_ID>/failure_diagnostics.json`
+  - `reports/walkforward/<RUN_ID>/failure_diagnostics.md`
+- Diagnostics include: missing window name, required start/end, local cache path checked, rerun command.
 - Remedy: fetch/build required local data for the configured window ranges, then rerun.

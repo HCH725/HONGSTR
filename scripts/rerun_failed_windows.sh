@@ -289,7 +289,8 @@ python3 scripts/report_walkforward.py \
   --reports_dir "$REPORTS_DIR" \
   --run_id "$RERUN_RUN_ID" \
   --suite_results_tsv "$RESULTS_TSV" \
-  --no_latest_update
+  --no_latest_update \
+  --suite_mode RERUN_SELECTED
 REPORT_RC=$?
 if [ $REPORT_RC -ne 0 ]; then
   echo "Error: failed to regenerate walkforward report for rerun run_id=${RERUN_RUN_ID}" >&2
@@ -335,6 +336,8 @@ payload = {
     "base_run_id": base_run_id,
     "run_mode": "RERUN",
     "rerun_scope": "FAILED_ONLY",
+    "latest_pointers_updated": False,
+    "latest_pointer_policy_reason": "RERUN_NEVER_UPDATES_LATEST_BY_POLICY",
     "completed": run_report.get("windows_completed", 0),
     "total": run_report.get("windows_total", 0),
     "windows_selected": failed_count,
@@ -357,6 +360,13 @@ payload = {
     "walkforward_run_report": str(run_report_path),
 }
 
+selected_names = [c["window"] for c in commands]
+selected_set = set(selected_names)
+selected_windows = [w for w in payload["windows"] if w.get("name") in selected_set]
+payload["selected_completed"] = sum(1 for w in selected_windows if w.get("status") == "COMPLETED")
+payload["selected_failed"] = sum(1 for w in selected_windows if w.get("status") in {"FAILED", "ERROR"})
+payload["selected_total"] = len(selected_windows)
+
 json_path = reports_dir / "walkforward_rerun_latest.json"
 md_path = reports_dir / "walkforward_rerun_latest.md"
 json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -378,6 +388,11 @@ lines = [
     f"- windows_total: {payload['windows_total']}",
     f"- failed: {payload['failed']}",
     f"- selected_failed_windows: {payload['selected_failed_windows']}",
+    f"- selected_completed: {payload['selected_completed']}",
+    f"- selected_failed: {payload['selected_failed']}",
+    f"- selected_total: {payload['selected_total']}",
+    f"- latest_pointers_updated: {payload['latest_pointers_updated']}",
+    f"- latest_pointer_policy_reason: {payload['latest_pointer_policy_reason']}",
     f"- walkforward_run_report: {payload['walkforward_run_report']}",
     "",
     "## Windows",

@@ -57,23 +57,31 @@ Supplementary lint signal in gate:
   - `reports/walkforward/<RUN_ID>/walkforward.json`
   - `reports/walkforward/<RUN_ID>/walkforward.md`
 - `reports/walkforward_latest.json` and `.md` are updated only when:
+  - `suite_mode=FULL_SUITE`
   - current run has a new `RUN_ID`
   - `windows_completed == windows_total`
   - no window has `status` in `{FAILED, ERROR}`
 - Otherwise, latest pointer is not updated and warning reason must be:
-  - `LATEST_NOT_UPDATED_STALE_RISK`
+  - `LATEST_NOT_UPDATED_STALE_RISK` or `LATEST_NOT_UPDATED_INCOMPLETE` or `LATEST_NOT_UPDATED_FAILED`
+- Rerun flow always uses:
+  - `RERUN_NEVER_UPDATES_LATEST_BY_POLICY`
+  - `walkforward_rerun_latest.*` (never `walkforward_latest.*`)
+- Quick flow may use:
+  - `QUICK_SKIPPED_INSUFFICIENT_LOCAL_DATA` when data windows are missing
 - Gate/report output must include:
   - per-run directory (`reports/walkforward/<RUN_ID>/`)
+  - policy reason enum token (`reason=<TOKEN>`)
   - failed window summary (`failed_windows=<name,...>`)
   - remediation command to rerun suite/report
 - When latest is updated successfully, report output must include:
-  - `LATEST_UPDATED run_id=<RUN_ID> latest_json=reports/walkforward_latest.json`
+  - `LATEST_UPDATED run_id=<RUN_ID> latest_json=reports/walkforward_latest.json reason=LATEST_UPDATED`
   - gate step reason format: `latest updated -> reports/walkforward_latest.json`
 
-## FULL vs RERUN Semantics
+## FULL vs QUICK vs RERUN_SELECTED Semantics
 
 - `run_mode=FULL`: normal walkforward suite/report flow.
-- `run_mode=RERUN`: failed-only replay flow from `scripts/rerun_failed_windows.sh`.
+- `suite_mode=QUICK`: reduced-window suite for fast local signal; never updates latest pointer.
+- `run_mode=RERUN` + `suite_mode=RERUN_SELECTED`: failed-only replay flow from `scripts/rerun_failed_windows.sh`.
 - `rerun_scope=FAILED_ONLY`: only windows in `failed_windows_summary` are executed.
 - `windows_selected`: replayed windows count.
 - `windows_total`: full config windows count.

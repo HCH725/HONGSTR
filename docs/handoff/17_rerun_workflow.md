@@ -8,6 +8,8 @@ Make walkforward failures reproducible without touching core engine or execution
 
 - `walkforward_latest.json/.md` are **full-suite only**.
 - If run is `FAILED` or `PARTIAL`, latest pointers are **not** overwritten.
+- Rerun mode is always `suite_mode=RERUN_SELECTED`, and pointer reason is always
+  `RERUN_NEVER_UPDATES_LATEST_BY_POLICY`.
 - Rerun outputs are written to:
   - `reports/walkforward_rerun_latest.json`
   - `reports/walkforward_rerun_latest.md`
@@ -47,6 +49,9 @@ The rerun latest artifact includes:
 
 - `base_failed_windows` (copied from source failed report)
 - `rerun_commands` (exact command list used for replay)
+- `selected_completed/selected_total/selected_failed`
+- `latest_pointers_updated=false`
+- `latest_pointer_policy_reason=RERUN_NEVER_UPDATES_LATEST_BY_POLICY`
 
 ## Operational Steps
 
@@ -59,4 +64,4 @@ The rerun latest artifact includes:
 4. If latest is still not updated, check reason in:
    - `reports/gate_latest.md`
    - `reports/walkforward/<RUN_ID>/walkforward.json`
-
+   - `reports/walkforward_rerun_latest.json` (for rerun-only outcomes)

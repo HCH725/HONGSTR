@@ -90,14 +90,19 @@ def main() -> int:
     start_ms = int(time.time() * 1000)
     if args.classify_only:
         if args.mode == "GET_ACCOUNT" and (not api_key or not api_secret):
-            emit_result("FAIL", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
-            return RC_FAIL
+            print("Required env vars for GET_ACCOUNT: BINANCE_API_KEY, BINANCE_API_SECRET")
+            print("No network calls made: classify_only mode with missing keys.")
+            emit_result("WARN", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
+            return RC_WARN
         emit_result("PASS", "CLASSIFY_ONLY", "NA", endpoint, int(time.time() * 1000) - start_ms)
         return RC_PASS
 
     if args.mode == "GET_ACCOUNT" and (not api_key or not api_secret):
-        emit_result("FAIL", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
-        return RC_FAIL
+        print("Required env vars for GET_ACCOUNT: BINANCE_API_KEY, BINANCE_API_SECRET")
+        print("Private account endpoint intentionally not run due to missing keys.")
+        print("No network calls made for GET_ACCOUNT mode.")
+        emit_result("WARN", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
+        return RC_WARN
 
     try:
         if args.mode == "PING":

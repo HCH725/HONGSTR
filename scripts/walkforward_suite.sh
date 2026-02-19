@@ -9,12 +9,14 @@ CONFIG_FILE="configs/windows.json"
 DATA_ROOT="data"
 REPORTS_DIR="reports"
 SYMBOLS_OVERRIDE=""
+RUNNER_SCRIPT="scripts/run_and_verify.sh"
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --quick) QUICK_MODE=true ;;
     --config) CONFIG_FILE="$2"; shift ;;
     --symbols) SYMBOLS_OVERRIDE="$2"; shift ;;
+    --runner_script) RUNNER_SCRIPT="$2"; shift ;;
     *) echo "Unknown parameter passed: $1"; exit 1 ;;
   esac
   shift
@@ -91,7 +93,7 @@ while IFS='|' read -r W_NAME W_START W_END; do
   echo "Processing Window: $W_NAME ($W_START to $W_END)"
   echo "----------------------------------------------------------------"
 
-  CMD=(bash scripts/run_and_verify.sh --symbols "$SYMBOLS" --start "$W_START" --end "$W_END" --strategy vwap_supertrend --mode foreground)
+  CMD=(bash "$RUNNER_SCRIPT" --symbols "$SYMBOLS" --start "$W_START" --end "$W_END" --strategy vwap_supertrend --mode foreground)
   PIPE_OUT="$("${CMD[@]}" 2>&1)"
   EXIT_CODE=$?
   if [ -n "$PIPE_OUT" ]; then
@@ -102,7 +104,7 @@ while IFS='|' read -r W_NAME W_START W_END; do
   LOG_PATH="$(echo "$PIPE_OUT" | grep "^LOG:" | tail -n1 | awk '{print $2}' | tr -d '[:space:]')"
   [ -n "$LOG_PATH" ] || LOG_PATH="NA"
   [ -n "$RUN_OUT_DIR" ] || RUN_OUT_DIR="NA"
-  RERUN_CMD="bash scripts/run_and_verify.sh --symbols \"$SYMBOLS\" --start \"$W_START\" --end \"$W_END\" --strategy vwap_supertrend --mode foreground"
+  RERUN_CMD="bash $RUNNER_SCRIPT --symbols \"$SYMBOLS\" --start \"$W_START\" --end \"$W_END\" --strategy vwap_supertrend --mode foreground"
 
   if [[ $EXIT_CODE -ne 0 && $EXIT_CODE -ne 2 ]]; then
     REASON_CODE="$(classify_failure_reason "$PIPE_OUT" "$EXIT_CODE")"
@@ -165,7 +167,8 @@ python3 scripts/report_walkforward.py \
   --config "$CONFIG_FILE" \
   --reports_dir "$REPORTS_DIR" \
   --run_id "$RUN_ID" \
-  --suite_results_tsv "$RESULTS_TSV"
+  --suite_results_tsv "$RESULTS_TSV" \
+  --suite_mode "$( [ "$QUICK_MODE" = true ] && echo QUICK || echo FULL_SUITE )"
 REPORT_RC=$?
 if [ $REPORT_RC -ne 0 ]; then
   echo "Error: report generation failed for run_id=$RUN_ID"
@@ -187,7 +190,7 @@ fi
 
 echo "Summary: completed=$WINDOWS_COMPLETED failed=$WINDOWS_FAILED total=$WINDOWS_TOTAL run_id=$RUN_ID"
 if [ -s "$DIAG_TSV" ]; then
-  python3 - "$DIAG_TSV" "$WF_RUN_DIR/failure_diagnostics.json" "$WF_RUN_DIR/failure_diagnostics.md" <<'PY'
+  python3 - "$DIAG_TSV" "$WF_RUN_DIR/failure_diagnostics.json" "$WF_RUN_DIR/failure_diagnostics.md" "$CONFIG_FILE" "$QUICK_MODE" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -195,6 +198,17 @@ from pathlib import Path
 tsv_path = Path(sys.argv[1])
 json_path = Path(sys.argv[2])
 md_path = Path(sys.argv[3])
+config_path = Path(sys.argv[4])
+quick_mode = sys.argv[5].lower() == "true"
+local_cache_path = str(Path("data/backtests").resolve())
+windows_cfg = {}
+if config_path.exists():
+    try:
+        for w in json.loads(config_path.read_text(encoding="utf-8")):
+            if isinstance(w, dict) and w.get("name"):
+                windows_cfg[w["name"]] = w
+    except Exception:
+        windows_cfg = {}
 rows = []
 for raw in tsv_path.read_text(encoding="utf-8").splitlines():
     if not raw.strip():
@@ -202,21 +216,52 @@ for raw in tsv_path.read_text(encoding="utf-8").splitlines():
     parts = raw.split("\t")
     if len(parts) != 7:
         continue
+    window_name = parts[0]
+    cfg = windows_cfg.get(window_name, {})
     rows.append(
         {
-            "window": parts[0],
+            "window": window_name,
             "reason_code": parts[1],
             "exit_code": parts[2],
             "log_path": parts[3],
             "run_out_dir": parts[4],
             "symbols": parts[5],
             "rerun_command": parts[6],
+            "required_start": cfg.get("start"),
+            "required_end": cfg.get("end"),
+            "local_cache_path_checked": local_cache_path,
         }
     )
 
-json_path.write_text(json.dumps({"failures": rows}, indent=2), encoding="utf-8")
+insufficient_codes = {"INSUFFICIENT_DATA_RESAMPLE", "NO_DATA_IN_RANGE", "NO_BACKTEST_RESULTS"}
+all_insufficient = bool(rows) and all(r.get("reason_code") in insufficient_codes for r in rows)
+diag_reason = "QUICK_SKIPPED_INSUFFICIENT_LOCAL_DATA" if quick_mode and all_insufficient else "WINDOW_FAILURES_PRESENT"
+remediation_cmd = "bash scripts/smoke_backtest.sh"
+json_path.write_text(
+    json.dumps(
+        {
+            "run_mode": "QUICK" if quick_mode else "FULL_SUITE",
+            "reason_token": diag_reason,
+            "local_cache_path_checked": local_cache_path,
+            "remediation": {
+                "note": "manual backfill required" if diag_reason == "QUICK_SKIPPED_INSUFFICIENT_LOCAL_DATA" else "inspect per-window failures",
+                "commands": [
+                    remediation_cmd,
+                    "bash scripts/walkforward_suite.sh --quick --symbols BTCUSDT",
+                ],
+            },
+            "failures": rows,
+        },
+        indent=2,
+    ),
+    encoding="utf-8",
+)
 lines = [
     "# Walkforward Failure Diagnostics",
+    "",
+    f"- reason_token: {diag_reason}",
+    f"- run_mode: {'QUICK' if quick_mode else 'FULL_SUITE'}",
+    f"- local_cache_path_checked: {local_cache_path}",
     "",
     "| window | reason_code | exit_code | log_path | run_out_dir |",
     "|---|---|---|---|---|",
@@ -230,6 +275,10 @@ lines.append("")
 lines.append("## Reproduce Commands")
 for row in rows:
     lines.append(f"- `{row['window']}`: `{row['rerun_command']}`")
+lines.append("")
+lines.append("## Suggested Remediation")
+lines.append(f"- `{remediation_cmd}`")
+lines.append("- `bash scripts/walkforward_suite.sh --quick --symbols BTCUSDT`")
 md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 print(f"FAILURE_DIAGNOSTICS json={json_path} md={md_path}")
 PY

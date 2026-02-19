@@ -102,6 +102,7 @@ def build_report(
     run_id: str,
     run_mode: str = "FULL",
     rerun_scope: str = "ALL_WINDOWS",
+    suite_mode: str = "FULL_SUITE",
 ) -> dict:
     row_map: Dict[str, dict] = {row["name"]: row for row in suite_rows}
     report_windows: List[dict] = []
@@ -185,6 +186,7 @@ def build_report(
         "run_id": run_id,
         "run_mode": run_mode,
         "rerun_scope": rerun_scope,
+        "suite_mode": suite_mode,
         "windows_selected": len(suite_rows),
         "status": overall_status,
         "windows_total": total,
@@ -204,6 +206,7 @@ def build_report(
         "latest_update_reason": "",
         "latest_warning_reason": "",
         "latest_update_path": "",
+        "latest_pointer_policy": "",
     }
 
 
@@ -213,15 +216,24 @@ def render_markdown(report: dict) -> str:
     lines.append(f"**Run ID**: {report['run_id']}")
     lines.append(f"**Generated At**: {report['generated_at']}")
     lines.append(f"**Status**: {report['status']}")
+    lines.append(f"**Suite Mode**: {report.get('suite_mode', 'FULL_SUITE')}")
+    lines.append(f"**Run Mode**: {report.get('run_mode', 'FULL')}")
+    lines.append(f"**Rerun Scope**: {report.get('rerun_scope', 'ALL_WINDOWS')}")
     lines.append(
         f"**Progress**: {report['windows_completed']} / {report['windows_total']} completed "
         f"(failed: {report['windows_failed']})"
     )
     lines.append("")
     if report["latest_updated"]:
-        lines.append("**Latest Pointer**: updated")
+        lines.append(
+            f"**Latest Pointer**: updated ({report.get('latest_warning_reason', 'LATEST_UPDATED')})"
+        )
     else:
-        lines.append(f"**Latest Pointer**: not updated ({report['latest_update_reason']})")
+        lines.append(
+            f"**Latest Pointer**: not updated ({report.get('latest_warning_reason', 'UNKNOWN_REASON')})"
+        )
+    lines.append(f"**Latest Pointer Policy**: {report.get('latest_pointer_policy', '')}")
+    lines.append(f"**Latest Pointer Detail**: {report['latest_update_reason']}")
     lines.append("")
 
     lines.append("## Windows Performance")
@@ -265,6 +277,12 @@ def main() -> int:
         action="store_true",
         help="Do not update walkforward_latest.* (used by rerun workflows)",
     )
+    parser.add_argument(
+        "--suite_mode",
+        choices=["FULL_SUITE", "QUICK", "RERUN_SELECTED"],
+        default="FULL_SUITE",
+        help="Execution mode for pointer policy decisions",
+    )
     args = parser.parse_args()
 
     reports_dir = Path(args.reports_dir)
@@ -299,6 +317,7 @@ def main() -> int:
         run_id,
         run_mode=run_mode,
         rerun_scope=rerun_scope,
+        suite_mode=args.suite_mode,
     )
     run_dir = reports_dir / "walkforward" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -314,42 +333,58 @@ def main() -> int:
         and run_dir_exists
         and is_latest_run
         and not args.no_latest_update
+        and args.suite_mode == "FULL_SUITE"
     )
 
     if success_ready:
         report["latest_updated"] = True
-        report["latest_update_reason"] = "all windows completed"
-        report["latest_warning_reason"] = ""
+        report["latest_warning_reason"] = "LATEST_UPDATED"
+        report["latest_update_reason"] = (
+            "LATEST_UPDATED policy=FULL_SUITE_COMPLETED "
+            f"completed={report['windows_completed']}/{report['windows_total']}"
+        )
         report["latest_update_path"] = str((reports_dir / "walkforward_latest.json"))
+        report["latest_pointer_policy"] = "allow_update_full_suite_completed"
     else:
         report["latest_updated"] = False
         report["latest_update_path"] = ""
-        if args.no_latest_update:
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_RERUN_ONLY"
+        if args.no_latest_update or args.suite_mode == "RERUN_SELECTED":
+            report["latest_warning_reason"] = "RERUN_NEVER_UPDATES_LATEST_BY_POLICY"
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_RERUN_ONLY run_id={run_id} "
+                f"RERUN_NEVER_UPDATES_LATEST_BY_POLICY run_id={run_id} "
                 "walkforward_latest pointer reserved for full suite runs"
             )
+            report["latest_pointer_policy"] = "block_update_rerun"
+        elif args.suite_mode == "QUICK":
+            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_INCOMPLETE"
+            report["latest_update_reason"] = (
+                f"LATEST_NOT_UPDATED_INCOMPLETE suite_mode=QUICK "
+                f"completed={report['windows_completed']}/{report['windows_total']}"
+            )
+            report["latest_pointer_policy"] = "block_update_quick"
         elif report["windows_failed"] > 0 or has_terminal_fail:
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_STALE_RISK"
+            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_FAILED"
             failed_names = ",".join(w["name"] for w in report["failed_windows_summary"]) or "none"
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_STALE_RISK status={report['status']} "
+                f"LATEST_NOT_UPDATED_FAILED status={report['status']} "
                 f"completed={report['windows_completed']}/{report['windows_total']} "
                 f"failed_windows={failed_names}"
             )
+            report["latest_pointer_policy"] = "block_update_failed"
         elif not is_latest_run:
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_NOT_LATEST_RUN"
+            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_STALE_RISK"
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_NOT_LATEST_RUN run_id={run_id} "
+                f"LATEST_NOT_UPDATED_STALE_RISK run_id={run_id} "
                 "is not the latest suite run"
             )
+            report["latest_pointer_policy"] = "block_update_not_latest"
         else:
             report["latest_warning_reason"] = "LATEST_NOT_UPDATED_INCOMPLETE"
             report["latest_update_reason"] = (
                 f"LATEST_NOT_UPDATED_INCOMPLETE status={report['status']} "
                 f"completed={report['windows_completed']}/{report['windows_total']}"
             )
+            report["latest_pointer_policy"] = "block_update_incomplete"
 
     run_json = run_dir / "walkforward.json"
     run_md = run_dir / "walkforward.md"
@@ -363,7 +398,8 @@ def main() -> int:
             "LATEST_UPDATED "
             f"run_id={run_id} "
             f"latest_json={reports_dir / 'walkforward_latest.json'} "
-            f"latest_md={reports_dir / 'walkforward_latest.md'}"
+            f"latest_md={reports_dir / 'walkforward_latest.md'} "
+            "reason=LATEST_UPDATED"
         )
     else:
         print(

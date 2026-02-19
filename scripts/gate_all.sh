@@ -385,8 +385,8 @@ STEP="python -m ruff check ."
 log ""
 log "=== ${STEP} ==="
 if "$PYTHON_BIN" -m ruff --version >/dev/null 2>&1; then
-  log "\$ $PYTHON_BIN -m ruff check ."
-  if run_and_capture "\"$PYTHON_BIN\" -m ruff check ."; then
+  log "\$ $PYTHON_BIN -m ruff check . --exclude _untracked_quarantine"
+  if run_and_capture "\"$PYTHON_BIN\" -m ruff check . --exclude _untracked_quarantine"; then
     append_step "$STEP" "PASS" 0 "ok"
   else
     STEP_CMD_RC=$?
@@ -481,9 +481,16 @@ if run_and_capture "bash scripts/walkforward_suite.sh --quick --symbols \"BTCUSD
 else
   STEP_CMD_RC=$?
   if grep -Eq "No data for|No backtest results produced\\.|Insufficient data for resampling" <<<"$LAST_OUTPUT"; then
-    append_step "$STEP" "SKIP" "$STEP_CMD_RC" "insufficient local data for configured windows"
+    WF_RUN_ID_HINT="$(sed -n 's/^Run ID: \(.*\)$/\1/p' <<<"$LAST_OUTPUT" | tail -n1 | tr -d '[:space:]')"
+    append_step "$STEP" "SKIP" "$STEP_CMD_RC" "QUICK_SKIPPED_INSUFFICIENT_LOCAL_DATA"
     mark_skip
     update_overall_for_warn
+    if [ -n "$WF_RUN_ID_HINT" ]; then
+      add_warn_remediation "walkforward quick diagnostics: inspect $ROOT_DIR/reports/walkforward/${WF_RUN_ID_HINT}/failure_diagnostics.json"
+      add_warn_remediation "walkforward quick diagnostics markdown: inspect $ROOT_DIR/reports/walkforward/${WF_RUN_ID_HINT}/failure_diagnostics.md"
+    fi
+    add_warn_remediation "walkforward quick retry: bash scripts/walkforward_suite.sh --quick --symbols BTCUSDT"
+    add_warn_remediation "walkforward local data precheck: bash scripts/smoke_backtest.sh"
   else
     append_step "$STEP" "FAIL" "$STEP_CMD_RC" "walkforward suite failed"
     mark_fail "$STEP_CMD_RC" "walkforward suite failed"
@@ -504,7 +511,7 @@ if run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py"; then
       LATEST_JSON_PATH="reports/walkforward_latest.json"
     fi
     append_step "walkforward latest pointer update" "PASS" 0 "latest updated -> ${LATEST_JSON_PATH}"
-  elif grep -q "LATEST_NOT_UPDATED" <<<"$LAST_OUTPUT"; then
+  elif grep -q "^WARN reason=" <<<"$LAST_OUTPUT"; then
     LATEST_REASON_CODE="$(sed -n 's/.*reason=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
     RUN_DIR_HINT="$(sed -n 's/.*run_dir=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
     FAILED_HINT="$(sed -n 's/.*failed_windows=\([^"]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
@@ -533,7 +540,10 @@ p=Path("reports/walkforward_rerun_latest.json")
 if not p.exists():
     raise SystemExit(1)
 j=json.loads(p.read_text(encoding="utf-8"))
-print(f"{j.get('run_mode','')}\t{j.get('completed','?')}\t{j.get('total','?')}\t{j.get('failed','?')}")
+print(
+    f"{j.get('run_mode','')}\t{j.get('completed','?')}\t{j.get('total','?')}\t{j.get('failed','?')}\t"
+    f"{j.get('selected_completed', '?')}\t{j.get('selected_total', '?')}\t{j.get('selected_failed', '?')}"
+)
 PY
  2>/dev/null || true)"
       if [ -n "$RERUN_INFO" ]; then
@@ -541,9 +551,16 @@ PY
         RERUN_COMPLETED="$(awk -F'\t' '{print $2}' <<<"$RERUN_INFO")"
         RERUN_TOTAL="$(awk -F'\t' '{print $3}' <<<"$RERUN_INFO")"
         RERUN_FAILED="$(awk -F'\t' '{print $4}' <<<"$RERUN_INFO")"
+        RERUN_SELECTED_COMPLETED="$(awk -F'\t' '{print $5}' <<<"$RERUN_INFO")"
+        RERUN_SELECTED_TOTAL="$(awk -F'\t' '{print $6}' <<<"$RERUN_INFO")"
+        RERUN_SELECTED_FAILED="$(awk -F'\t' '{print $7}' <<<"$RERUN_INFO")"
         if [ "$RERUN_MODE" = "RERUN" ]; then
-          append_step "walkforward rerun mode status" "WARN" 0 "RERUN_PARTIAL_EXPECTED completed=${RERUN_COMPLETED}/${RERUN_TOTAL} failed=${RERUN_FAILED}; latest pointers not updated by policy"
-          update_overall_for_warn
+          if [ "$RERUN_SELECTED_TOTAL" != "?" ] && [ "$RERUN_SELECTED_COMPLETED" = "$RERUN_SELECTED_TOTAL" ] && [ "$RERUN_SELECTED_FAILED" = "0" ]; then
+            append_step "walkforward rerun mode status" "PASS" 0 "RERUN_OK_SELECTED_COMPLETE selected=${RERUN_SELECTED_COMPLETED}/${RERUN_SELECTED_TOTAL} full_total=${RERUN_TOTAL}; latest pointers not updated by policy"
+          else
+            append_step "walkforward rerun mode status" "WARN" 0 "RERUN_PARTIAL_EXPECTED selected=${RERUN_SELECTED_COMPLETED}/${RERUN_SELECTED_TOTAL} full_total=${RERUN_TOTAL} failed=${RERUN_FAILED}; latest pointers not updated by policy"
+            update_overall_for_warn
+          fi
         fi
       fi
       add_warn_remediation "walkforward rerun latest: inspect $ROOT_DIR/reports/walkforward_rerun_latest.json and .md"
