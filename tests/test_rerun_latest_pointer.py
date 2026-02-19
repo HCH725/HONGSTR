@@ -133,7 +133,7 @@ class TestRerunLatestPointer(unittest.TestCase):
         run_report = json.loads(
             (self.walkforward / rerun_run_id / "walkforward.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(run_report["latest_warning_reason"], "LATEST_NOT_UPDATED_RERUN_ONLY")
+        self.assertEqual(run_report["latest_warning_reason"], "RERUN_NEVER_UPDATES_LATEST_BY_POLICY")
 
 
 if __name__ == "__main__":

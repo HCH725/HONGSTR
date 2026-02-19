@@ -23,7 +23,9 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp)
 
-    def _run_report(self, run_id: str, rows: list[str]) -> subprocess.CompletedProcess:
+    def _run_report(
+        self, run_id: str, rows: list[str], suite_mode: str = "FULL_SUITE"
+    ) -> subprocess.CompletedProcess:
         out = self.reports / "walkforward" / run_id
         out.mkdir(parents=True, exist_ok=True)
         suite = out / "suite_results.tsv"
@@ -40,6 +42,8 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
                 run_id,
                 "--suite_results_tsv",
                 str(suite),
+                "--suite_mode",
+                suite_mode,
             ],
             capture_output=True,
             text=True,
@@ -65,7 +69,7 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
 
         cp = self._run_report("run_fail", [ok_row, fail_row])
         self.assertEqual(cp.returncode, 0)
-        self.assertIn("WARN reason=LATEST_NOT_UPDATED_STALE_RISK", cp.stdout)
+        self.assertIn("WARN reason=LATEST_NOT_UPDATED_FAILED", cp.stdout)
 
         latest = json.loads(
             (self.reports / "walkforward_latest.json").read_text(encoding="utf-8")
@@ -87,6 +91,30 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
         self.assertEqual(latest["run_id"], "run_ok")
         self.assertTrue(latest["latest_updated"])
         self.assertIn("latest updated ->", Path("scripts/gate_all.sh").read_text(encoding="utf-8"))
+
+    def test_quick_mode_never_updates_latest(self):
+        stale = {
+            "run_id": "old_ok",
+            "status": "COMPLETED",
+            "windows_total": 2,
+            "windows_completed": 2,
+            "windows_failed": 0,
+            "windows": [],
+            "latest_updated": True,
+            "latest_update_reason": "all windows completed",
+        }
+        (self.reports / "walkforward_latest.json").write_text(
+            json.dumps(stale), encoding="utf-8"
+        )
+        row1 = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"
+        row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"
+        cp = self._run_report("run_quick_ok", [row1, row2], suite_mode="QUICK")
+        self.assertEqual(cp.returncode, 0)
+        self.assertIn("WARN reason=LATEST_NOT_UPDATED_INCOMPLETE", cp.stdout)
+        latest = json.loads(
+            (self.reports / "walkforward_latest.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(latest["run_id"], "old_ok")
 
 
 if __name__ == "__main__":

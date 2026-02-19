@@ -14,9 +14,9 @@ def run_main():
 
 
 def test_missing_env_vars():
-    """Missing keys should fail for GET_ACCOUNT mode."""
+    """Missing keys should degrade to WARN for GET_ACCOUNT mode."""
     with patch.dict(os.environ, {}, clear=True):
-        assert run_main() == 1
+        assert run_main() == 2
 
 def test_testnet_mode_detection():
     """Test that base_url is set correctly based on env."""
