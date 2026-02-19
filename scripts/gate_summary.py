@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -19,6 +20,21 @@ THRESHOLDS = {
         "total_return_min": 0.0
     }
 }
+
+
+def _fmt_metric(x, spec: str = ".2f", na: str = "NA") -> str:
+    """Format metrics safely when value is None/NaN/non-numeric."""
+    if x is None:
+        return na
+    try:
+        if isinstance(x, float) and math.isnan(x):
+            return na
+    except Exception:
+        pass
+    try:
+        return format(x, spec)
+    except Exception:
+        return str(x)
 
 class GateResult:
     def __init__(self):
@@ -131,7 +147,12 @@ def main():
     p_trades = data.get("trades_count", 0)
     p_sharpe = data.get("sharpe", 0.0)
     p_ret = data.get("total_return", 0.0)
-    print(f"Trades: {p_trades}, Sharpe: {p_sharpe:.4f}, Return: {p_ret:.4f}")
+    print(
+        "Trades: "
+        f"{p_trades}, "
+        f"Sharpe: {_fmt_metric(p_sharpe, '.4f')}, "
+        f"Return: {_fmt_metric(p_ret, '.4f')}"
+    )
 
     # 2. Print Per-Symbol Table
     per_symbol = data.get("per_symbol", {})
@@ -150,7 +171,13 @@ def main():
                  mdd = metrics.get("max_drawdown", 0.0)
                  sharpe = metrics.get("sharpe", 0.0)
                  exposure = metrics.get("exposure_time", 0.0)
-                 print(f"{key:<15} | {trades:<6} | {ret:>7.2%} | {mdd:>7.2%} | {sharpe:>8.4f} | {exposure:>7.2%}")
+                 print(
+                     f"{key:<15} | {trades:<6} | "
+                     f"{_fmt_metric(ret, '>7.2%')} | "
+                     f"{_fmt_metric(mdd, '>7.2%')} | "
+                     f"{_fmt_metric(sharpe, '>8.4f')} | "
+                     f"{_fmt_metric(exposure, '>7.2%')}"
+                 )
             else:
                  print(f"{key:<15} | MISSING")
     print("-" * 80)
@@ -179,7 +206,8 @@ def main():
              # Basic check to ensure we don't pass blindly if gate.json is missing
              print("Legacy strict check not fully implemented here to prefer gate.json.")
              # But let's check portfolio sharpe/trades as minimum?
-             if p_trades < 10 or p_sharpe < -0.5:
+             safe_p_sharpe = p_sharpe if isinstance(p_sharpe, (int, float)) and p_sharpe is not None else 0.0
+             if p_trades < 10 or safe_p_sharpe < -0.5:
                   print("[GATE FAILED] Legacy fallback check failed.")
                   sys.exit(2)
              else:
