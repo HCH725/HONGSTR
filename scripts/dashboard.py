@@ -330,12 +330,12 @@ if selected_run_display != "No Runs Found":
                 m = per_symbol[key]
                 row = {
                     "Symbol": key,
-                    "Ret": f"{m.get('total_return', 0):.2%}",
-                    "MDD": f"{m.get('max_drawdown', 0):.2%}",
-                    "Sharpe": f"{m.get('sharpe', 0):.2f}",
+                    "Ret": fmt_pct(m.get("total_return")),
+                    "MDD": fmt_pct(m.get("max_drawdown")),
+                    "Sharpe": fmt_float(m.get("sharpe")),
                     "Trades": m.get("trades_count", 0),
-                    "WinRate": f"{m.get('win_rate', 0):.2%}",
-                    "Exp": f"{m.get('exposure_time', 0):.2%}",
+                    "WinRate": fmt_pct(m.get("win_rate")),
+                    "Exp": fmt_pct(m.get("exposure_time")),
                 }
                 # Debug counts
                 dbg = m.get("debug_counts") or m.get("debug")
@@ -533,8 +533,8 @@ if selected_run_display != "No Runs Found":
             table_rows.append(
                 {
                     "Regime": reg,
-                    "Sharpe": f"{rdata.get('sharpe', 0.0):.3f}",
-                    "MDD": f"{rdata.get('max_mdd', 0.0):.2%}",
+                    "Sharpe": fmt_float(rdata.get("sharpe")),
+                    "MDD": fmt_pct(rdata.get("max_mdd")),
                     "Trades": rdata.get("trades", 0),
                     "PASS": "✅" if rdata.get("pass") else "❌",
                     "Reasons": ", ".join(rdata.get("reasons", [])),
@@ -628,7 +628,9 @@ if selected_run_display != "No Runs Found":
                     rows = []
                     for cand in topk:
                         row = {
-                            "Score (Sharpe)": f"{cand.get('score', {}).get('sharpe', 0.0):.3f}"  # noqa: E501
+                            "Score (Sharpe)": fmt_float(
+                                cand.get("score", {}).get("sharpe")
+                            )
                         }
                         row.update(cand.get("params", {}))
                         m = cand.get("metrics", {})
@@ -729,10 +731,10 @@ if selected_run_display != "No Runs Found":
                 row = {
                     "Regime": regime,
                     "Count": stats.get("count"),
-                    "Mean": f"{stats.get('mean_sharpe', 0):.2f}",
-                    "Median": f"{stats.get('median_sharpe', 0):.2f}",
-                    "Min": f"{stats.get('min_sharpe', 0):.2f}",
-                    "Max": f"{stats.get('max_sharpe', 0):.2f}",
+                    "Mean": fmt_float(stats.get("mean_sharpe")),
+                    "Median": fmt_float(stats.get("median_sharpe")),
+                    "Min": fmt_float(stats.get("min_sharpe")),
+                    "Max": fmt_float(stats.get("max_sharpe")),
                 }
                 s_rows.append(row)
             st.dataframe(
@@ -769,7 +771,7 @@ if selected_run_display != "No Runs Found":
             )
 
             # Format
-            w_df["Sharpe"] = w_df["Sharpe"].map(lambda x: f"{x:.2f}")
+            w_df["Sharpe"] = w_df["Sharpe"].map(fmt_float)
             w_df["MDD"] = w_df["MDD"].map(fmt_pct)
             w_df["Return"] = w_df["Return"].map(fmt_pct)
 
