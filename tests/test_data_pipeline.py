@@ -1,9 +1,16 @@
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from hongstr.data.aggregate import resample_klines
-from hongstr.data.quality import report_metrics
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(PROJECT_ROOT))
+sys.path.append(str(PROJECT_ROOT / "src"))
+
+from hongstr.data.aggregate import resample_klines  # noqa: E402
+from hongstr.data.quality import report_metrics  # noqa: E402
 
 
 @pytest.fixture
