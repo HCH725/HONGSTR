@@ -45,6 +45,8 @@ env/
 
 # Project Specific
 data/
+!src/hongstr/data/
+!src/hongstr/data/*.py
 logs/
 secrets/
 
