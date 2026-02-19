@@ -356,9 +356,9 @@ def main() -> int:
             )
             report["latest_pointer_policy"] = "block_update_rerun"
         elif args.suite_mode == "QUICK":
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_INCOMPLETE"
+            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_QUICK_MODE"
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_INCOMPLETE suite_mode=QUICK "
+                f"LATEST_NOT_UPDATED_QUICK_MODE suite_mode=QUICK "
                 f"completed={report['windows_completed']}/{report['windows_total']}"
             )
             report["latest_pointer_policy"] = "block_update_quick"

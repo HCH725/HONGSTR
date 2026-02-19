@@ -110,7 +110,7 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
         row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"
         cp = self._run_report("run_quick_ok", [row1, row2], suite_mode="QUICK")
         self.assertEqual(cp.returncode, 0)
-        self.assertIn("WARN reason=LATEST_NOT_UPDATED_INCOMPLETE", cp.stdout)
+        self.assertIn("WARN reason=LATEST_NOT_UPDATED_QUICK_MODE", cp.stdout)
         latest = json.loads(
             (self.reports / "walkforward_latest.json").read_text(encoding="utf-8")
         )

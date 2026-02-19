@@ -63,6 +63,8 @@ Supplementary lint signal in gate:
   - no window has `status` in `{FAILED, ERROR}`
 - Otherwise, latest pointer is not updated and warning reason must be:
   - `LATEST_NOT_UPDATED_STALE_RISK` or `LATEST_NOT_UPDATED_INCOMPLETE` or `LATEST_NOT_UPDATED_FAILED`
+- For quick suites, use explicit token:
+  - `LATEST_NOT_UPDATED_QUICK_MODE` (quick is partial by design and never writes latest)
 - Rerun flow always uses:
   - `RERUN_NEVER_UPDATES_LATEST_BY_POLICY`
   - `walkforward_rerun_latest.*` (never `walkforward_latest.*`)

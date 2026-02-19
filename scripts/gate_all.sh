@@ -499,12 +499,12 @@ else
 fi
 stop_if_failed
 
-# Step 5: report walkforward (uses latest suite run by default)
-STEP="python3 scripts/report_walkforward.py"
+# Step 5: report walkforward (gate suite is QUICK; keep pointer policy consistent)
+STEP="python3 scripts/report_walkforward.py --suite_mode QUICK"
 log ""
 log "=== ${STEP} ==="
-log "\$ $PYTHON_BIN scripts/report_walkforward.py"
-if run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py"; then
+log "\$ $PYTHON_BIN scripts/report_walkforward.py --suite_mode QUICK"
+if run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py --suite_mode QUICK"; then
   append_step "$STEP" "PASS" 0 "ok"
   if grep -q "^LATEST_UPDATED " <<<"$LAST_OUTPUT"; then
     LATEST_JSON_PATH="$(sed -n 's/.*latest_json=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
@@ -532,7 +532,7 @@ if run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py"; then
       add_warn_remediation "walkforward failure diagnostics: inspect ${RUN_DIR_HINT}/failure_diagnostics.json and .md"
     fi
     add_warn_remediation "walkforward rerun: bash scripts/walkforward_suite.sh --quick --symbols BTCUSDT"
-    add_warn_remediation "walkforward report rerender: python3 scripts/report_walkforward.py --run_id $(basename ${RUN_DIR_HINT})"
+    add_warn_remediation "walkforward report rerender: python3 scripts/report_walkforward.py --suite_mode QUICK --run_id $(basename ${RUN_DIR_HINT})"
     if [ -f "$ROOT_DIR/reports/walkforward_rerun_latest.json" ]; then
       RERUN_INFO="$("$PYTHON_BIN" - <<'PY'
 import json
