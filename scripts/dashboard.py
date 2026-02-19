@@ -474,47 +474,320 @@ if selected_run_display != "No Runs Found":
         st.warning("No regime_report.json found for this run.")
         st.info("Tip: Run scripts/run_and_verify.sh to generate all artifacts.")
 
-    # --- Panel E: Optimization ---
-    st.header("E. Optimization")
+    # --- Panel E: Gate (Regime Quality) ---
+    st.header("E. Gate (Regime Quality)")
+    gate_path = run_dir / "gate.json"
+    gate_data = load_json(gate_path)
+    
+    if gate_data:
+        res = gate_data.get("results", {})
+        overall = res.get("overall", {})
+        is_pass = overall.get("pass", False)
+        
+        # Big Pass/Fail indicator
+        if is_pass:
+            st.success("Overall Result: PASS")
+        else:
+            st.error("Overall Result: FAIL")
+            if overall.get("reasons"):
+                st.write("**Reasons for Failure:**")
+                for r in overall.get("reasons"):
+                    st.write(f"- {r}")
+        
+        # Table breakdown
+        st.subheader("Regime Breakdown")
+        by_regime = res.get("by_regime", {})
+        table_rows = []
+        for reg in ["BULL", "NEUTRAL", "BEAR"]:
+            rdata = by_regime.get(reg, {})
+            table_rows.append({
+                "Regime": reg,
+                "Sharpe": f"{rdata.get('sharpe', 0.0):.3f}",
+                "MDD": f"{rdata.get('max_mdd', 0.0):.2%}",
+                "Trades": rdata.get("trades", 0),
+                "PASS": "✅" if rdata.get("pass") else "❌",
+                "Reasons": ", ".join(rdata.get("reasons", []))
+            })
+        st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+        
+    else:
+        st.warning("Gate: N/A (no gate.json for this run yet)")
+
+    # --- Panel F: Benchmark (Latest) ---
+    st.header("F. Benchmark (Latest)")
+    bench_data = load_json(PROJECT_ROOT / "reports" / "benchmark_latest.json")
+    
+    if bench_data:
+        # File info
+        bench_path = PROJECT_ROOT / "reports" / "benchmark_latest.json"
+        mt = get_file_mtime(bench_path)
+        st.caption(f"Artifact: benchmark_latest.json | Updated: {format_delta(mt)}")
+
+        # FULL vs SHORT Summary
+        st.subheader("Benchmark Summary")
+        c1, c2 = st.columns(2)
+        for idx, kind in enumerate(["FULL", "SHORT"]):
+            with (c1 if idx==0 else c2):
+                st.markdown(f"### {kind}")
+                d = bench_data.get(kind, {})
+                top = d.get("top", {})
+                gate = d.get("gate_overall", {})
+                
+                if top:
+                    st.write(f"Return: {fmt_pct(top.get('total_return'))}")
+                    st.write(f"MDD: {fmt_pct(top.get('max_drawdown'))}")
+                    st.write(f"Sharpe: {fmt_float(top.get('sharpe'))}")
+                    st.write(f"Trades: {fmt_int(top.get('trades_count'))}")
+                    
+                    # Gate Status
+                    gpass = gate.get("pass", False)
+                    if gpass:
+                        st.success("Gate: PASS")
+                    else:
+                        st.error("Gate: FAIL")
+                else:
+                    st.info(f"No {kind} data found.")
+
+        # Per-Symbol Table
+        st.subheader("Per-Symbol (4h) Comparison")
+        target_syms = ["BTCUSDT_4h", "ETHUSDT_4h", "BNBUSDT_4h"]
+        rows = []
+        for sym in target_syms:
+            row = {"Symbol": sym}
+            for kind in ["FULL", "SHORT"]:
+                sdata = safe_get(bench_data, kind, "per_symbol_4h", sym)
+                if sdata:
+                    row[f"{kind}_Ret"] = fmt_pct(sdata.get("total_return"))
+                    row[f"{kind}_MDD"] = fmt_pct(sdata.get("max_drawdown"))
+                    row[f"{kind}_Sharpe"] = fmt_float(sdata.get("sharpe"))
+                else:
+                    row[f"{kind}_Ret"] = "N/A"
+                    row[f"{kind}_MDD"] = "N/A"
+                    row[f"{kind}_Sharpe"] = "N/A"
+            rows.append(row)
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("No benchmark_latest.json. Run scripts/benchmark_suite.sh to generate.")
+
+    # --- Panel G: Optimization (Regime-aware) ---
+    st.header("G. Optimization (Regime-aware)")
+    reg_opt_path = run_dir / "optimizer_regime.json"
+    reg_opt_data = load_json(reg_opt_path)
+    
+    if reg_opt_data:
+        buckets = reg_opt_data.get("buckets", {})
+        tabs = st.tabs(["BULL", "BEAR", "NEUTRAL"])
+        
+        for i, reg in enumerate(["BULL", "BEAR", "NEUTRAL"]):
+            with tabs[i]:
+                bdata = buckets.get(reg, {})
+                st.write(f"**Sample Bars:** {bdata.get('sample_bars', 0)}")
+                
+                if bdata.get("warnings"):
+                    for w in bdata.get("warnings"):
+                        st.warning(w)
+                
+                st.subheader(f"Top-K Candidates for {reg}")
+                topk = bdata.get("topk", [])
+                if topk:
+                    # Flatten for dataframe
+                    rows = []
+                    for cand in topk:
+                        row = {"Score (Sharpe)": f"{cand.get('score', {}).get('sharpe', 0.0):.3f}"}
+                        row.update(cand.get("params", {}))
+                        m = cand.get("metrics", {})
+                        row.update({
+                            "Ret": fmt_pct(m.get("total_return")),
+                            "MDD": fmt_pct(m.get("max_drawdown")),
+                            "Trades": m.get("trades_count")
+                        })
+                        rows.append(row)
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No candidates for this regime.")
+    else:
+        st.warning("No optimizer_regime.json found.")
+        st.info("Tip: Run scripts/run_and_verify.sh to generate.")
+
+    # Fallback to old optimizer.json info if useful
+    st.divider()
+    st.subheader("Global Optimization (optimizer.json)")
     opt_path = run_dir / "optimizer.json"
     opt_data = load_json(opt_path)
-    
     if opt_data:
-        # Layout: Best Params | Best Portfolio Metrics
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("Best Parameters")
-            best = opt_data.get("best", {})
-            params = best.get("params", {})
-            if params:
-                st.json(params)
-            else:
-                st.write("No params found.")
-        
-        with c2:
-            st.subheader("Best Metrics (Portfolio)")
-            metrics_port = best.get("metrics_portfolio", {})
-            if metrics_port:
-                # Format nicely
-                disp_metrics = {k: f"{v:.4f}" if isinstance(v, (float)) else v for k,v in metrics_port.items()}
-                st.json(disp_metrics)
-            else:
-                st.write("No portfolio metrics.")
-        
-        # Top K Table
-        st.subheader("Top K Models")
-        top_k = opt_data.get("top_k", [])
-        if top_k:
-            df_top = pd.DataFrame(top_k)
-            st.dataframe(df_top, use_container_width=True)
-        else:
-            st.info("No top_k results recorded (Single run?).")
-
+        best = opt_data.get("best", {})
+        st.json(best.get("params", {}))
     else:
-        st.warning("No optimization artifact for this run.")
+        st.write("No global optimizer artifact.")
+
+    # --- Panel H: Selection (Regime-driven) ---
+    st.header("H. Selection (Regime-driven)")
+    sel_path = run_dir / "selection.json"
+    sel_data = load_json(sel_path)
+    
+    if sel_data:
+        # Top Metrics
+        dcol1, dcol2, dcol3, dcol4 = st.columns(4)
+        decision = sel_data.get("decision", "HOLD")
+        
+        with dcol1:
+            st.metric("Regime", sel_data.get("regime", "N/A"))
+        with dcol2:
+            st.metric("Decision", decision)
+        with dcol3:
+            gate_res = sel_data.get("gate", {}).get("overall", "UNKNOWN")
+            st.metric("Gate", gate_res)
+        with dcol4:
+            selected = sel_data.get("selected")
+            sym = selected.get("symbol") if selected else "N/A"
+            st.metric("Symbol", sym)
+            
+        if decision == "HOLD":
+            warns = sel_data.get("reasons", [])
+            if warns:
+                st.warning(f"Reasons: {', '.join(warns)}")
+        
+        # Details
+        st.subheader("Selected Parameters")
+        if selected:
+            st.json(selected.get("params", {}))
+            
+            st.subheader("Candidate Rank 1 Metrics")
+            st.json(selected.get("score", {}))
+        else:
+            st.info("No selection made.")
+            
+    else:
+        st.warning("No selection.json found.")
+        st.code(f"python3 scripts/generate_selection_artifact.py --run_dir {run_dir}", language="bash")
+
+    # --- Panel I: Walk-Forward / Regime Dataset ---
+    st.header("I. Walk-Forward / Regime Dataset")
+    wf_path = PROJECT_ROOT / "reports" / "walkforward_latest.json"
+    wf_data = load_json(wf_path)
+    
+    if wf_data:
+        # Summary Metrics
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Windows Completed", f"{wf_data.get('windows_completed', 0)} / {wf_data.get('windows_total', 0)}")
+        with c2:
+            st.caption(f"Generated: {wf_data.get('generated_at')}")
+            
+        # Stability
+        st.subheader("Stability Analysis (Sharpe)")
+        stab = wf_data.get("stability", {})
+        if stab:
+            s_rows = []
+            for regime, stats in stab.items():
+                row = {"Regime": regime, "Count": stats.get("count"), 
+                       "Mean": f"{stats.get('mean_sharpe',0):.2f}",
+                       "Median": f"{stats.get('median_sharpe',0):.2f}",
+                       "Min": f"{stats.get('min_sharpe',0):.2f}",
+                       "Max": f"{stats.get('max_sharpe',0):.2f}"}
+                s_rows.append(row)
+            st.dataframe(pd.DataFrame(s_rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No stability data (need >1 run per regime type)")
+
+        # Windows Table
+        st.subheader("Windows Performance")
+        windows = wf_data.get("windows", [])
+        if windows:
+            w_df = pd.DataFrame(windows)
+            # Select columns
+            cols = ["name", "start", "end", "gate_overall", "selection_decision", "sharpe", "mdd", "total_return"]
+            # Rename for display
+            w_df = w_df[cols].rename(columns={
+                "gate_overall": "Gate", 
+                "selection_decision": "Decision",
+                "sharpe": "Sharpe",
+                "mdd": "MDD",
+                "total_return": "Return"
+            })
+            
+            # Format
+            w_df["Sharpe"] = w_df["Sharpe"].map(lambda x: f"{x:.2f}")
+            w_df["MDD"] = w_df["MDD"].map(fmt_pct)
+            w_df["Return"] = w_df["Return"].map(fmt_pct)
+            
+            st.dataframe(w_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No windows data found.")
+            
+    else:
+        st.info("No walkforward_latest.json found.")
+        st.warning("Run One-Liner to Generate:")
+        st.code("bash scripts/walkforward_suite.sh --quick", language="bash")
 
 else:
     st.info("Select a backtest run to see details.")
+
+    # --- Panel J: Action Items & Remediation ---
+    st.header("J. Action Items & Remediation")
+    actions_path = PROJECT_ROOT / "reports" / "action_items_latest.json"
+    actions_data = load_json(actions_path)
+    
+    if actions_data:
+        # Header Info
+        ts = actions_data.get("generated_at", "N/A")
+        source = actions_data.get("source", {}).get("type", "UNKNOWN")
+        st.caption(f"Generated: {ts} | Source: {source}")
+        
+        # Overall Status
+        col1, col2 = st.columns(2)
+        gate = actions_data.get("overall_gate", "UNKNOWN")
+        decision = actions_data.get("decision", "UNKNOWN")
+        
+        with col1:
+             if gate == "PASS":
+                 st.success(f"Overall Gate: {gate}")
+             else:
+                 st.error(f"Overall Gate: {gate}")
+        with col2:
+             st.metric("Decision", decision)
+             
+        # Top Actions
+        st.subheader("Top Recommended Actions")
+        top_actions = actions_data.get("top_actions", [])
+        
+        if top_actions:
+            for act in top_actions:
+                with st.expander(f"{act['rank']}. {act['title']}", expanded=True):
+                    st.markdown(f"**Why:** {act['why']}")
+                    st.markdown("**Suggested Changes:**")
+                    for c in act.get("changes", []):
+                        st.markdown(f"- {c}")
+                    
+                    st.markdown("**Run Command:**")
+                    for cmd in act.get("commands", []):
+                        st.code(cmd, language="bash")
+                        
+                    st.markdown(f"**Verify:** {', '.join(act.get('verify', []))}")
+        else:
+            st.success("No critical action items. System is healthy.")
+            
+        # Failing Windows Table
+        failing = actions_data.get("failing_windows", [])
+        if failing:
+            st.subheader("Failing Windows Details")
+            f_rows = []
+            for w in failing:
+                f_rows.append({
+                    "Window": w.get("name"),
+                    "Regime": w.get("regime"),
+                    "Gate": w.get("gate"),
+                    "Sharpe": f"{w.get('sharpe', 0):.2f}" if w.get('sharpe') is not None else "-",
+                    "MDD": f"{w.get('mdd', 0):.2%}" if w.get('mdd') is not None else "-",
+                    "Trades": w.get("trades", "-"),
+                    "Notes": w.get("notes", "")
+                })
+            st.dataframe(pd.DataFrame(f_rows), use_container_width=True, hide_index=True)
+            
+    else:
+        st.info("No action_items_latest.json found.")
+        st.warning("Run One-Liner to Generate:")
+        st.code("python3 scripts/generate_action_items.py", language="bash")
 
 # Auto-refresh logic (crudely)
 if auto_refresh:

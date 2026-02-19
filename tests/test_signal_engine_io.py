@@ -2,6 +2,9 @@ import pytest
 import shutil
 import asyncio
 from pathlib import Path
+
+pytest.importorskip("aiofiles")
+
 from hongstr.signal.engine import SignalEngine
 from hongstr.signal.types import EngineConfig
 

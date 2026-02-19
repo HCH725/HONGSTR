@@ -1,0 +1,87 @@
+# Gate Policy
+
+**Last Updated**: 2026-02-18  
+**Scope**: `scripts/gate_all.sh` and `reports/gate_latest.md`
+
+## Status Definitions
+
+- `PASS`: step succeeded.
+- `WARN`: step degraded but non-blocking.
+- `SKIP`: step intentionally not executed due to missing non-critical prerequisite.
+- `FAIL`: regression or required step failure.
+- `FATAL`: required runtime/tool missing.
+
+## Stop Condition
+
+- Gate stops only on `FAIL` or `FATAL`.
+- `WARN` and `SKIP` never stop gate in default mode.
+
+## Exit Code Policy
+
+- Exit `0`: overall `PASS` or `WARN`.
+- Exit non-zero: overall `FAIL` or `FATAL`.
+
+## Step Logging Contract
+
+Each step in `reports/gate_latest.md` must include:
+
+- status (`PASS/WARN/SKIP/FAIL/FATAL`)
+- command exit code (`rc`)
+- step reason (`reason`)
+
+## Why Ruff Is WARN Right Now
+
+`python -m ruff check .` is currently treated as `WARN` on lint violations because the repository has existing lint debt unrelated to Objective 1 runtime correctness.  
+
+`ruff` missing as a module remains `FATAL`.
+
+Supplementary lint signal in gate:
+
+- `python -m ruff check <changed_paths>` is emitted as an additional non-blocking step.
+- This step is intended to make touched-file lint debt visible without requiring full-repo cleanup.
+
+## Environment Precheck Contract
+
+`gate_all.sh` must print and persist:
+
+- `python --version`
+- `python -m pytest --version` (`NOT_FOUND` if unavailable)
+- `python -m ruff --version` (`NOT_FOUND` if unavailable)
+- `BINANCE_FUTURES_TESTNET` / `BINANCE_TESTNET` equals `1` or not
+- `reports/walkforward_latest.json` presence
+- latest `data/backtests/*/*` run_dir detection result
+
+## Walkforward Latest Pointer Policy
+
+- Source of truth for each run is:
+  - `reports/walkforward/<RUN_ID>/walkforward.json`
+  - `reports/walkforward/<RUN_ID>/walkforward.md`
+- `reports/walkforward_latest.json` and `.md` are updated only when:
+  - current run has a new `RUN_ID`
+  - `windows_completed == windows_total`
+  - no window has `status` in `{FAILED, ERROR}`
+- Otherwise, latest pointer is not updated and warning reason must be:
+  - `LATEST_NOT_UPDATED_STALE_RISK`
+- Gate/report output must include:
+  - per-run directory (`reports/walkforward/<RUN_ID>/`)
+  - failed window summary (`failed_windows=<name,...>`)
+  - remediation command to rerun suite/report
+- When latest is updated successfully, report output must include:
+  - `LATEST_UPDATED run_id=<RUN_ID> latest_json=reports/walkforward_latest.json`
+  - gate step reason format: `latest updated -> reports/walkforward_latest.json`
+
+## FULL vs RERUN Semantics
+
+- `run_mode=FULL`: normal walkforward suite/report flow.
+- `run_mode=RERUN`: failed-only replay flow from `scripts/rerun_failed_windows.sh`.
+- `rerun_scope=FAILED_ONLY`: only windows in `failed_windows_summary` are executed.
+- `windows_selected`: replayed windows count.
+- `windows_total`: full config windows count.
+- `RERUN PARTIAL` (for example `2/5`) is expected and non-fatal.
+
+Rerun artifacts to consume:
+
+- `reports/walkforward_rerun_latest.json`
+- `reports/walkforward_rerun_latest.md`
+
+Gate must not treat rerun partial as FAIL/FATAL and must keep `walkforward_latest.*` full-suite-only.

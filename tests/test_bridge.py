@@ -4,6 +4,8 @@ import json
 import logging
 from unittest.mock import MagicMock, AsyncMock, patch
 
+pytest.importorskip("aiofiles")
+
 from hongstr.bridge.signal_to_execution import SignalExecutionBridge
 from hongstr.execution.models import SignalEvent
 

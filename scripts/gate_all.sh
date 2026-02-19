@@ -520,6 +520,9 @@ if run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py"; then
     append_step "walkforward latest pointer update" "WARN" 0 "${LATEST_REASON_CODE} failed_windows=${FAILED_HINT}"
     update_overall_for_warn
     add_warn_remediation "walkforward latest pointer: inspect ${RUN_DIR_HINT}"
+    if [ -f "${RUN_DIR_HINT}/failure_diagnostics.json" ]; then
+      add_warn_remediation "walkforward failure diagnostics: inspect ${RUN_DIR_HINT}/failure_diagnostics.json and .md"
+    fi
     add_warn_remediation "walkforward rerun: bash scripts/walkforward_suite.sh --quick --symbols BTCUSDT"
     add_warn_remediation "walkforward report rerender: python3 scripts/report_walkforward.py --run_id $(basename ${RUN_DIR_HINT})"
     if [ -f "$ROOT_DIR/reports/walkforward_rerun_latest.json" ]; then

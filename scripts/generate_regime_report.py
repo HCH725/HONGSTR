@@ -190,11 +190,18 @@ def generate_report(run_dir: Path, data_root: Path):
                  }
             buckets[label]['per_symbol'] = per_symbol
 
+    # Determine Latest Regime
+    latest_regime = "NEUTRAL"
+    if not df_regime.empty:
+        # Get the last available regime label
+        latest_regime = df_regime.iloc[-1]['regime']
+
     # JSON Output
     report = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "timeframe_regime": "4h",
         "regime_series_source": regime_source,
+        "latest_regime": latest_regime,
         "buckets": buckets
     }
     
@@ -204,7 +211,7 @@ def generate_report(run_dir: Path, data_root: Path):
     with open(tmp_path, 'w') as f:
         json.dump(report, f, indent=2, default=str)
     os.rename(tmp_path, out_path)
-    print(f"Generated regime_report.json in {run_dir}")
+    print(f"Generated regime_report.json in {run_dir} (Latest: {latest_regime})")
 
 def main():
     parser = argparse.ArgumentParser()

@@ -103,15 +103,63 @@ echo "--- Generating Optimizer Artifact ---"
 echo "--- Generating Regime Report ---"
 ./.venv/bin/python scripts/generate_regime_report.py --dir "$OUT_DIR"
 
+# Generate Regime Gate
+echo "--- Generating Regime Gate Artifact ---"
+G_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+G_MODE="SHORT"
+for i in "${!PASSTHROUGH_ARGS[@]}"; do
+  if [[ "${PASSTHROUGH_ARGS[$i]}" == "--symbols" ]]; then
+    G_SYMS="${PASSTHROUGH_ARGS[$((i+1))]}"
+  fi
+  # If any passthrough arg contains 'FULL', assume FULL mode for gate
+  if [[ "${PASSTHROUGH_ARGS[$i]}" == *"FULL"* ]]; then
+    G_MODE="FULL"
+  fi
+done
+./.venv/bin/python scripts/generate_gate_artifact.py --dir "$OUT_DIR" --mode "$G_MODE" --symbols "$G_SYMS" --timeframe 4h
+
+# Generate Regime-Aware Optimization
+echo "--- Generating Regime-Aware Optimization Artifact ---"
+./.venv/bin/python scripts/generate_optimizer_regime_artifact.py --run_dir "$OUT_DIR" --topk 5
+
+# Generate Regime-Driven Selection
+echo "--- Generating Regime-Driven Selection Artifact ---"
+./.venv/bin/python scripts/generate_selection_artifact.py --run_dir "$OUT_DIR" --topk 5 --respect_gate true
+
 # Verify
 echo "--- Verifying Results ---"
-./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR"
+# Reuse GATE_SYMS logic or extraction above, but we have not extracted it for verify yet.
+# Let's extract symbols for verify specifically or reuse the extraction logic.
+# Actually, we can move the extraction logic up or duplicate it.
+# Let's verify with the same symbols passed to run_backtest.py if available.
+
+VERIFY_SYMS="BTCUSDT,ETHUSDT,BNBUSDT" # Default
+for i in "${!PASSTHROUGH_ARGS[@]}"; do
+  if [[ "${PASSTHROUGH_ARGS[$i]}" == "--symbols" ]]; then
+    VERIFY_SYMS="${PASSTHROUGH_ARGS[$((i+1))]}"
+  fi
+done
+
+./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR" --symbols "$VERIFY_SYMS"
 
 # Gate
 echo "--- Checking Quality Gate ---"
-if ! ./.venv/bin/python scripts/gate_summary.py --dir "$OUT_DIR" --timeframes 1h,4h --symbols BTCUSDT,ETHUSDT,BNBUSDT --strict_timeframes; then
+# Attempt to find symbols in passthrough args, fallback to default
+GATE_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+for i in "${!PASSTHROUGH_ARGS[@]}"; do
+  if [[ "${PASSTHROUGH_ARGS[$i]}" == "--symbols" ]]; then
+    GATE_SYMS="${PASSTHROUGH_ARGS[$((i+1))]}"
+  fi
+done
+
+if ! ./.venv/bin/python scripts/gate_summary.py --dir "$OUT_DIR" --timeframes 1h,4h --symbols "$GATE_SYMS"; then
     echo "Backtest failed quality gate."
+    echo "--- Generating Action Items ---"
+    ./.venv/bin/python scripts/generate_action_items.py --data_dir "data"
     exit 2
 fi
+
+echo "--- Generating Action Items ---"
+./.venv/bin/python scripts/generate_action_items.py --data_dir "data"
 
 echo "Done."

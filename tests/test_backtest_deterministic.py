@@ -65,7 +65,9 @@ class TestBacktestDeterministic(unittest.TestCase):
             # Now verify with verify_latest.py --dir
             verify_cmd = [
                 self.python, self.verify_script,
-                "--dir", out_dir
+                "--dir", out_dir,
+                "--symbols", "BTCUSDT",
+                "--timeframes", "1h"
             ]
             v_result = subprocess.run(verify_cmd, capture_output=True, text=True)
             self.assertEqual(v_result.returncode, 0)

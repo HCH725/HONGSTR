@@ -1,0 +1,12 @@
+# One relative path per line, rooted at repository root.
+# Protected files require explicit override before commit.
+src/hongstr/backtest/engine.py
+src/hongstr/execution/binance_utils.py
+src/hongstr/execution/binance_testnet.py
+src/hongstr/execution/models.py
+scripts/execute_paper.py
+scripts/exchange_smoke_test.py
+scripts/run_backtest.py
+scripts/generate_selection_artifact.py
+scripts/report_walkforward.py
+scripts/gate_summary.py

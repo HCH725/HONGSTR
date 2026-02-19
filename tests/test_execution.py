@@ -78,7 +78,7 @@ def test_gate2_idempotency(tmp_path):
     
     engine = ExecutionEngine(broker)
     # We need to mock load_selection to allow execution
-    engine.load_selection = lambda: {"selection": {"BULL": ["test"], "BEAR": [], "NEUTRAL": []}}
+    engine.load_selection = lambda: {"selection": {"BULL": ["test_strat"], "BEAR": [], "NEUTRAL": []}}
     
     # Force clear positions (PaperBroker loads from default dir in init)
     broker.positions = {}
@@ -93,6 +93,10 @@ def test_gate2_idempotency(tmp_path):
         timeframe="1h",
         regime="BULL"
     )
+    
+    # Entry (market) filled immediately.
+    # Set balance to 20k -> 2k notional (below 5k limit)
+    broker.balance = 20000.0
     
     # 1. First Run -> Creates Entry + 2 Brackets (SL, TP)
     engine.execute_signal(signal)
