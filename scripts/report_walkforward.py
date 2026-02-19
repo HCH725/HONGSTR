@@ -328,7 +328,47 @@ def main() -> int:
         default="FULL_SUITE",
         help="Execution mode for pointer policy decisions",
     )
+    parser.add_argument(
+        "--from-json",
+        default="",
+        help="Use an existing walkforward.json and only emit latest-pointer line",
+    )
+    parser.add_argument(
+        "--emit-latest-pointer",
+        action="store_true",
+        help="Emit LATEST_UPDATED/WARN line for a provided --from-json payload",
+    )
     args = parser.parse_args()
+
+    if args.from_json and args.emit_latest_pointer:
+        wf_json = Path(args.from_json)
+        payload = load_json(wf_json)
+        if not payload:
+            print(f"Error: could not load walkforward json: {wf_json}")
+            return 1
+        run_id = payload.get("run_id", wf_json.parent.name)
+        run_dir = wf_json.parent
+        if payload.get("latest_updated"):
+            latest_json = Path("reports/walkforward_latest.json")
+            latest_md = Path("reports/walkforward_latest.md")
+            print(
+                "LATEST_UPDATED "
+                f"run_id={run_id} "
+                f"latest_json={latest_json} "
+                f"latest_md={latest_md} "
+                "reason=LATEST_UPDATED"
+            )
+        else:
+            reason = payload.get("latest_warning_reason", "LATEST_NOT_UPDATED_FAILED")
+            detail = payload.get("latest_update_reason", "")
+            warn_line = (
+                f"WARN reason={reason} "
+                f"run_id={run_id} "
+                f"run_dir={run_dir} "
+                f'detail="{detail}"'
+            )
+            print(warn_line)
+        return 0
 
     reports_dir = Path(args.reports_dir)
     config_path = Path(args.config)
