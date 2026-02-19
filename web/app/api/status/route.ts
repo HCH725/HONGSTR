@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readJsonArtifact, SelectionArtifact } from '@/lib/localArtifacts';
+import { readJsonArtifact, SelectionArtifact } from '../../../lib/localArtifacts';
 import path from 'path';
 import fs from 'fs/promises';
 
