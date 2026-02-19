@@ -14,10 +14,14 @@ def test_vwap_supertrend_trigger():
 
     # 20 bars flat at 100
     for i in range(20):
-        bars.append(Bar(base_ts + pd.Timedelta(hours=i), "BTC", 100, 101, 99, 100, 100, True))
+        bars.append(
+            Bar(base_ts + pd.Timedelta(hours=i), "BTC", 100, 101, 99, 100, 100, True)
+        )
 
     # Bar 21: Huge pump -> Price > VWAP and ST Up
-    bars.append(Bar(base_ts + pd.Timedelta(hours=20), "BTC", 110, 115, 105, 112, 1000, True))
+    bars.append(
+        Bar(base_ts + pd.Timedelta(hours=20), "BTC", 110, 115, 105, 112, 1000, True)
+    )
 
     # Run
     # ST period is 10. 20 bars history is enough.

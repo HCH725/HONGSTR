@@ -16,7 +16,9 @@ RC_WARN = 2
 REQUIRED_PRIVATE_KEYS = ("BINANCE_API_KEY", "BINANCE_API_SECRET")
 
 
-def emit_result(status: str, reason: str, http_code: str, endpoint: str, elapsed_ms: int) -> None:
+def emit_result(
+    status: str, reason: str, http_code: str, endpoint: str, elapsed_ms: int
+) -> None:
     print(
         f"SMOKE_RESULT status={status} reason={reason} "
         f"http={http_code} endpoint={endpoint} elapsed_ms={elapsed_ms}"
@@ -90,15 +92,27 @@ def main() -> int:
         default="GET_ACCOUNT",
         help="Smoke check mode",
     )
-    parser.add_argument("--timeout_sec", type=float, default=10.0, help="Request timeout seconds")
-    parser.add_argument("--classify_only", action="store_true", help="Validate env only; send no request")
-    parser.add_argument("--debug_signing", action="store_true", help="Print detailed signing debug info")
+    parser.add_argument(
+        "--timeout_sec", type=float, default=10.0, help="Request timeout seconds"
+    )
+    parser.add_argument(
+        "--classify_only",
+        action="store_true",
+        help="Validate env only; send no request",
+    )
+    parser.add_argument(
+        "--debug_signing", action="store_true", help="Print detailed signing debug info"
+    )
     args = parser.parse_args()
 
     api_key = os.environ.get("BINANCE_API_KEY")
     api_secret = os.environ.get("BINANCE_API_SECRET")
     is_testnet = os.environ.get("BINANCE_FUTURES_TESTNET", "0") == "1"
-    base_url = "https://testnet.binancefuture.com" if is_testnet else "https://fapi.binance.com"
+    base_url = (
+        "https://testnet.binancefuture.com"
+        if is_testnet
+        else "https://fapi.binance.com"
+    )
     endpoint = mode_endpoint(args.mode)
 
     print("=== Binance Futures Smoke Test ===")
@@ -113,15 +127,29 @@ def main() -> int:
         missing = missing_private_keys(api_key, api_secret)
         if args.mode == "GET_ACCOUNT" and missing:
             emit_missing_keys_warning(missing, classify_only=True)
-            emit_result("WARN", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
+            emit_result(
+                "WARN",
+                "ENV_MISSING_KEYS",
+                "NA",
+                endpoint,
+                int(time.time() * 1000) - start_ms,
+            )
             return RC_PASS
-        emit_result("PASS", "CLASSIFY_ONLY", "NA", endpoint, int(time.time() * 1000) - start_ms)
+        emit_result(
+            "PASS", "CLASSIFY_ONLY", "NA", endpoint, int(time.time() * 1000) - start_ms
+        )
         return RC_PASS
 
     missing = missing_private_keys(api_key, api_secret)
     if args.mode == "GET_ACCOUNT" and missing:
         emit_missing_keys_warning(missing, classify_only=False)
-        emit_result("WARN", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
+        emit_result(
+            "WARN",
+            "ENV_MISSING_KEYS",
+            "NA",
+            endpoint,
+            int(time.time() * 1000) - start_ms,
+        )
         return RC_PASS
 
     try:
@@ -149,7 +177,9 @@ def main() -> int:
             )
             if debug_info:
                 print(debug_info)
-            response = requests.request("GET", url, headers=headers, timeout=args.timeout_sec)
+            response = requests.request(
+                "GET", url, headers=headers, timeout=args.timeout_sec
+            )
             if response.status_code == 200:
                 payload = response.json()
                 print(f"Available Balance: {payload.get('availableBalance', 'N/A')}")

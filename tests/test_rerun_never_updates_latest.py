@@ -16,7 +16,7 @@ class TestRerunNeverUpdatesLatest(unittest.TestCase):
                     "#!/usr/bin/env bash",
                     "set -euo pipefail",
                     'OUT_DIR="$(mktemp -d /tmp/hongstr_fake_run_XXXX)"',
-                    'echo \'{"results":{"overall":{"pass":true}}}\' > "$OUT_DIR/gate.json"',
+                    'echo \'{"results":{"overall":{"pass":true}}}\' > "$OUT_DIR/gate.json"',  # noqa: E501
                     'echo \'{"decision":"HOLD"}\' > "$OUT_DIR/selection.json"',
                     'echo "OUT_DIR: $OUT_DIR"',
                 ]
@@ -56,8 +56,20 @@ class TestRerunNeverUpdatesLatest(unittest.TestCase):
                 {
                     "run_id": "rerun_never_updates_src",
                     "windows": [
-                        {"name": "W1", "start": "2026-02-14", "end": "2026-02-15", "status": "FAILED", "symbols": ["BTCUSDT"]},
-                        {"name": "W2", "start": "2026-02-16", "end": "2026-02-17", "status": "FAILED", "symbols": ["BTCUSDT"]},
+                        {
+                            "name": "W1",
+                            "start": "2026-02-14",
+                            "end": "2026-02-15",
+                            "status": "FAILED",
+                            "symbols": ["BTCUSDT"],
+                        },
+                        {
+                            "name": "W2",
+                            "start": "2026-02-16",
+                            "end": "2026-02-17",
+                            "status": "FAILED",
+                            "symbols": ["BTCUSDT"],
+                        },
                     ],
                     "failed_windows_summary": [
                         {"name": "W1", "status": "FAILED", "error": "x"},

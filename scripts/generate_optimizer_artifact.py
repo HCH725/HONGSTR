@@ -7,7 +7,9 @@ from pathlib import Path
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate optimizer.json stub for a backtest run")
+    parser = argparse.ArgumentParser(
+        description="Generate optimizer.json stub for a backtest run"
+    )
     parser.add_argument("--dir", type=str, required=True, help="Backtest run directory")
     args = parser.parse_args()
 
@@ -22,7 +24,7 @@ def main():
         sys.exit(1)
 
     try:
-        with open(summary_path, 'r') as f:
+        with open(summary_path, "r") as f:
             summary = json.load(f)
     except Exception as e:
         print(f"Error reading summary.json: {e}", file=sys.stderr)
@@ -34,7 +36,7 @@ def main():
     config = summary.get("config", {})
 
     # Construct Optimizer Stub
-    # Schema: schema_version, run_id, timestamp, data_scope, objective, search, best, top_k
+    # Schema: schema_version, run_id, timestamp, data_scope, objective, search, best, top_k  # noqa: E501
 
     optimizer_data = {
         "schema_version": "1.0",
@@ -43,43 +45,44 @@ def main():
         "data_scope": {
             "symbols": config.get("symbols", []),
             "timeframes": config.get("timeframes", []),
-            "start": "N/A", # Not in summary config usually, but could be inferred or skipped
-            "end": "N/A"
+            "start": "N/A",  # Not in summary config usually, but could be inferred or skipped  # noqa: E501
+            "end": "N/A",
         },
         "objective": {
-            "metric": "sharpe", # Default assumption
-            "direction": "maximize"
+            "metric": "sharpe",  # Default assumption
+            "direction": "maximize",
         },
         "search": {
             "method": "grid",
-            "budget": 1 # Single run
+            "budget": 1,  # Single run
         },
         "best": {
             "params": {
                 # Extract strategy params if possible, or just dump config
-                "strategy": "vwap_supertrend", # Hardcoded for now based on context
-                "atr_period": 10, # Defaults from run_backtest.py if not in config
-                "atr_mult": 3.0   # Defaults
+                "strategy": "vwap_supertrend",  # Hardcoded for now based on context
+                "atr_period": 10,  # Defaults from run_backtest.py if not in config
+                "atr_mult": 3.0,  # Defaults
             },
             "metrics_portfolio": {
                 "total_return": summary.get("total_return"),
                 "sharpe": summary.get("sharpe"),
-                "max_drawdown": summary.get("max_drawdown")
+                "max_drawdown": summary.get("max_drawdown"),
             },
-            "metrics_per_symbol": summary.get("per_symbol", {})
+            "metrics_per_symbol": summary.get("per_symbol", {}),
         },
-        "top_k": [] # Empty for single run
+        "top_k": [],  # Empty for single run
     }
 
     # Write atomic
     out_path = run_dir / "optimizer.json"
     tmp_path = run_dir / "optimizer.json.tmp"
 
-    with open(tmp_path, 'w') as f:
+    with open(tmp_path, "w") as f:
         json.dump(optimizer_data, f, indent=2)
 
     os.rename(tmp_path, out_path)
     print(f"Generated optimizer.json in {run_dir}")
+
 
 if __name__ == "__main__":
     main()

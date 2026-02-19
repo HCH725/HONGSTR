@@ -20,14 +20,28 @@ def str_to_ms(date_str: str) -> int:
         dt = dt.tz_localize("UTC")
     return int(dt.timestamp() * 1000)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Wrapper for historical data ingestion")
-    parser.add_argument("--symbol", type=str, required=True, help="Symbol to fetch (e.g. BTCUSDT)")
+    parser = argparse.ArgumentParser(
+        description="Wrapper for historical data ingestion"
+    )
+    parser.add_argument(
+        "--symbol", type=str, required=True, help="Symbol to fetch (e.g. BTCUSDT)"
+    )
     parser.add_argument("--start", type=str, default="2021-01-01", help="Start date")
     parser.add_argument("--end", type=str, default="now", help="End date")
-    parser.add_argument("--interval", type=str, default="1m", help="Interval (fixed to 1m for backtest source)")
-    parser.add_argument("--data_root", type=str, default="data/derived", help="Data root directory")
-    parser.add_argument("--market", type=str, default="futures", help="Market type (futures/spot)")
+    parser.add_argument(
+        "--interval",
+        type=str,
+        default="1m",
+        help="Interval (fixed to 1m for backtest source)",
+    )
+    parser.add_argument(
+        "--data_root", type=str, default="data/derived", help="Data root directory"
+    )
+    parser.add_argument(
+        "--market", type=str, default="futures", help="Market type (futures/spot)"
+    )
     args = parser.parse_args()
 
     symbol = args.symbol.upper()
@@ -51,26 +65,28 @@ def main():
     out_file = out_dir / "klines.jsonl"
 
     # Save to jsonl as required.
-    # Backtest runner expects: {"ts": ..., "open": ..., "high": ..., "low": ..., "close": ..., "volume": ...}
+    # Backtest runner expects: {"ts": ..., "open": ..., "high": ..., "low": ..., "close": ..., "volume": ...}  # noqa: E501
     # fetch_klines returns df with numeric columns and ts as index.
 
     df_out = df.copy()
-    df_out['ts'] = df_out.index.map(lambda x: int(x.timestamp() * 1000))
+    df_out["ts"] = df_out.index.map(lambda x: int(x.timestamp() * 1000))
 
-    with open(out_file, 'w') as f:
+    with open(out_file, "w") as f:
         for _, row in df_out.iterrows():
             record = {
-                "ts": int(row['ts']),
-                "open": float(row['open']),
-                "high": float(row['high']),
-                "low": float(row['low']),
-                "close": float(row['close']),
-                "volume": float(row['volume'])
+                "ts": int(row["ts"]),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+                "volume": float(row["volume"]),
             }
             import json
+
             f.write(json.dumps(record) + "\n")
 
     print(f"Successfully saved {len(df)} rows to {out_file}")
+
 
 if __name__ == "__main__":
     main()

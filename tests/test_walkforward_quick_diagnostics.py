@@ -66,10 +66,14 @@ class TestWalkforwardQuickDiagnostics(unittest.TestCase):
         m = re.search(r"Run ID:\s*([^\s]+)", cp.stdout)
         self.assertIsNotNone(m, msg=cp.stdout + "\n" + cp.stderr)
         run_id = m.group(1)
-        diag_json = self.tmp / "reports" / "walkforward" / run_id / "failure_diagnostics.json"
+        diag_json = (
+            self.tmp / "reports" / "walkforward" / run_id / "failure_diagnostics.json"
+        )
         self.assertTrue(diag_json.exists())
         payload = json.loads(diag_json.read_text(encoding="utf-8"))
-        self.assertEqual(payload["reason_token"], "QUICK_SKIPPED_INSUFFICIENT_LOCAL_DATA")
+        self.assertEqual(
+            payload["reason_token"], "QUICK_SKIPPED_INSUFFICIENT_LOCAL_DATA"
+        )
         self.assertEqual(payload["run_mode"], "QUICK")
         self.assertGreaterEqual(len(payload["failures"]), 1)
         first = payload["failures"][0]

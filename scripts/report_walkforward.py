@@ -19,7 +19,9 @@ def load_json(path: Path):
 
 def atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, delete=False
+    ) as tmp:
         tmp.write(content)
         tmp_path = Path(tmp.name)
     tmp_path.replace(path)
@@ -52,7 +54,9 @@ def parse_suite_results(results_path: Path) -> List[dict]:
                     "gate_overall": parts[5],
                     "selection_decision": parts[6],
                     "failure_reason": parts[7] if parts[7] != "-" else "",
-                    "symbols": parts[8].split(",") if parts[8] and parts[8] != "-" else [],
+                    "symbols": parts[8].split(",")
+                    if parts[8] and parts[8] != "-"
+                    else [],
                 }
             )
     return rows
@@ -94,6 +98,85 @@ def infer_regime(window_name: str) -> str:
     if "NEUTRAL" in upper:
         return "NEUTRAL"
     return "MIXED"
+
+
+
+def _is_no_data_reason(reason: object) -> bool:
+    """Return True if a window failure reason is effectively 'no data'."""
+    if reason is None:
+        return False
+    r = str(reason).upper()
+    return any(tok in r for tok in (
+        "NO_DATA_IN_RANGE",
+        "NO_DATA",
+        "NO DATA",
+        "INSUFFICIENT",
+        "EMPTY",
+        "MISSING_DATA",
+    ))
+
+
+def _all_failed_windows_are_no_data(failed_windows: object) -> bool:
+    """failed_windows may be dict(name->info) or list of dicts/strings."""
+    if not failed_windows:
+        return False
+
+    if isinstance(failed_windows, dict):
+        for _, info in failed_windows.items():
+            if isinstance(info, dict):
+                reason = (
+                    info.get("reason")
+                    or info.get("error")
+                    or info.get("status")
+                    or info.get("message")
+                )
+            else:
+                reason = info
+            if not _is_no_data_reason(reason):
+                return False
+        return True
+
+    if isinstance(failed_windows, list):
+        for it in failed_windows:
+            if isinstance(it, dict):
+                reason = (
+                    it.get("reason")
+                    or it.get("error")
+                    or it.get("status")
+                    or it.get("message")
+                )
+            else:
+                reason = it
+            if not _is_no_data_reason(reason):
+                return False
+        return True
+
+    return False
+
+
+def _all_failure_reasons_are_no_data(failure_reasons: Optional[List[str]]) -> bool:
+    reasons = [reason for reason in (failure_reasons or []) if isinstance(reason, str)]
+    if not reasons:
+        return False
+    return all(_is_no_data_reason(reason) for reason in reasons)
+
+
+def _latest_reason_token(
+    *,
+    quick_mode: bool,
+    failed_windows: object,
+    failure_reasons: Optional[List[str]],
+    existing_token: str,
+) -> str:
+    """Normalize latest-pointer update reason tokens."""
+    if quick_mode:
+        return "LATEST_NOT_UPDATED_QUICK_MODE"
+    if existing_token == "LATEST_NOT_UPDATED_FAILED" and (
+        _all_failed_windows_are_no_data(failed_windows)
+        or _all_failure_reasons_are_no_data(failure_reasons)
+    ):
+        return "LATEST_NOT_UPDATED_NO_DATA"
+    return existing_token
 
 
 def build_report(
@@ -146,7 +229,9 @@ def build_report(
                     gpass = gate.get("results", {}).get("overall", {}).get("pass")
                     result["gate_overall"] = "PASS" if gpass else "FAIL"
                 if selection:
-                    result["selection_decision"] = selection.get("decision", result["selection_decision"])
+                    result["selection_decision"] = selection.get(
+                        "decision", result["selection_decision"]
+                    )
                 if summary:
                     result["sharpe"] = summary.get("sharpe")
                     result["mdd"] = summary.get("max_drawdown")
@@ -158,7 +243,9 @@ def build_report(
         report_windows.append(result)
 
     completed = sum(1 for row in report_windows if row["status"] == "COMPLETED")
-    failed_windows = [row for row in report_windows if row["status"] in {"FAILED", "ERROR"}]
+    failed_windows = [
+        row for row in report_windows if row["status"] in {"FAILED", "ERROR"}
+    ]
     failed = len(failed_windows)
     total = len(config_windows)
 
@@ -220,33 +307,41 @@ def render_markdown(report: dict) -> str:
     lines.append(f"**Run Mode**: {report.get('run_mode', 'FULL')}")
     lines.append(f"**Rerun Scope**: {report.get('rerun_scope', 'ALL_WINDOWS')}")
     lines.append(
-        f"**Progress**: {report['windows_completed']} / {report['windows_total']} completed "
+        f"**Progress**: {report['windows_completed']} / {report['windows_total']} completed "  # noqa: E501
         f"(failed: {report['windows_failed']})"
     )
     lines.append("")
     if report["latest_updated"]:
         lines.append(
-            f"**Latest Pointer**: updated ({report.get('latest_warning_reason', 'LATEST_UPDATED')})"
+            f"**Latest Pointer**: updated ({report.get('latest_warning_reason', 'LATEST_UPDATED')})"  # noqa: E501
         )
     else:
         lines.append(
-            f"**Latest Pointer**: not updated ({report.get('latest_warning_reason', 'UNKNOWN_REASON')})"
+            f"**Latest Pointer**: not updated ({report.get('latest_warning_reason', 'UNKNOWN_REASON')})"  # noqa: E501
         )
-    lines.append(f"**Latest Pointer Policy**: {report.get('latest_pointer_policy', '')}")
+    lines.append(
+        f"**Latest Pointer Policy**: {report.get('latest_pointer_policy', '')}"
+    )
     lines.append(f"**Latest Pointer Detail**: {report['latest_update_reason']}")
     lines.append("")
 
     lines.append("## Windows Performance")
-    lines.append("| Window | Start | End | Status | Gate | Decision | Sharpe | Return | MDD | Reason |")
+    lines.append(
+        "| Window | Start | End | Status | Gate | Decision | Sharpe | Return | MDD | Reason |"  # noqa: E501
+    )
     lines.append("|---|---|---|---|---|---|---|---|---|---|")
     for window in report["windows"]:
         sharpe = f"{window['sharpe']:.3f}" if window["sharpe"] is not None else "-"
-        ret = f"{window['total_return']:.2%}" if window["total_return"] is not None else "-"
+        ret = (
+            f"{window['total_return']:.2%}"
+            if window["total_return"] is not None
+            else "-"
+        )
         mdd = f"{window['mdd']:.2%}" if window["mdd"] is not None else "-"
         reason = window["error"] or "-"
         lines.append(
-            f"| {window['name']} | {window['start']} | {window['end']} | {window['status']} | "
-            f"{window['gate_overall']} | {window['selection_decision']} | {sharpe} | {ret} | {mdd} | {reason} |"
+            f"| {window['name']} | {window['start']} | {window['end']} | {window['status']} | "  # noqa: E501
+            f"{window['gate_overall']} | {window['selection_decision']} | {sharpe} | {ret} | {mdd} | {reason} |"  # noqa: E501
         )
 
     lines.append("")
@@ -257,7 +352,7 @@ def render_markdown(report: dict) -> str:
         for regime, stats in report["stability"].items():
             lines.append(
                 f"| {regime} | {stats['count']} | {stats['mean_sharpe']:.3f} | "
-                f"{stats['min_sharpe']:.3f} | {stats['max_sharpe']:.3f} | {stats['median_sharpe']:.3f} |"
+                f"{stats['min_sharpe']:.3f} | {stats['max_sharpe']:.3f} | {stats['median_sharpe']:.3f} |"  # noqa: E501
             )
     else:
         lines.append("No stability data available.")
@@ -267,11 +362,19 @@ def render_markdown(report: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="configs/windows.json", help="Path to windows config")
+    parser.add_argument(
+        "--config", default="configs/windows.json", help="Path to windows config"
+    )
     parser.add_argument("--reports_dir", default="reports", help="Output directory")
-    parser.add_argument("--data_root", default="data/backtests", help="Unused legacy argument for compatibility")
+    parser.add_argument(
+        "--data_root",
+        default="data/backtests",
+        help="Unused legacy argument for compatibility",
+    )
     parser.add_argument("--run_id", default="", help="Walkforward suite run id")
-    parser.add_argument("--suite_results_tsv", default="", help="Path to suite results TSV")
+    parser.add_argument(
+        "--suite_results_tsv", default="", help="Path to suite results TSV"
+    )
     parser.add_argument(
         "--no_latest_update",
         action="store_true",
@@ -283,7 +386,47 @@ def main() -> int:
         default="FULL_SUITE",
         help="Execution mode for pointer policy decisions",
     )
+    parser.add_argument(
+        "--from-json",
+        default="",
+        help="Use an existing walkforward.json and only emit latest-pointer line",
+    )
+    parser.add_argument(
+        "--emit-latest-pointer",
+        action="store_true",
+        help="Emit LATEST_UPDATED/WARN line for a provided --from-json payload",
+    )
     args = parser.parse_args()
+
+    if args.from_json and args.emit_latest_pointer:
+        wf_json = Path(args.from_json)
+        payload = load_json(wf_json)
+        if not payload:
+            print(f"Error: could not load walkforward json: {wf_json}")
+            return 1
+        run_id = payload.get("run_id", wf_json.parent.name)
+        run_dir = wf_json.parent
+        if payload.get("latest_updated"):
+            latest_json = Path("reports/walkforward_latest.json")
+            latest_md = Path("reports/walkforward_latest.md")
+            print(
+                "LATEST_UPDATED "
+                f"run_id={run_id} "
+                f"latest_json={latest_json} "
+                f"latest_md={latest_md} "
+                "reason=LATEST_UPDATED"
+            )
+        else:
+            reason = payload.get("latest_warning_reason", "LATEST_NOT_UPDATED_FAILED")
+            detail = payload.get("latest_update_reason", "")
+            warn_line = (
+                f"WARN reason={reason} "
+                f"run_id={run_id} "
+                f"run_dir={run_dir} "
+                f'detail="{detail}"'
+            )
+            print(warn_line)
+        return 0
 
     reports_dir = Path(args.reports_dir)
     config_path = Path(args.config)
@@ -295,7 +438,9 @@ def main() -> int:
         windows_config = json.load(handle)
 
     run_id = args.run_id.strip()
-    suite_path: Optional[Path] = Path(args.suite_results_tsv) if args.suite_results_tsv else None
+    suite_path: Optional[Path] = (
+        Path(args.suite_results_tsv) if args.suite_results_tsv else None
+    )
 
     if not run_id and suite_path:
         run_id = suite_path.parent.name
@@ -322,7 +467,9 @@ def main() -> int:
     run_dir = reports_dir / "walkforward" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    has_terminal_fail = any(w["status"] in {"FAILED", "ERROR"} for w in report["windows"])
+    has_terminal_fail = any(
+        w["status"] in {"FAILED", "ERROR"} for w in report["windows"]
+    )
     run_dir_exists = run_dir.exists()
     is_latest_run = is_latest_suite_run(reports_dir, run_id)
     success_ready = (
@@ -363,10 +510,23 @@ def main() -> int:
             )
             report["latest_pointer_policy"] = "block_update_quick"
         elif report["windows_failed"] > 0 or has_terminal_fail:
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_FAILED"
-            failed_names = ",".join(w["name"] for w in report["failed_windows_summary"]) or "none"
+            failed_windows = [
+                window["name"] for window in report["failed_windows_summary"]
+            ]
+            failure_reasons = [
+                window.get("error") or "" for window in report["failed_windows_summary"]
+            ]
+            report["latest_warning_reason"] = _latest_reason_token(
+                quick_mode=False,
+                failed_windows=failed_windows,
+                failure_reasons=failure_reasons,
+                existing_token="LATEST_NOT_UPDATED_FAILED",
+            )
+            failed_names = (
+                ",".join(w["name"] for w in report["failed_windows_summary"]) or "none"
+            )
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_FAILED status={report['status']} "
+                f"{report['latest_warning_reason']} status={report['status']} "
                 f"completed={report['windows_completed']}/{report['windows_total']} "
                 f"failed_windows={failed_names}"
             )
@@ -374,8 +534,7 @@ def main() -> int:
         elif not is_latest_run:
             report["latest_warning_reason"] = "LATEST_NOT_UPDATED_FAILED"
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_FAILED run_id={run_id} "
-                "is not the latest suite run"
+                f"LATEST_NOT_UPDATED_FAILED run_id={run_id} is not the latest suite run"
             )
             report["latest_pointer_policy"] = "block_update_not_latest"
         else:
@@ -393,7 +552,9 @@ def main() -> int:
 
     if report["latest_updated"]:
         atomic_write_json(reports_dir / "walkforward_latest.json", report)
-        atomic_write_text(reports_dir / "walkforward_latest.md", render_markdown(report))
+        atomic_write_text(
+            reports_dir / "walkforward_latest.md", render_markdown(report)
+        )
         print(
             "LATEST_UPDATED "
             f"run_id={run_id} "
@@ -404,7 +565,7 @@ def main() -> int:
     else:
         print(
             f"WARN reason={report['latest_warning_reason']} "
-            f"run_id={run_id} run_dir={run_dir} detail=\"{report['latest_update_reason']}\""
+            f'run_id={run_id} run_dir={run_dir} detail="{report["latest_update_reason"]}"'  # noqa: E501
         )
         rerun_latest_json = reports_dir / "walkforward_rerun_latest.json"
         if rerun_latest_json.exists():

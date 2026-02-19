@@ -10,7 +10,10 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from hongstr.selection.selection import get_current_selection, load_selection
+from hongstr.selection.selection import (  # noqa: E402
+    get_current_selection,
+    load_selection,
+)
 
 
 class TestSelectionPersistence(unittest.TestCase):
@@ -22,43 +25,45 @@ class TestSelectionPersistence(unittest.TestCase):
         # 1. Mock inputs
         # Regime Report (BULL)
         with open(self.run_dir / "regime_report.json", "w") as f:
-            json.dump({
-                "latest_regime": "BULL",
-                "buckets": {}
-            }, f)
+            json.dump({"latest_regime": "BULL", "buckets": {}}, f)
 
         # Gate (PASS)
         with open(self.run_dir / "gate.json", "w") as f:
-            json.dump({
-                "results": {"overall": {"pass": True, "reasons": []}}
-            }, f)
+            json.dump({"results": {"overall": {"pass": True, "reasons": []}}}, f)
 
         # Optimizer Regime
         # Provide candidate for BULL
         with open(self.run_dir / "optimizer_regime.json", "w") as f:
-            json.dump({
-                "buckets": {
-                    "BULL": {
-                        "topk": [
-                            {
-                                "params": {"atr_period": 10},
-                                "score": {"sharpe": 2.0},
-                                "metrics": {"sharpe": 2.0}
-                            }
-                        ]
+            json.dump(
+                {
+                    "buckets": {
+                        "BULL": {
+                            "topk": [
+                                {
+                                    "params": {"atr_period": 10},
+                                    "score": {"sharpe": 2.0},
+                                    "metrics": {"sharpe": 2.0},
+                                }
+                            ]
+                        }
                     }
-                }
-            }, f)
+                },
+                f,
+            )
 
     def tearDown(self):
         shutil.rmtree(self.test_dir)
 
     def run_generator(self, respect_gate="true"):
         import subprocess
+
         cmd = [
-            "python3", "scripts/generate_selection_artifact.py",
-            "--run_dir", str(self.run_dir),
-            "--respect_gate", respect_gate
+            "python3",
+            "scripts/generate_selection_artifact.py",
+            "--run_dir",
+            str(self.run_dir),
+            "--respect_gate",
+            respect_gate,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         return result
@@ -81,9 +86,14 @@ class TestSelectionPersistence(unittest.TestCase):
         # Case 2: Fail Gate -> HOLD
         # Update gate to fail
         with open(self.run_dir / "gate.json", "w") as f:
-            json.dump({
-                "results": {"overall": {"pass": False, "reasons": ["Sharpe too low"]}}
-            }, f)
+            json.dump(
+                {
+                    "results": {
+                        "overall": {"pass": False, "reasons": ["Sharpe too low"]}
+                    }
+                },
+                f,
+            )
 
         self.run_generator(respect_gate="true")
 
@@ -93,22 +103,28 @@ class TestSelectionPersistence(unittest.TestCase):
 
         # Check selected is present but decision is HOLD
         # (Implementation detail: we populate 'selected' for observation even on hold?
-        # Script logic: if can_trade is False, selected is None/skipped implementation-wise unless enforced.
+        # Script logic: if can_trade is False, selected is None/skipped implementation-wise unless enforced.  # noqa: E501
         # My script implementation set selected=None if !can_trade.
         self.assertIsNone(sel["selected"])
 
     def test_force_trade_ignore_gate(self):
         # Case 3: Fail Gate but respect_gate=false -> TRADE
         with open(self.run_dir / "gate.json", "w") as f:
-             json.dump({
-                "results": {"overall": {"pass": False, "reasons": ["Sharpe too low"]}}
-            }, f)
+            json.dump(
+                {
+                    "results": {
+                        "overall": {"pass": False, "reasons": ["Sharpe too low"]}
+                    }
+                },
+                f,
+            )
 
         self.run_generator(respect_gate="false")
 
         sel = load_selection(str(self.run_dir))
         self.assertEqual(sel["decision"], "TRADE")
         self.assertIsNotNone(sel["selected"])
+
 
 if __name__ == "__main__":
     unittest.main()

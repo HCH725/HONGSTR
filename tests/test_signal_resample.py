@@ -9,16 +9,18 @@ def test_resample_1m_to_5m():
     bars = []
     base_ts = pd.Timestamp("2024-01-01 10:00:00")
     for i in range(5):
-        bars.append(Bar(
-            ts=base_ts + pd.Timedelta(minutes=i),
-            symbol="BTCUSDT",
-            open=100 + i,
-            high=105 + i,
-            low=95 + i,
-            close=102 + i,
-            volume=10,
-            closed=True
-        ))
+        bars.append(
+            Bar(
+                ts=base_ts + pd.Timedelta(minutes=i),
+                symbol="BTCUSDT",
+                open=100 + i,
+                high=105 + i,
+                low=95 + i,
+                close=102 + i,
+                volume=10,
+                closed=True,
+            )
+        )
 
     # Resample to 5m
     # The 5m bar starts at 10:00 and ends at 10:05.
@@ -32,11 +34,18 @@ def test_resample_1m_to_5m():
     assert len(resampled) == 0
 
     # Add one more bar at 10:05
-    bars.append(Bar(
-        ts=base_ts + pd.Timedelta(minutes=5),
-        symbol="BTCUSDT",
-        open=110, high=115, low=105, close=112, volume=10, closed=True
-    ))
+    bars.append(
+        Bar(
+            ts=base_ts + pd.Timedelta(minutes=5),
+            symbol="BTCUSDT",
+            open=110,
+            high=115,
+            low=105,
+            close=112,
+            volume=10,
+            closed=True,
+        )
+    )
 
     resampled = resample_bars(bars, "5m")
     assert len(resampled) == 1
@@ -44,20 +53,28 @@ def test_resample_1m_to_5m():
     b = resampled[0]
     assert b.ts == base_ts
     assert b.open == 100
-    assert b.high == 109 # 105+4
-    assert b.low == 95   # 95+0
-    assert b.close == 106 # 102+4 (last in window)
+    assert b.high == 109  # 105+4
+    assert b.low == 95  # 95+0
+    assert b.close == 106  # 102+4 (last in window)
     assert b.volume == 50
+
 
 def test_resample_1m_to_1h():
     bars = []
     base_ts = pd.Timestamp("2024-01-01 10:00:00")
     for i in range(60):
-        bars.append(Bar(
-            ts=base_ts + pd.Timedelta(minutes=i),
-            symbol="BTCUSDT",
-            open=100, high=100, low=100, close=100, volume=1, closed=True
-        ))
+        bars.append(
+            Bar(
+                ts=base_ts + pd.Timedelta(minutes=i),
+                symbol="BTCUSDT",
+                open=100,
+                high=100,
+                low=100,
+                close=100,
+                volume=1,
+                closed=True,
+            )
+        )
 
     # Last bar is 10:59.
     # 1h bar ends at 11:00.
@@ -66,11 +83,18 @@ def test_resample_1m_to_1h():
     assert len(resampled) == 0
 
     # Add 11:00 bar
-    bars.append(Bar(
-        ts=base_ts + pd.Timedelta(hours=1),
-        symbol="BTCUSDT",
-        open=100, high=100, low=100, close=100, volume=1, closed=True
-    ))
+    bars.append(
+        Bar(
+            ts=base_ts + pd.Timedelta(hours=1),
+            symbol="BTCUSDT",
+            open=100,
+            high=100,
+            low=100,
+            close=100,
+            volume=1,
+            closed=True,
+        )
+    )
 
     resampled = resample_bars(bars, "1h")
     assert len(resampled) == 1

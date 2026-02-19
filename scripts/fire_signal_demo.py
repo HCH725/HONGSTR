@@ -17,13 +17,14 @@ def fire_signal():
 
     # Setup
     sem = SemanticsV1()
-    broker = PaperBroker(sem) # Force Paper for demo usually
+    broker = PaperBroker(sem)  # Force Paper for demo usually
     # If Mode C, use Testnet?
     # For fail safety, script defaults to Paper unless env set?
     # Uses imports, so respects config.
 
-    if EXECUTION_MODE == 'C':
+    if EXECUTION_MODE == "C":
         from hongstr.execution.binance_testnet import BinanceFuturesTestnetBroker
+
         broker = BinanceFuturesTestnetBroker()
 
     engine = ExecutionEngine(broker)
@@ -36,12 +37,13 @@ def fire_signal():
         strategy_id="Manual_Demo",
         direction="LONG",
         timeframe="1h",
-        regime="BULL"
+        regime="BULL",
     )
 
     print(f"Signal: {sig}")
     engine.execute_signal(sig)
     print("Executed. Check logs/state.")
+
 
 if __name__ == "__main__":
     fire_signal()

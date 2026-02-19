@@ -7,17 +7,19 @@ def test_semantics_fees():
     fee = sem.calc_fee(notional)
     assert fee == 0.5
 
+
 def test_semantics_slippage():
-    sem = SemanticsV1(slippage_bps=10.0) # 0.1%
+    sem = SemanticsV1(slippage_bps=10.0)  # 0.1%
     price = 100.0
 
     # Buy slippage adds to price
-    buy_price = sem.apply_slippage(price, 'BUY')
-    assert buy_price == 100.0 + (100.0 * 0.001) # 100.1
+    buy_price = sem.apply_slippage(price, "BUY")
+    assert buy_price == 100.0 + (100.0 * 0.001)  # 100.1
 
     # Sell slippage subtracts
-    sell_price = sem.apply_slippage(price, 'SELL')
-    assert sell_price == 100.0 - (100.0 * 0.001) # 99.9
+    sell_price = sem.apply_slippage(price, "SELL")
+    assert sell_price == 100.0 - (100.0 * 0.001)  # 99.9
+
 
 def test_semantics_funding():
     sem = SemanticsV1()

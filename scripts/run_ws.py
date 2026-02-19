@@ -7,18 +7,21 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root / "src"))
 
-from hongstr.config import (
+from hongstr.config import (  # noqa: E402
     REALTIME_OUT_DIR,
     REALTIME_RUN_SECONDS,
     REALTIME_STREAMS,
     REALTIME_SYMBOLS,
     REALTIME_WS_BASE,
 )
-from hongstr.realtime.stream_manager import StreamManager
-from hongstr.realtime.types import WSConfig
+from hongstr.realtime.stream_manager import StreamManager  # noqa: E402
+from hongstr.realtime.types import WSConfig  # noqa: E402
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("run_ws")
+
 
 async def main():
     logger.info("--- Starting Realtime WS Smoke Test ---")
@@ -29,10 +32,10 @@ async def main():
 
     config = WSConfig(
         symbols=REALTIME_SYMBOLS,
-        intervals=[], # intervals are embedded in streams list for this simple manager
+        intervals=[],  # intervals are embedded in streams list for this simple manager
         output_dir=REALTIME_OUT_DIR,
         ws_base_url=REALTIME_WS_BASE,
-        run_seconds=REALTIME_RUN_SECONDS
+        run_seconds=REALTIME_RUN_SECONDS,
     )
 
     manager = StreamManager(config, REALTIME_STREAMS)
@@ -55,6 +58,7 @@ async def main():
             logger.info(f" - {f} ({f.stat().st_size} bytes)")
 
     logger.info("--- Smoke Test Complete ---")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

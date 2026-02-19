@@ -21,11 +21,16 @@ from hongstr.signal.engine import SignalEngine
 from hongstr.signal.types import EngineConfig
 
 # Setup Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("run_strategies")
 
+
 async def main():
-    run_seconds = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[1] == "--seconds" else 60
+    run_seconds = (
+        int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[1] == "--seconds" else 60
+    )
     logger.info("--- Starting Signal Strategies Run (C9) ---")
     logger.info(f"Duration: {run_seconds}s")
 
@@ -41,22 +46,19 @@ async def main():
         symbols=REALTIME_SYMBOLS,
         output_dir=REALTIME_OUT_DIR,
         ws_base_url=REALTIME_WS_BASE,
-        intervals=["1m"]
+        intervals=["1m"],
     )
-    c7_manager = StreamManager(
-        config=ws_config,
-        streams=REALTIME_STREAMS
-    )
+    c7_manager = StreamManager(config=ws_config, streams=REALTIME_STREAMS)
 
     # Init Signal Engine (tail_jsonl mode to read what C7 writes)
     c8_config = EngineConfig(
         symbols=REALTIME_SYMBOLS,
         timeframes=SIGNAL_TFS,
-        input_root=REALTIME_OUT_DIR, # Reads C7 output
+        input_root=REALTIME_OUT_DIR,  # Reads C7 output
         output_root=SIGNAL_OUTPUT_ROOT,
         state_root=SIGNAL_STATE_ROOT,
         mode="tail_jsonl",
-        max_bars=SIGNAL_MAX_BARS
+        max_bars=SIGNAL_MAX_BARS,
     )
     c8_engine = SignalEngine(c8_config)
 
@@ -85,6 +87,7 @@ async def main():
             ws_task.cancel()
 
     logger.info("--- Run Complete ---")
+
 
 if __name__ == "__main__":
     try:

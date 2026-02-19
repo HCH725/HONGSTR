@@ -15,8 +15,11 @@ from hongstr.execution.exchange_filters import ExchangeFilters
 from hongstr.execution.models import OrderRequest
 
 # Setup Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("smoke_c13")
+
 
 async def run_smoke():
     logger.info("--- Starting C13 Testnet Live Smoke ---")
@@ -50,9 +53,13 @@ async def run_smoke():
     # We can use requests directly for simple ticker or assume safe buffer.
     # Better: Add get_symbol_price to broker or just use requests here.
     import requests
+
     try:
-        r = requests.get(f"{BINANCE_TESTNET_BASE_URL}/fapi/v1/ticker/price", params={"symbol": symbol})
-        price = float(r.json()['price'])
+        r = requests.get(
+            f"{BINANCE_TESTNET_BASE_URL}/fapi/v1/ticker/price",
+            params={"symbol": symbol},
+        )
+        price = float(r.json()["price"])
         logger.info(f"Current Price {symbol}: {price}")
     except Exception as e:
         logger.error(f"Failed to fetch price: {e}")
@@ -75,13 +82,13 @@ async def run_smoke():
         side="BUY",
         qty=qty,
         order_type="MARKET",
-        extra={"positionSide": "LONG"} if BINANCE_HEDGE_MODE else {}
+        extra={"positionSide": "LONG"} if BINANCE_HEDGE_MODE else {},
     )
 
     res = broker.place_order(req)
     logger.info(f"Entry Result: {res.status} {res.error if res.error else ''}")
 
-    if res.status != 'FILLED' and res.status != 'NEW':
+    if res.status != "FILLED" and res.status != "NEW":
         logger.error("Entry Failed. Aborting.")
         sys.exit(1)
 
@@ -98,10 +105,14 @@ async def run_smoke():
             order_type="STOP_MARKET",
             price=sl_price,
             reduce_only=True,
-            extra={"positionSide": "LONG", "stopPrice": sl_price} if BINANCE_HEDGE_MODE else {"stopPrice": sl_price}
+            extra={"positionSide": "LONG", "stopPrice": sl_price}
+            if BINANCE_HEDGE_MODE
+            else {"stopPrice": sl_price},
         )
         sl_res = broker.place_order(sl_req)
-        logger.info(f"SL Result: {sl_res.status} {sl_res.error if sl_res.error else ''}")
+        logger.info(
+            f"SL Result: {sl_res.status} {sl_res.error if sl_res.error else ''}"
+        )
 
     # 4. Wait
     logger.info(f"Waiting {SMOKE_RUNTIME_SEC}s...")
@@ -113,25 +124,26 @@ async def run_smoke():
     # Cancel Orders
     orders = broker.get_open_orders(symbol)
     for o in orders:
-        broker.cancel_order(symbol, o['orderId'])
+        broker.cancel_order(symbol, o["orderId"])
         logger.info(f"Cancelled {o['orderId']}")
 
     # Close Position
     pos = broker.get_position(symbol)
-    if pos.side != 'NONE' and pos.amt > 0:
+    if pos.side != "NONE" and pos.amt > 0:
         logger.info(f"Closing Position {pos.side} {pos.amt}...")
         close_req = OrderRequest(
             symbol=symbol,
-            side="SELL", # Assuming Long
+            side="SELL",  # Assuming Long
             qty=filters.round_qty(symbol, pos.amt),
             order_type="MARKET",
             reduce_only=True,
-            extra={"positionSide": "LONG"} if BINANCE_HEDGE_MODE else {}
+            extra={"positionSide": "LONG"} if BINANCE_HEDGE_MODE else {},
         )
         c_res = broker.place_order(close_req)
         logger.info(f"Close Result: {c_res.status}")
 
     logger.info("--- Smoke Test Complete ---")
+
 
 if __name__ == "__main__":
     asyncio.run(run_smoke())

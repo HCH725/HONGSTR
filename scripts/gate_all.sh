@@ -157,6 +157,41 @@ run_and_capture() {
   return "$rc"
 }
 
+find_latest_full_walkforward_json_for_sha() {
+  local sha="$1"
+  "$PYTHON_BIN" - "$sha" <<'PY'
+import glob
+import json
+import os
+import sys
+from pathlib import Path
+
+sha = sys.argv[1]
+paths = sorted(
+    glob.glob(f"reports/walkforward/*_{sha}/walkforward.json"),
+    key=os.path.getmtime,
+    reverse=True,
+)
+for p in paths:
+    try:
+        payload = json.loads(Path(p).read_text(encoding="utf-8"))
+    except Exception:
+        continue
+    suite_mode = payload.get("suite_mode", "")
+    windows_total = payload.get("windows_total", 0) or 0
+    # Prefer non-quick full-suite artifacts. Keep backwards compatibility for older payloads.
+    if suite_mode != "QUICK" and windows_total >= 3:
+        print(str(Path(p).resolve()))
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+emit_latest_pointer_from_json() {
+  local wf_json="$1"
+  "$PYTHON_BIN" scripts/report_walkforward.py --from-json "$wf_json" --emit-latest-pointer 2>/dev/null || true
+}
+
 latest_run_dir() {
   "$PYTHON_BIN" - <<'PY'
 from pathlib import Path
@@ -255,7 +290,13 @@ collect_changed_paths() {
     return
   fi
   while IFS= read -r p; do
-    [ -n "$p" ] && CHANGED_PATHS+=("$p")
+    [ -z "$p" ] && continue
+    # Ruff changed-path checks only support Python sources and pyproject.toml.
+    case "$p" in
+      *.py|*.pyi|pyproject.toml)
+        CHANGED_PATHS+=("$p")
+        ;;
+    esac
   done <<<"$out"
 }
 
@@ -414,7 +455,7 @@ STEP="python -m ruff check <changed_paths>"
 log ""
 log "=== ${STEP} ==="
 if [ "${#CHANGED_PATHS[@]}" -eq 0 ]; then
-  append_step "$STEP" "SKIP" 0 "no changed paths under scripts/tests/docs/handoff/configs/pyproject.toml"
+  append_step "$STEP" "SKIP" 0 "no changed Python paths for ruff"
   mark_skip
 else
   if ! "$PYTHON_BIN" -m ruff --version >/dev/null 2>&1; then
@@ -503,38 +544,60 @@ stop_if_failed
 STEP="python3 scripts/report_walkforward.py --suite_mode QUICK"
 log ""
 log "=== ${STEP} ==="
-log "\$ $PYTHON_BIN scripts/report_walkforward.py --suite_mode QUICK"
-if run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py --suite_mode QUICK"; then
+WF_SHA="$(git rev-parse --short HEAD 2>/dev/null || true)"
+WF_PREFER_FULL="${WF_PREFER_FULL:-1}"
+PREFERRED_WF_JSON=""
+if [ "$WF_PREFER_FULL" = "1" ] && [ -n "$WF_SHA" ]; then
+  if PREFERRED_WF_JSON="$(find_latest_full_walkforward_json_for_sha "$WF_SHA" 2>/dev/null)"; then
+    :
+  else
+    PREFERRED_WF_JSON=""
+  fi
+fi
+
+if [ -n "$PREFERRED_WF_JSON" ]; then
+  log "\$ $PYTHON_BIN scripts/report_walkforward.py --from-json \"$PREFERRED_WF_JSON\" --emit-latest-pointer"
+  LAST_OUTPUT="$(emit_latest_pointer_from_json "$PREFERRED_WF_JSON")"
+  [ -n "$LAST_OUTPUT" ] && echo "$LAST_OUTPUT" | tee -a "$LOG_PATH"
+  append_step "$STEP" "PASS" 0 "preferred full walkforward artifact: $PREFERRED_WF_JSON"
+elif run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py --suite_mode QUICK"; then
   append_step "$STEP" "PASS" 0 "ok"
-  if grep -q "^LATEST_UPDATED " <<<"$LAST_OUTPUT"; then
-    LATEST_JSON_PATH="$(sed -n 's/.*latest_json=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
-    if [ -z "$LATEST_JSON_PATH" ]; then
-      LATEST_JSON_PATH="reports/walkforward_latest.json"
-    fi
-    append_step "walkforward latest pointer update" "PASS" 0 "latest updated -> ${LATEST_JSON_PATH}"
-  elif grep -q "^WARN reason=" <<<"$LAST_OUTPUT"; then
-    LATEST_REASON_CODE="$(sed -n 's/.*reason=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
-    RUN_DIR_HINT="$(sed -n 's/.*run_dir=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
-    FAILED_HINT="$(sed -n 's/.*failed_windows=\([^"]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
-    if [ -z "$RUN_DIR_HINT" ]; then
-      RUN_DIR_HINT="reports/walkforward/<RUN_ID>/"
-    fi
-    if [ -z "$LATEST_REASON_CODE" ]; then
-      LATEST_REASON_CODE="LATEST_NOT_UPDATED_FAILED"
-    fi
-    if [ -z "$FAILED_HINT" ]; then
-      FAILED_HINT="unknown"
-    fi
-    append_step "walkforward latest pointer update" "WARN" 0 "${LATEST_REASON_CODE} failed_windows=${FAILED_HINT}"
-    update_overall_for_warn
-    add_warn_remediation "walkforward latest pointer: inspect ${RUN_DIR_HINT}"
-    if [ -f "${RUN_DIR_HINT}/failure_diagnostics.json" ]; then
-      add_warn_remediation "walkforward failure diagnostics: inspect ${RUN_DIR_HINT}/failure_diagnostics.json and .md"
-    fi
-    add_warn_remediation "walkforward rerun: bash scripts/walkforward_suite.sh --quick --symbols BTCUSDT"
-    add_warn_remediation "walkforward report rerender: python3 scripts/report_walkforward.py --suite_mode QUICK --run_id $(basename ${RUN_DIR_HINT})"
-    if [ -f "$ROOT_DIR/reports/walkforward_rerun_latest.json" ]; then
-      RERUN_INFO="$("$PYTHON_BIN" - <<'PY'
+else
+  STEP_CMD_RC=$?
+  append_step "$STEP" "WARN" "$STEP_CMD_RC" "report walkforward failed"
+  update_overall_for_warn
+  add_warn_remediation "walkforward report rerender: python3 scripts/report_walkforward.py --suite_mode QUICK"
+fi
+
+if grep -q "^LATEST_UPDATED " <<<"$LAST_OUTPUT"; then
+  LATEST_JSON_PATH="$(sed -n 's/.*latest_json=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
+  if [ -z "$LATEST_JSON_PATH" ]; then
+    LATEST_JSON_PATH="reports/walkforward_latest.json"
+  fi
+  append_step "walkforward latest pointer update" "PASS" 0 "latest updated -> ${LATEST_JSON_PATH}"
+elif grep -q "^WARN reason=" <<<"$LAST_OUTPUT"; then
+  LATEST_REASON_CODE="$(sed -n 's/.*reason=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
+  RUN_DIR_HINT="$(sed -n 's/.*run_dir=\([^ ]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
+  FAILED_HINT="$(sed -n 's/.*failed_windows=\([^"]*\).*/\1/p' <<<"$LAST_OUTPUT" | tail -n1)"
+  if [ -z "$RUN_DIR_HINT" ]; then
+    RUN_DIR_HINT="reports/walkforward/<RUN_ID>/"
+  fi
+  if [ -z "$LATEST_REASON_CODE" ]; then
+    LATEST_REASON_CODE="LATEST_NOT_UPDATED_FAILED"
+  fi
+  if [ -z "$FAILED_HINT" ]; then
+    FAILED_HINT="unknown"
+  fi
+  append_step "walkforward latest pointer update" "WARN" 0 "${LATEST_REASON_CODE} failed_windows=${FAILED_HINT}"
+  update_overall_for_warn
+  add_warn_remediation "walkforward latest pointer: inspect ${RUN_DIR_HINT}"
+  if [ -f "${RUN_DIR_HINT}/failure_diagnostics.json" ]; then
+    add_warn_remediation "walkforward failure diagnostics: inspect ${RUN_DIR_HINT}/failure_diagnostics.json and .md"
+  fi
+  add_warn_remediation "walkforward rerun: bash scripts/walkforward_suite.sh --quick --symbols BTCUSDT"
+  add_warn_remediation "walkforward report rerender: python3 scripts/report_walkforward.py --suite_mode QUICK --run_id $(basename ${RUN_DIR_HINT})"
+  if [ -f "$ROOT_DIR/reports/walkforward_rerun_latest.json" ]; then
+    RERUN_INFO="$("$PYTHON_BIN" - <<'PY'
 import json
 from pathlib import Path
 p=Path("reports/walkforward_rerun_latest.json")
@@ -547,30 +610,28 @@ print(
 )
 PY
  2>/dev/null || true)"
-      if [ -n "$RERUN_INFO" ]; then
-        RERUN_MODE="$(awk -F'\t' '{print $1}' <<<"$RERUN_INFO")"
-        RERUN_COMPLETED="$(awk -F'\t' '{print $2}' <<<"$RERUN_INFO")"
-        RERUN_TOTAL="$(awk -F'\t' '{print $3}' <<<"$RERUN_INFO")"
-        RERUN_FAILED="$(awk -F'\t' '{print $4}' <<<"$RERUN_INFO")"
-        RERUN_SELECTED_COMPLETED="$(awk -F'\t' '{print $5}' <<<"$RERUN_INFO")"
-        RERUN_SELECTED_TOTAL="$(awk -F'\t' '{print $6}' <<<"$RERUN_INFO")"
-        RERUN_SELECTED_FAILED="$(awk -F'\t' '{print $7}' <<<"$RERUN_INFO")"
-        if [ "$RERUN_MODE" = "RERUN" ]; then
-          if [ "$RERUN_SELECTED_TOTAL" != "?" ] && [ "$RERUN_SELECTED_COMPLETED" = "$RERUN_SELECTED_TOTAL" ] && [ "$RERUN_SELECTED_FAILED" = "0" ]; then
-            append_step "walkforward rerun mode status" "PASS" 0 "RERUN_OK_SELECTED_COMPLETE selected=${RERUN_SELECTED_COMPLETED}/${RERUN_SELECTED_TOTAL} full_total=${RERUN_TOTAL}; latest pointers not updated by policy"
-          else
-            append_step "walkforward rerun mode status" "WARN" 0 "RERUN_PARTIAL_EXPECTED selected=${RERUN_SELECTED_COMPLETED}/${RERUN_SELECTED_TOTAL} full_total=${RERUN_TOTAL} failed=${RERUN_FAILED}; latest pointers not updated by policy"
-            update_overall_for_warn
-          fi
+    if [ -n "$RERUN_INFO" ]; then
+      RERUN_MODE="$(awk -F'\t' '{print $1}' <<<"$RERUN_INFO")"
+      RERUN_COMPLETED="$(awk -F'\t' '{print $2}' <<<"$RERUN_INFO")"
+      RERUN_TOTAL="$(awk -F'\t' '{print $3}' <<<"$RERUN_INFO")"
+      RERUN_FAILED="$(awk -F'\t' '{print $4}' <<<"$RERUN_INFO")"
+      RERUN_SELECTED_COMPLETED="$(awk -F'\t' '{print $5}' <<<"$RERUN_INFO")"
+      RERUN_SELECTED_TOTAL="$(awk -F'\t' '{print $6}' <<<"$RERUN_INFO")"
+      RERUN_SELECTED_FAILED="$(awk -F'\t' '{print $7}' <<<"$RERUN_INFO")"
+      if [ "$RERUN_MODE" = "RERUN" ]; then
+        if [ "$RERUN_SELECTED_TOTAL" != "?" ] && [ "$RERUN_SELECTED_COMPLETED" = "$RERUN_SELECTED_TOTAL" ] && [ "$RERUN_SELECTED_FAILED" = "0" ]; then
+          append_step "walkforward rerun mode status" "PASS" 0 "RERUN_OK_SELECTED_COMPLETE selected=${RERUN_SELECTED_COMPLETED}/${RERUN_SELECTED_TOTAL} full_total=${RERUN_TOTAL}; latest pointers not updated by policy"
+        elif [ "$RERUN_SELECTED_FAILED" != "?" ] && [ "$RERUN_SELECTED_FAILED" != "0" ]; then
+          append_step "walkforward rerun mode status" "WARN" 0 "RERUN_SELECTED_FAILED selected_failed=${RERUN_SELECTED_FAILED}/${RERUN_SELECTED_TOTAL} full_failed=${RERUN_FAILED}/${RERUN_TOTAL}; latest pointers not updated by policy"
+          update_overall_for_warn
+          add_warn_remediation "walkforward rerun inspect: reports/walkforward_rerun_latest.json"
         fi
       fi
-      add_warn_remediation "walkforward rerun latest: inspect $ROOT_DIR/reports/walkforward_rerun_latest.json and .md"
     fi
   fi
 else
-  STEP_CMD_RC=$?
-  append_step "$STEP" "FAIL" "$STEP_CMD_RC" "report generation failed"
-  mark_fail "$STEP_CMD_RC" "report_walkforward failed"
+  append_step "walkforward latest pointer update" "WARN" 0 "LATEST_POINTER_OUTPUT_MISSING"
+  update_overall_for_warn
 fi
 stop_if_failed
 

@@ -46,17 +46,18 @@ def inject_signal():
         "regime": "TREND",
         "confidence": 1.0,
         "reason": "Deterministic Smoke Test Injection",
-        "source": "manual_injection"
+        "source": "manual_injection",
     }
 
     # 3. Write to File
     print(f"Injecting signal to {signals_file}:")
     print(json.dumps(signal_data, indent=2))
 
-    with open(signals_file, 'a') as f:
+    with open(signals_file, "a") as f:
         f.write(json.dumps(signal_data) + "\n")
 
     print("Injection Complete.")
+
 
 if __name__ == "__main__":
     inject_signal()

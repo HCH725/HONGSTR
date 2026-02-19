@@ -24,13 +24,20 @@ from hongstr.signal.engine import SignalEngine
 from hongstr.signal.types import EngineConfig
 
 # Setup Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("run_bridge")
+
 
 async def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seconds", type=int, default=30, help="Run duration in seconds")
-    parser.add_argument("--mode", type=str, default="B", help="Execution Mode (B=Paper)")
+    parser.add_argument(
+        "--seconds", type=int, default=30, help="Run duration in seconds"
+    )
+    parser.add_argument(
+        "--mode", type=str, default="B", help="Execution Mode (B=Paper)"
+    )
     args = parser.parse_args()
 
     run_seconds = args.seconds
@@ -43,12 +50,9 @@ async def main():
         symbols=REALTIME_SYMBOLS,
         output_dir=REALTIME_OUT_DIR,
         ws_base_url=REALTIME_WS_BASE,
-        intervals=["1m"]
+        intervals=["1m"],
     )
-    c7_manager = StreamManager(
-        config=ws_config,
-        streams=REALTIME_STREAMS
-    )
+    c7_manager = StreamManager(config=ws_config, streams=REALTIME_STREAMS)
 
     # 2. Signal Engine (C8)
     c8_config = EngineConfig(
@@ -58,12 +62,13 @@ async def main():
         output_root=SIGNAL_OUTPUT_ROOT,
         state_root=SIGNAL_STATE_ROOT,
         mode="tail_jsonl",
-        max_bars=SIGNAL_MAX_BARS
+        max_bars=SIGNAL_MAX_BARS,
     )
     c8_engine = SignalEngine(c8_config)
 
     # Ensure signals file exists for bridge to tail
     from datetime import datetime
+
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
     signals_dir = os.path.join(SIGNAL_OUTPUT_ROOT, date_str)
     signals_file = os.path.join(signals_dir, "signals.jsonl")
@@ -71,7 +76,7 @@ async def main():
     if not os.path.exists(signals_dir):
         os.makedirs(signals_dir, exist_ok=True)
     if not os.path.exists(signals_file):
-        with open(signals_file, 'w') as f:
+        with open(signals_file, "w"):
             pass
 
     # 3. Execution Bridge (C10)
@@ -89,7 +94,7 @@ async def main():
     tasks = [
         asyncio.create_task(c7_manager.run(duration=run_seconds)),
         asyncio.create_task(c8_engine.run_tail_jsonl(duration=run_seconds)),
-        asyncio.create_task(bridge.run(duration=run_seconds))
+        asyncio.create_task(bridge.run(duration=run_seconds)),
     ]
 
     try:
@@ -101,6 +106,7 @@ async def main():
         c7_manager.stop()
 
     logger.info("--- Bridge Run Complete ---")
+
 
 if __name__ == "__main__":
     try:

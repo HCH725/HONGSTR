@@ -14,17 +14,21 @@ def test_gate3_manual_close_orphan_cancellation(tmp_path):
     # Open Orders = STOP, TAKE_PROFIT
 
     broker.open_orders = []
-    broker.positions = {} # No Valid Position
+    broker.positions = {}  # No Valid Position
 
     # Add dummy orders directly to internal list for PaperBroker simulation
     # Or use place_order with LIMIT which queues them.
 
     # Place STOP (SL)
-    sl_req = OrderRequest("BTCUSDT", "SELL", 1.0, "STOP", price=45000.0, reduce_only=True)
+    sl_req = OrderRequest(
+        "BTCUSDT", "SELL", 1.0, "STOP", price=45000.0, reduce_only=True
+    )
     broker.place_order(sl_req)
 
     # Place TP
-    tp_req = OrderRequest("BTCUSDT", "SELL", 1.0, "TAKE_PROFIT", price=55000.0, reduce_only=True)
+    tp_req = OrderRequest(
+        "BTCUSDT", "SELL", 1.0, "TAKE_PROFIT", price=55000.0, reduce_only=True
+    )
     broker.place_order(tp_req)
 
     assert len(broker.get_open_orders("BTCUSDT")) == 2

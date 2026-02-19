@@ -17,7 +17,7 @@ class TestRerunLatestPointer(unittest.TestCase):
                     "#!/usr/bin/env bash",
                     "set -euo pipefail",
                     'OUT_DIR="$(mktemp -d /tmp/hongstr_fake_run_XXXX)"',
-                    'echo \'{"results":{"overall":{"pass":true}}}\' > "$OUT_DIR/gate.json"',
+                    'echo \'{"results":{"overall":{"pass":true}}}\' > "$OUT_DIR/gate.json"',  # noqa: E501
                     'echo \'{"decision":"HOLD"}\' > "$OUT_DIR/selection.json"',
                     'echo "OUT_DIR: $OUT_DIR"',
                 ]
@@ -42,19 +42,25 @@ class TestRerunLatestPointer(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp)
 
-    def _build_source_report(self, run_id: str, windows: list[dict], failed_names: list[str]) -> Path:
+    def _build_source_report(
+        self, run_id: str, windows: list[dict], failed_names: list[str]
+    ) -> Path:
         run_dir = self.walkforward / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
         payload = {
             "run_id": run_id,
             "windows": windows,
-            "failed_windows_summary": [{"name": n, "status": "FAILED", "error": "x"} for n in failed_names],
+            "failed_windows_summary": [
+                {"name": n, "status": "FAILED", "error": "x"} for n in failed_names
+            ],
         }
         report = run_dir / "walkforward.json"
         report.write_text(json.dumps(payload), encoding="utf-8")
         return report
 
-    def _run_rerun(self, report_json: Path, config_path: Path) -> subprocess.CompletedProcess:
+    def _run_rerun(
+        self, report_json: Path, config_path: Path
+    ) -> subprocess.CompletedProcess:
         return subprocess.run(
             [
                 "bash",
@@ -75,22 +81,61 @@ class TestRerunLatestPointer(unittest.TestCase):
 
     def test_partial_rerun_updates_rerun_latest_only(self):
         windows = [
-            {"name": "BULL_2021_H1", "start": "2021-01-01", "end": "2021-05-31", "status": "FAILED", "symbols": ["BTCUSDT"]},
-            {"name": "BEAR_2022", "start": "2022-01-01", "end": "2022-12-31", "status": "FAILED", "symbols": ["BTCUSDT"]},
-            {"name": "NEUTRAL_2023", "start": "2023-01-01", "end": "2023-12-31", "status": "PENDING", "symbols": ["BTCUSDT"]},
-            {"name": "BULL_2024", "start": "2024-01-01", "end": "2024-12-31", "status": "PENDING", "symbols": ["BTCUSDT"]},
-            {"name": "RECENT_2026", "start": "2026-01-01", "end": "2026-02-15", "status": "PENDING", "symbols": ["BTCUSDT"]},
+            {
+                "name": "BULL_2021_H1",
+                "start": "2021-01-01",
+                "end": "2021-05-31",
+                "status": "FAILED",
+                "symbols": ["BTCUSDT"],
+            },
+            {
+                "name": "BEAR_2022",
+                "start": "2022-01-01",
+                "end": "2022-12-31",
+                "status": "FAILED",
+                "symbols": ["BTCUSDT"],
+            },
+            {
+                "name": "NEUTRAL_2023",
+                "start": "2023-01-01",
+                "end": "2023-12-31",
+                "status": "PENDING",
+                "symbols": ["BTCUSDT"],
+            },
+            {
+                "name": "BULL_2024",
+                "start": "2024-01-01",
+                "end": "2024-12-31",
+                "status": "PENDING",
+                "symbols": ["BTCUSDT"],
+            },
+            {
+                "name": "RECENT_2026",
+                "start": "2026-01-01",
+                "end": "2026-02-15",
+                "status": "PENDING",
+                "symbols": ["BTCUSDT"],
+            },
         ]
-        report = self._build_source_report("unit_rerun_partial_src", windows, ["BULL_2021_H1", "BEAR_2022"])
+        report = self._build_source_report(
+            "unit_rerun_partial_src", windows, ["BULL_2021_H1", "BEAR_2022"]
+        )
         cfg = self.tmp / "windows_partial.json"
         cfg.write_text(
-            json.dumps([{"name": w["name"], "start": w["start"], "end": w["end"]} for w in windows]),
+            json.dumps(
+                [
+                    {"name": w["name"], "start": w["start"], "end": w["end"]}
+                    for w in windows
+                ]
+            ),
             encoding="utf-8",
         )
 
         cp = self._run_rerun(report, cfg)
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
-        self.assertIn("RERUN_SELECTION total_windows=5 selected_failed_windows=2", cp.stdout)
+        self.assertIn(
+            "RERUN_SELECTION total_windows=5 selected_failed_windows=2", cp.stdout
+        )
 
         rerun = json.loads(self.rerun_json.read_text(encoding="utf-8"))
         self.assertEqual(rerun["completed"], 2)
@@ -105,35 +150,62 @@ class TestRerunLatestPointer(unittest.TestCase):
 
     def test_complete_rerun_still_updates_rerun_latest_only(self):
         windows = [
-            {"name": "BULL_2021_H1", "start": "2021-01-01", "end": "2021-05-31", "status": "FAILED", "symbols": ["BTCUSDT"]},
-            {"name": "BEAR_2022", "start": "2022-01-01", "end": "2022-12-31", "status": "FAILED", "symbols": ["BTCUSDT"]},
+            {
+                "name": "BULL_2021_H1",
+                "start": "2021-01-01",
+                "end": "2021-05-31",
+                "status": "FAILED",
+                "symbols": ["BTCUSDT"],
+            },
+            {
+                "name": "BEAR_2022",
+                "start": "2022-01-01",
+                "end": "2022-12-31",
+                "status": "FAILED",
+                "symbols": ["BTCUSDT"],
+            },
         ]
-        report = self._build_source_report("unit_rerun_complete_src", windows, ["BULL_2021_H1", "BEAR_2022"])
+        report = self._build_source_report(
+            "unit_rerun_complete_src", windows, ["BULL_2021_H1", "BEAR_2022"]
+        )
         cfg = self.tmp / "windows_complete.json"
         cfg.write_text(
-            json.dumps([{"name": w["name"], "start": w["start"], "end": w["end"]} for w in windows]),
+            json.dumps(
+                [
+                    {"name": w["name"], "start": w["start"], "end": w["end"]}
+                    for w in windows
+                ]
+            ),
             encoding="utf-8",
         )
 
         cp = self._run_rerun(report, cfg)
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
-        self.assertIn("RERUN_SELECTION total_windows=2 selected_failed_windows=2", cp.stdout)
+        self.assertIn(
+            "RERUN_SELECTION total_windows=2 selected_failed_windows=2", cp.stdout
+        )
 
         rerun = json.loads(self.rerun_json.read_text(encoding="utf-8"))
         self.assertEqual(rerun["completed"], 2)
         self.assertEqual(rerun["total"], 2)
         self.assertEqual(rerun["failed"], 0)
         self.assertEqual(len(rerun.get("rerun_commands", [])), 2)
-        self.assertTrue(all(c["command"].startswith("bash ") for c in rerun["rerun_commands"]))
+        self.assertTrue(
+            all(c["command"].startswith("bash ") for c in rerun["rerun_commands"])
+        )
 
         latest = json.loads(self.latest_json.read_text(encoding="utf-8"))
         self.assertEqual(latest["run_id"], "sentinel_full_suite")
 
         rerun_run_id = re.search(r"rerun_run_id=([^ ]+)", cp.stdout).group(1)
         run_report = json.loads(
-            (self.walkforward / rerun_run_id / "walkforward.json").read_text(encoding="utf-8")
+            (self.walkforward / rerun_run_id / "walkforward.json").read_text(
+                encoding="utf-8"
+            )
         )
-        self.assertEqual(run_report["latest_warning_reason"], "RERUN_NEVER_UPDATES_LATEST_BY_POLICY")
+        self.assertEqual(
+            run_report["latest_warning_reason"], "RERUN_NEVER_UPDATES_LATEST_BY_POLICY"
+        )
 
 
 if __name__ == "__main__":

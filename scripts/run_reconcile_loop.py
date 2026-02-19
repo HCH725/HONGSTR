@@ -20,7 +20,7 @@ def run_loop():
 
     print(f"--- Reconcile Loop (Mode: {EXECUTION_MODE}) ---")
 
-    if EXECUTION_MODE == 'C':
+    if EXECUTION_MODE == "C":
         broker = BinanceFuturesTestnetBroker()
     else:
         broker = PaperBroker(SemanticsV1())
@@ -37,7 +37,8 @@ def run_loop():
     except KeyboardInterrupt:
         print("Stopping.")
 
-import pandas as pd  # Delayed import fix above
+
+import pandas as pd  # Delayed import fix above  # noqa: E402
 
 if __name__ == "__main__":
     run_loop()

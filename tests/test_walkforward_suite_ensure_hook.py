@@ -23,9 +23,7 @@ class TestWalkforwardSuiteEnsureHook(unittest.TestCase):
         self.marker = self.tmp / "ensure_called.marker"
         self.ensure_script = self.tmp / "fake_ensure.sh"
         self.ensure_script.write_text(
-            "#!/usr/bin/env bash\n"
-            "set -euo pipefail\n"
-            f"echo called > '{self.marker}'\n",
+            f"#!/usr/bin/env bash\nset -euo pipefail\necho called > '{self.marker}'\n",
             encoding="utf-8",
         )
         self.ensure_script.chmod(0o755)
@@ -34,11 +32,11 @@ class TestWalkforwardSuiteEnsureHook(unittest.TestCase):
         self.runner_script.write_text(
             "#!/usr/bin/env bash\n"
             "set -euo pipefail\n"
-            "OUT_DIR=\"$(mktemp -d /tmp/hongstr_suite_hook_XXXX)\"\n"
-            "echo '{\"results\":{\"overall\":{\"pass\":true}}}' > \"$OUT_DIR/gate.json\"\n"
-            "echo '{\"decision\":\"HOLD\"}' > \"$OUT_DIR/selection.json\"\n"
-            "echo \"OUT_DIR: $OUT_DIR\"\n"
-            "echo \"LOG: /tmp/fake_suite_hook.log\"\n",
+            'OUT_DIR="$(mktemp -d /tmp/hongstr_suite_hook_XXXX)"\n'
+            'echo \'{"results":{"overall":{"pass":true}}}\' > "$OUT_DIR/gate.json"\n'
+            'echo \'{"decision":"HOLD"}\' > "$OUT_DIR/selection.json"\n'
+            'echo "OUT_DIR: $OUT_DIR"\n'
+            'echo "LOG: /tmp/fake_suite_hook.log"\n',
             encoding="utf-8",
         )
         self.runner_script.chmod(0o755)

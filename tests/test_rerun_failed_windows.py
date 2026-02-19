@@ -14,7 +14,11 @@ class TestRerunFailedWindows(unittest.TestCase):
         self.config.write_text(
             json.dumps(
                 [
-                    {"name": "BULL_2021_H1", "start": "2021-01-01", "end": "2021-05-31"},
+                    {
+                        "name": "BULL_2021_H1",
+                        "start": "2021-01-01",
+                        "end": "2021-05-31",
+                    },
                     {"name": "BEAR_2022", "start": "2022-01-01", "end": "2022-12-31"},
                 ]
             ),
@@ -39,7 +43,11 @@ class TestRerunFailedWindows(unittest.TestCase):
                 },
             ],
             "failed_windows_summary": [
-                {"name": "BULL_2021_H1", "status": "FAILED", "error": "pipeline_exit_1"},
+                {
+                    "name": "BULL_2021_H1",
+                    "status": "FAILED",
+                    "error": "pipeline_exit_1",
+                },
                 {"name": "BEAR_2022", "status": "ERROR", "error": "missing_out_dir"},
             ],
         }
@@ -65,8 +73,12 @@ class TestRerunFailedWindows(unittest.TestCase):
         )
         self.assertEqual(cp.returncode, 0)
         self.assertIn("FAILED_COUNT\t2", cp.stdout)
-        self.assertIn("WINDOW\tBULL_2021_H1\t2021-01-01\t2021-05-31\tBTCUSDT", cp.stdout)
-        self.assertIn("WINDOW\tBEAR_2022\t2022-01-01\t2022-12-31\tBTCUSDT,ETHUSDT", cp.stdout)
+        self.assertIn(
+            "WINDOW\tBULL_2021_H1\t2021-01-01\t2021-05-31\tBTCUSDT", cp.stdout
+        )
+        self.assertIn(
+            "WINDOW\tBEAR_2022\t2022-01-01\t2022-12-31\tBTCUSDT,ETHUSDT", cp.stdout
+        )
         self.assertEqual(cp.stdout.count("[DRY-RUN] bash scripts/run_and_verify.sh"), 2)
         self.assertIn("commands=2", cp.stdout)
 

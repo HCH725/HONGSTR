@@ -10,6 +10,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
+
 class TestGateArtifact(unittest.TestCase):
     def setUp(self):
         self.test_dir = Path(tempfile.mkdtemp())
@@ -19,21 +20,9 @@ class TestGateArtifact(unittest.TestCase):
         # Create a mock regime_report.json
         self.regime_data = {
             "buckets": {
-                "BULL": {
-                    "sharpe": 0.4,
-                    "max_drawdown": -0.10,
-                    "trades_count": 120
-                },
-                "BEAR": {
-                    "sharpe": 0.05,
-                    "max_drawdown": -0.35,
-                    "trades_count": 50
-                },
-                "NEUTRAL": {
-                    "sharpe": 0.25,
-                    "max_drawdown": -0.05,
-                    "trades_count": 150
-                }
+                "BULL": {"sharpe": 0.4, "max_drawdown": -0.10, "trades_count": 120},
+                "BEAR": {"sharpe": 0.05, "max_drawdown": -0.35, "trades_count": 50},
+                "NEUTRAL": {"sharpe": 0.25, "max_drawdown": -0.05, "trades_count": 150},
             }
         }
         with open(self.run_dir / "regime_report.json", "w") as f:
@@ -43,12 +32,12 @@ class TestGateArtifact(unittest.TestCase):
         self.summary_data = {
             "start_ts": "2024-01-01T00:00:00Z",
             "end_ts": "2024-01-31T23:59:59Z",
-            "trades_count": 50, # 31 days * 0.5 = 15.5 < 30 (default min) -> FAIL
+            "trades_count": 50,  # 31 days * 0.5 = 15.5 < 30 (default min) -> FAIL
             "exposure_time": 0.5,
             "per_symbol": {
                 "BTCUSDT_4h": {"trades_count": 30},
-                "ETHUSDT_4h": {"trades_count": 20}
-            }
+                "ETHUSDT_4h": {"trades_count": 20},
+            },
         }
         with open(self.run_dir / "summary.json", "w") as f:
             json.dump(self.summary_data, f)
@@ -64,11 +53,16 @@ class TestGateArtifact(unittest.TestCase):
         # Portfolio: 50 trades > 30 required (OK)
 
         cmd = [
-            "python3", "scripts/generate_gate_artifact.py",
-            "--dir", str(self.run_dir),
-            "--mode", "FULL",
-            "--symbols", "BTCUSDT,ETHUSDT",
-            "--timeframe", "4h"
+            "python3",
+            "scripts/generate_gate_artifact.py",
+            "--dir",
+            str(self.run_dir),
+            "--mode",
+            "FULL",
+            "--symbols",
+            "BTCUSDT,ETHUSDT",
+            "--timeframe",
+            "4h",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
@@ -99,11 +93,16 @@ class TestGateArtifact(unittest.TestCase):
             json.dump(self.regime_data, f)
 
         cmd = [
-            "python3", "scripts/generate_gate_artifact.py",
-            "--dir", str(self.run_dir),
-            "--mode", "SHORT",
-            "--symbols", "BTCUSDT",
-            "--timeframe", "4h"
+            "python3",
+            "scripts/generate_gate_artifact.py",
+            "--dir",
+            str(self.run_dir),
+            "--mode",
+            "SHORT",
+            "--symbols",
+            "BTCUSDT",
+            "--timeframe",
+            "4h",
         ]
         subprocess.run(cmd, check=True)
 
@@ -111,6 +110,7 @@ class TestGateArtifact(unittest.TestCase):
             data = json.load(f)
         self.assertTrue(data["results"]["overall"]["pass"])
         self.assertEqual(len(data["results"]["overall"]["reasons"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

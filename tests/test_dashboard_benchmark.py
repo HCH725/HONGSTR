@@ -9,10 +9,13 @@ from unittest.mock import MagicMock
 
 # Mock streamlit before import
 sys.modules["streamlit"] = MagicMock()
+
+
 # Configure mocks to avoid errors during import
-# Use side_effect to handle different column counts (3 for Environment, 3 for Selection, 2 for Benchmark, 2 for Opt)
+# Use side_effect to handle different column counts (3 for Environment, 3 for Selection, 2 for Benchmark, 2 for Opt)  # noqa: E501
 def mock_columns(n):
     return [MagicMock() for _ in range(n)]
+
 
 sys.modules["streamlit"].columns.side_effect = mock_columns
 sys.modules["streamlit"].sidebar.selectbox.return_value = "No Runs Found"
@@ -20,7 +23,7 @@ sys.modules["streamlit"].sidebar.selectbox.return_value = "No Runs Found"
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-import scripts.dashboard as dashboard
+import scripts.dashboard as dashboard  # noqa: E402
 
 
 class TestDashboardBenchmark(unittest.TestCase):
@@ -48,14 +51,9 @@ class TestDashboardBenchmark(unittest.TestCase):
             "generated_at": "2023-01-01T00:00:00Z",
             "FULL": {
                 "top": {"total_return": 0.1, "sharpe": 1.5},
-                "per_symbol_4h": {
-                    "BTCUSDT_4h": {"total_return": 0.05}
-                }
+                "per_symbol_4h": {"BTCUSDT_4h": {"total_return": 0.05}},
             },
-            "SHORT": {
-                "top": {"total_return": 0.01},
-                "per_symbol_4h": {}
-            }
+            "SHORT": {"top": {"total_return": 0.01}, "per_symbol_4h": {}},
         }
         (self.reports_dir / "benchmark_latest.json").write_text(json.dumps(data))
 
@@ -68,6 +66,7 @@ class TestDashboardBenchmark(unittest.TestCase):
         self.assertEqual(dashboard.safe_get(d, "a", "b"), 1)
         self.assertEqual(dashboard.safe_get(d, "a", "c", default=99), 99)
         self.assertIsNone(dashboard.safe_get(d, "x"))
+
 
 if __name__ == "__main__":
     unittest.main()
