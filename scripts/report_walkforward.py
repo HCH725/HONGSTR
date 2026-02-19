@@ -372,9 +372,9 @@ def main() -> int:
             )
             report["latest_pointer_policy"] = "block_update_failed"
         elif not is_latest_run:
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_STALE_RISK"
+            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_FAILED"
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_STALE_RISK run_id={run_id} "
+                f"LATEST_NOT_UPDATED_FAILED run_id={run_id} "
                 "is not the latest suite run"
             )
             report["latest_pointer_policy"] = "block_update_not_latest"

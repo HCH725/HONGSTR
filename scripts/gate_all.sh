@@ -520,7 +520,7 @@ if run_and_capture "\"$PYTHON_BIN\" scripts/report_walkforward.py --suite_mode Q
       RUN_DIR_HINT="reports/walkforward/<RUN_ID>/"
     fi
     if [ -z "$LATEST_REASON_CODE" ]; then
-      LATEST_REASON_CODE="LATEST_NOT_UPDATED_STALE_RISK"
+      LATEST_REASON_CODE="LATEST_NOT_UPDATED_FAILED"
     fi
     if [ -z "$FAILED_HINT" ]; then
       FAILED_HINT="unknown"

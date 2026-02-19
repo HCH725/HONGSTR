@@ -104,3 +104,19 @@ Gate must not treat rerun partial as FAIL/FATAL and must keep `walkforward_lates
   - script exit: `0` (non-blocking)
   - gate class: `WARN` from `SMOKE_RESULT status=WARN reason=ENV_MISSING_KEYS`
 - If keys are present but auth/signing/network fails, the script returns non-zero and gate classifies by reason (`AUTH_REJECTED`, `SIGNATURE_MISMATCH`, `NETWORK_ERROR`, etc.).
+
+## Latest pointer update policy
+
+Canonical reason tokens (stable contract):
+
+| token | when it triggers | updates `latest`? | notes |
+|---|---|---:|---|
+| `LATEST_UPDATED` | full suite completed successfully with no failed windows | yes | overwrites `latest` pointers |
+| `LATEST_NOT_UPDATED_QUICK_MODE` | run is **quick mode** (partial windows by design) | no | quick is never allowed to overwrite latest |
+| `LATEST_NOT_UPDATED_INCOMPLETE` | run did **not** complete required window set (partial / interrupted) | no | safety: avoid stale-risk overwrite |
+| `LATEST_NOT_UPDATED_FAILED` | one or more windows failed | no | safety: failed window blocks overwrite |
+
+Output format requirement (gate + reports):
+- Always emit a single-line reason token, e.g. `LATEST_NOT_UPDATED_QUICK_MODE`
+- If not updated, include a short `why:` text and any `failed_windows=` / `completed=` diagnostics where available.
+
