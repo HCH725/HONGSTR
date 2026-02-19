@@ -10,6 +10,8 @@ DATA_ROOT="data"
 REPORTS_DIR="reports"
 SYMBOLS_OVERRIDE=""
 RUNNER_SCRIPT="scripts/run_and_verify.sh"
+ENSURE_SCRIPT="scripts/ensure_quick_data.sh"
+SKIP_ENSURE_DATA=false
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -17,6 +19,8 @@ while [[ "$#" -gt 0 ]]; do
     --config) CONFIG_FILE="$2"; shift ;;
     --symbols) SYMBOLS_OVERRIDE="$2"; shift ;;
     --runner_script) RUNNER_SCRIPT="$2"; shift ;;
+    --ensure_script) ENSURE_SCRIPT="$2"; shift ;;
+    --skip_ensure_data) SKIP_ENSURE_DATA=true ;;
     *) echo "Unknown parameter passed: $1"; exit 1 ;;
   esac
   shift
@@ -79,6 +83,15 @@ if [ "$QUICK_MODE" = true ]; then
   WINDOWS_JSON="$(echo "$WINDOWS_JSON" | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin)[:2]))")"
   SYMBOLS="${SYMBOLS_OVERRIDE:-BTCUSDT}"
   echo "Quick Mode: Running first 2 windows, Symbols: $SYMBOLS"
+  if [ "$SKIP_ENSURE_DATA" = false ]; then
+    echo "=== Ensuring quick local data ==="
+    if [ -x "$ENSURE_SCRIPT" ] || [ -f "$ENSURE_SCRIPT" ]; then
+      bash "$ENSURE_SCRIPT" --symbols "$SYMBOLS" --config "$CONFIG_FILE" --quick_windows 2 --data_root "data/derived" || \
+        echo "WARN ensure_quick_data failed; continuing with existing local data."
+    else
+      echo "WARN ensure script not found: $ENSURE_SCRIPT"
+    fi
+  fi
 else
   SYMBOLS="${SYMBOLS_OVERRIDE:-BTCUSDT,ETHUSDT,BNBUSDT}"
 fi
