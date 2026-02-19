@@ -100,22 +100,80 @@ def infer_regime(window_name: str) -> str:
     return "MIXED"
 
 
+
+def _is_no_data_reason(reason: object) -> bool:
+    """Return True if a window failure reason is effectively 'no data'."""
+    if reason is None:
+        return False
+    r = str(reason).upper()
+    return any(tok in r for tok in (
+        "NO_DATA_IN_RANGE",
+        "NO_DATA",
+        "NO DATA",
+        "INSUFFICIENT",
+        "EMPTY",
+        "MISSING_DATA",
+    ))
+
+
+def _all_failed_windows_are_no_data(failed_windows: object) -> bool:
+    """failed_windows may be dict(name->info) or list of dicts/strings."""
+    if not failed_windows:
+        return False
+
+    if isinstance(failed_windows, dict):
+        for _, info in failed_windows.items():
+            if isinstance(info, dict):
+                reason = (
+                    info.get("reason")
+                    or info.get("error")
+                    or info.get("status")
+                    or info.get("message")
+                )
+            else:
+                reason = info
+            if not _is_no_data_reason(reason):
+                return False
+        return True
+
+    if isinstance(failed_windows, list):
+        for it in failed_windows:
+            if isinstance(it, dict):
+                reason = (
+                    it.get("reason")
+                    or it.get("error")
+                    or it.get("status")
+                    or it.get("message")
+                )
+            else:
+                reason = it
+            if not _is_no_data_reason(reason):
+                return False
+        return True
+
+    return False
+
+
+def _all_failure_reasons_are_no_data(failure_reasons: Optional[List[str]]) -> bool:
+    reasons = [reason for reason in (failure_reasons or []) if isinstance(reason, str)]
+    if not reasons:
+        return False
+    return all(_is_no_data_reason(reason) for reason in reasons)
+
+
 def _latest_reason_token(
     *,
     quick_mode: bool,
-    failed_windows: Optional[List[str]],
+    failed_windows: object,
     failure_reasons: Optional[List[str]],
     existing_token: str,
 ) -> str:
     """Normalize latest-pointer update reason tokens."""
     if quick_mode:
         return "LATEST_NOT_UPDATED_QUICK_MODE"
-    windows = failed_windows or []
-    reasons = [
-        reason.lower() for reason in (failure_reasons or []) if isinstance(reason, str)
-    ]
-    if windows and any(
-        ("no data" in reason or "insufficient" in reason) for reason in reasons
+    if existing_token == "LATEST_NOT_UPDATED_FAILED" and (
+        _all_failed_windows_are_no_data(failed_windows)
+        or _all_failure_reasons_are_no_data(failure_reasons)
     ):
         return "LATEST_NOT_UPDATED_NO_DATA"
     return existing_token
