@@ -10,7 +10,10 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from hongstr.selection.selection import get_current_selection, load_selection  # noqa: E402
+from hongstr.selection.selection import (  # noqa: E402
+    get_current_selection,
+    load_selection,
+)
 
 
 class TestSelectionPersistence(unittest.TestCase):

@@ -44,7 +44,7 @@ def test_supertrend_logic():
 def test_vwap():
     # 3 bars same day
     h = pd.Series([10, 20, 30])
-    l = pd.Series([10, 20, 30])
+    l = pd.Series([10, 20, 30])  # noqa: E741
     c = pd.Series([10, 20, 30])  # Typ = 10, 20, 30
     v = pd.Series([100, 100, 100])
     t = pd.Series(

@@ -88,7 +88,7 @@ class TestRegimeReport(unittest.TestCase):
         # But for integration, let's try to run it if available, or mock it if not.
 
         # Mocking RegimeLabeler to return BULL for all
-        with patch("scripts.generate_regime_report.RegimeLabeler") as MockLabeler:
+        with patch("scripts.generate_regime_report.RegimeLabeler") as MockLabeler:  # noqa: N806
             instance = MockLabeler.return_value
             # return dataframe with BULL
             dates = pd.date_range("2023-01-01", periods=60, freq="4h", tz="UTC")
