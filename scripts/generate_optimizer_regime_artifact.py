@@ -43,7 +43,7 @@ def generate_optimizer_regime(run_dir: Path, regime_tf: str = "4h", top_k_val: i
 
     buckets_data = regime_report.get("buckets", {})
 
-    # We want to map the 'best' params from optimizer.json (or defaults) to these buckets
+    # We want to map the 'best' params from optimizer.json (or defaults) to these buckets  # noqa: E501
     best_params = {}
     if optimizer and "best" in optimizer:
         best_params = optimizer["best"].get("params", {})

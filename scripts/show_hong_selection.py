@@ -53,7 +53,7 @@ def demo_selection():
     out_path = Selector.DEFAULT_SELECTION_PATH
 
     # Inject a non-empty neutral to test normalization (Phase 0 policy is NO_TRADE)
-    # The selector logic already produces empty if not enabled, but let's manually tamper
+    # The selector logic already produces empty if not enabled, but let's manually tamper  # noqa: E501
     # to prove save_selection fixes it.
     selected["NEUTRAL"] = ["Should_Be_Gone"]
 

@@ -79,7 +79,7 @@ def test_backtest_runner_e2e_schema(tmp_path):
             f.write(json.dumps(r) + "\n")
 
     # Mocking the strategy inside run_backtest is hard without monkeypatch.
-    # We will just run it. vwap_supertrend might not trigger on 10 bars, but summary.json should exist.
+    # We will just run it. vwap_supertrend might not trigger on 10 bars, but summary.json should exist.  # noqa: E501
 
     import subprocess
     import sys
@@ -140,7 +140,7 @@ def test_backtest_runner_aggregation(tmp_path):
     Agg Equity: 20k -> 21k. Return: +5%.
 
     If it was overwriting, it would be +10% or +0%.
-    """
+    """  # noqa: E501
     # Create data for 2 symbols
     data_root = tmp_path / "data"
     for sym in ["SYM_A", "SYM_B"]:
@@ -191,7 +191,7 @@ def test_backtest_runner_aggregation(tmp_path):
         "--out_root",
         str(tmp_path / "out"),
         "--strategy",
-        "vwap_supertrend",  # This strategy might not trade on this data, but we check if it runs
+        "vwap_supertrend",  # This strategy might not trade on this data, but we check if it runs  # noqa: E501
         "--start",
         "2024-01-01",
         "--end",

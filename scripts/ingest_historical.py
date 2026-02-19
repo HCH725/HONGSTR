@@ -65,7 +65,7 @@ def main():
     out_file = out_dir / "klines.jsonl"
 
     # Save to jsonl as required.
-    # Backtest runner expects: {"ts": ..., "open": ..., "high": ..., "low": ..., "close": ..., "volume": ...}
+    # Backtest runner expects: {"ts": ..., "open": ..., "high": ..., "low": ..., "close": ..., "volume": ...}  # noqa: E501
     # fetch_klines returns df with numeric columns and ts as index.
 
     df_out = df.copy()

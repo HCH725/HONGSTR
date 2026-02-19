@@ -102,7 +102,7 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
     if portfolio_trades < required_trades:
         overall_pass = False
         overall_reasons.append(
-            f"Portfolio Trades {portfolio_trades} < Required {required_trades} (Window: {window_days}d)"
+            f"Portfolio Trades {portfolio_trades} < Required {required_trades} (Window: {window_days}d)"  # noqa: E501
         )
 
     # 2. Per Symbol Checks
@@ -132,7 +132,7 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
                     overall_reasons.append(msg)
                 else:
                     # Append to reasons but don't fail unless it's only warning
-                    # actually we should probably log it in result but not fail overall_pass
+                    # actually we should probably log it in result but not fail overall_pass  # noqa: E501
                     pass  # Just logging in per-regime or separate section?
                     # Let's add loop warning to overall reasons with [WARN] prefix?
                     overall_reasons.append(f"[WARN] {msg}")
@@ -188,8 +188,8 @@ def generate_gate(run_dir: Path, mode: str, symbols: List[str], timeframe: str):
             reg_pass = False
             reg_reasons.append(f"max_mdd {mdd:.2f} < {thresh['max_mdd']:.2f}")
 
-        # We generally don't check trade count PER REGIME for failure here if we check global
-        # But we could if config had it. Config structure in prompt doesn't strictly have per-regime min_trades.
+        # We generally don't check trade count PER REGIME for failure here if we check global  # noqa: E501
+        # But we could if config had it. Config structure in prompt doesn't strictly have per-regime min_trades.  # noqa: E501
         # It has global dynamic. So we skip per-regime trade check or keep it loose?
         # User said "Replace hard-coded trade-count gate thresholds with adaptive..."
         # So we trust global/portfolio check.

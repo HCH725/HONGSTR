@@ -7,7 +7,7 @@ class TestSmokeBuilders:
         filters = ExchangeFilters()
         # Mock fetch_filters implicitly by using defaults in mvp class
         # or assuming ExchangeFilters works locally without network if fetch fails?
-        # ExchangeFilters currently hardcodes defaults if fetch fails or logic is static.
+        # ExchangeFilters currently hardcodes defaults if fetch fails or logic is static.  # noqa: E501
 
         price = 50000.0
         notional = SMOKE_NOTIONAL_USD  # Should be 10.0

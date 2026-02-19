@@ -5,7 +5,7 @@ import pytz
 
 
 def test_timezone_conversion_alignment():
-    # Test that converting a typical 1m timestamp from UTC to Asia/Taipei preserves minute alignment
+    # Test that converting a typical 1m timestamp from UTC to Asia/Taipei preserves minute alignment  # noqa: E501
     # 2020-01-01 00:00:00 UTC -> 2020-01-01 08:00:00 Asia/Taipei
 
     ts_utc = pd.Timestamp("2020-01-01 00:00:00")

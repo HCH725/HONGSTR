@@ -10,11 +10,11 @@ import pandas as pd
 
 # Add project root
 sys_path = Path(__file__).parent.parent
-import sys
+import sys  # noqa: E402
 
 sys.path.append(str(sys_path))
 
-import scripts.generate_regime_report as reporter
+import scripts.generate_regime_report as reporter  # noqa: E402
 
 
 class TestRegimeReport(unittest.TestCase):
@@ -84,7 +84,7 @@ class TestRegimeReport(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def test_generate_report(self):
-        # We need to mock RegimeLabeler because it might not be importable or we want controlled output
+        # We need to mock RegimeLabeler because it might not be importable or we want controlled output  # noqa: E501
         # But for integration, let's try to run it if available, or mock it if not.
 
         # Mocking RegimeLabeler to return BULL for all

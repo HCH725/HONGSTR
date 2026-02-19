@@ -43,7 +43,7 @@ def generate_markdown_report(path: Path, data: Dict):
         lines.append("|---|---|---|---|---|---|---|")
         for o in data["orders"]:
             lines.append(
-                f"| {o.get('symbol')} | {o.get('side')} | {o.get('status')} | {o.get('executedQty', 0)} | {o.get('avgPrice', 0)} | {o.get('orderId', 'N/A')} | {o.get('clientOrderId', 'N/A')} |"
+                f"| {o.get('symbol')} | {o.get('side')} | {o.get('status')} | {o.get('executedQty', 0)} | {o.get('avgPrice', 0)} | {o.get('orderId', 'N/A')} | {o.get('clientOrderId', 'N/A')} |"  # noqa: E501
             )
     else:
         lines.append("No orders were generated.")
@@ -146,7 +146,7 @@ def main():
         )
         if not is_testnet:
             print(
-                "ERROR: --force_trade is ONLY allowed on Binance Testnet (set BINANCE_FUTURES_TESTNET=1).",
+                "ERROR: --force_trade is ONLY allowed on Binance Testnet (set BINANCE_FUTURES_TESTNET=1).",  # noqa: E501
                 file=sys.stderr,
             )
             sys.exit(1)

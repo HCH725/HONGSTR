@@ -18,7 +18,7 @@ class _TestBinanceBroker(BinanceFuturesTestnetBroker):
 
 
 def test_build_signed_request_deterministic():
-    """Verify that build_signed_request creates a deterministic URL and redacts secrets."""
+    """Verify that build_signed_request creates a deterministic URL and redacts secrets."""  # noqa: E501
     base = "https://test.com"
     path = "/v1/test"
     params = {"symbol": "BTCUSDT", "side": "BUY", "timestamp": 123456789}
@@ -60,7 +60,7 @@ def test_build_signed_request_deterministic():
 
 
 def test_signing_consistency():
-    """Verify that the same params result in the same signature regardless of input order."""
+    """Verify that the same params result in the same signature regardless of input order."""  # noqa: E501
     base = "https://test.com"
     path = "/v1/test"
     key = "key"
@@ -78,7 +78,7 @@ def test_signing_consistency():
 
 
 def test_broker_request_uses_signed_url_only():
-    """Verify broker sends signed params via requests.post and does not send body/json."""
+    """Verify broker sends signed params via requests.post and does not send body/json."""  # noqa: E501
     with patch("requests.post") as mock_post:
         mock_post.return_value = MagicMock(
             status_code=200,
@@ -110,7 +110,7 @@ def test_broker_request_uses_signed_url_only():
 
 
 def test_broker_request_has_empty_body():
-    """Verify broker uses query params only (no body payload) for signed order requests."""
+    """Verify broker uses query params only (no body payload) for signed order requests."""  # noqa: E501
     broker = _TestBinanceBroker()
     broker.key = "key"
     broker.secret = "secret"

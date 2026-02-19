@@ -9,9 +9,9 @@ current_dir = Path(__file__).parent
 sys.path.append(str(current_dir.parent / "src"))
 sys.path.append(str(current_dir))
 
-from execute_paper import generate_markdown_report
+from execute_paper import generate_markdown_report  # noqa: E402
 
-from hongstr.execution.binance_testnet import BinanceFuturesTestnetBroker
+from hongstr.execution.binance_testnet import BinanceFuturesTestnetBroker  # noqa: E402
 
 
 def load_json(path: Path) -> Optional[Dict]:

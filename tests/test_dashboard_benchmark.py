@@ -12,7 +12,7 @@ sys.modules["streamlit"] = MagicMock()
 
 
 # Configure mocks to avoid errors during import
-# Use side_effect to handle different column counts (3 for Environment, 3 for Selection, 2 for Benchmark, 2 for Opt)
+# Use side_effect to handle different column counts (3 for Environment, 3 for Selection, 2 for Benchmark, 2 for Opt)  # noqa: E501
 def mock_columns(n):
     return [MagicMock() for _ in range(n)]
 
@@ -23,7 +23,7 @@ sys.modules["streamlit"].sidebar.selectbox.return_value = "No Runs Found"
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-import scripts.dashboard as dashboard
+import scripts.dashboard as dashboard  # noqa: E402
 
 
 class TestDashboardBenchmark(unittest.TestCase):

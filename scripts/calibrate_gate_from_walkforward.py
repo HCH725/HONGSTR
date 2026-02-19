@@ -73,7 +73,7 @@ def calibrate():
         )
 
         print(
-            f"  {w['name']}: {window_days} days, {trades} trades ({trades_per_day:.2f}/day), Exp={exposure:.2f}"
+            f"  {w['name']}: {window_days} days, {trades} trades ({trades_per_day:.2f}/day), Exp={exposure:.2f}"  # noqa: E501
         )
 
     if not data_points:
@@ -81,9 +81,9 @@ def calibrate():
         sys.exit(0)
 
     # Calibration Logic
-    # Target: 20th percentile for min_trades to allow 80% pass on historical data (rough heuristic)
+    # Target: 20th percentile for min_trades to allow 80% pass on historical data (rough heuristic)  # noqa: E501
     # or strict if recent performance is bad.
-    # User requested: "PASSRATE simulation... Pick value achieving target PASSRATE in [0.6, 0.8]"
+    # User requested: "PASSRATE simulation... Pick value achieving target PASSRATE in [0.6, 0.8]"  # noqa: E501
 
     trades_per_day_vals = [d["trades_per_day"] for d in data_points]
 
@@ -110,7 +110,7 @@ def calibrate():
             best_tpd = tpd
             best_pass_rate = rate
 
-    # If no candidate fell in 0.6-0.8, pick the one closest to 0.7 or just 20th percentile
+    # If no candidate fell in 0.6-0.8, pick the one closest to 0.7 or just 20th percentile  # noqa: E501
     if best_pass_rate < 0.1:
         p20 = np.percentile(trades_per_day_vals, 20)
         best_tpd = p20
@@ -172,7 +172,7 @@ def calibrate():
 |---|---|---|---|---|
 """
     for d in data_points:
-        md_content += f"| {d['window']} | {d['days']} | {d['trades']} | {d['trades_per_day']:.3f} | {d['exposure']:.2f} |\n"
+        md_content += f"| {d['window']} | {d['days']} | {d['trades']} | {d['trades_per_day']:.3f} | {d['exposure']:.2f} |\n"  # noqa: E501
 
     md_content += f"""
 ## Suggestions
@@ -183,7 +183,7 @@ def calibrate():
 
 ## Action
 Copy `configs/gate_thresholds_suggested.json` to `configs/gate_thresholds.json` to apply.
-"""
+"""  # noqa: E501
     with open("reports/gate_calibration_latest.md", "w") as f:
         f.write(md_content)
     print("Saved report to reports/gate_calibration_latest.md")

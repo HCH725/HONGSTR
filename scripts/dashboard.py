@@ -402,7 +402,7 @@ if selected_run_display != "No Runs Found":
                 top = safe_get(bench_data, kind, "top")
                 if top:
                     st.write(
-                        f"Period: {top.get('start_ts', '')[:10]} -> {top.get('end_ts', '')[:10]}"
+                        f"Period: {top.get('start_ts', '')[:10]} -> {top.get('end_ts', '')[:10]}"  # noqa: E501
                     )
                     st.write(f"Return: {fmt_pct(top.get('total_return'))}")
                     st.write(f"MDD: {fmt_pct(top.get('max_drawdown'))}")
@@ -628,7 +628,7 @@ if selected_run_display != "No Runs Found":
                     rows = []
                     for cand in topk:
                         row = {
-                            "Score (Sharpe)": f"{cand.get('score', {}).get('sharpe', 0.0):.3f}"
+                            "Score (Sharpe)": f"{cand.get('score', {}).get('sharpe', 0.0):.3f}"  # noqa: E501
                         }
                         row.update(cand.get("params", {}))
                         m = cand.get("metrics", {})
@@ -715,7 +715,7 @@ if selected_run_display != "No Runs Found":
         with c1:
             st.metric(
                 "Windows Completed",
-                f"{wf_data.get('windows_completed', 0)} / {wf_data.get('windows_total', 0)}",
+                f"{wf_data.get('windows_completed', 0)} / {wf_data.get('windows_total', 0)}",  # noqa: E501
             )
         with c2:
             st.caption(f"Generated: {wf_data.get('generated_at')}")

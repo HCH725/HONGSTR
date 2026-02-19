@@ -53,7 +53,7 @@ def generate_selection(
     if gate:
         # Gate structure: {"results": {"overall": {"pass": bool, "reasons": []}}}
         # Or flat? Checking generate_gate_artifact.py...
-        # Structure is: {"generated_at":..., "results": {"overall": {"pass":..., "reasons":...}, ...}}
+        # Structure is: {"generated_at":..., "results": {"overall": {"pass":..., "reasons":...}, ...}}  # noqa: E501
         res = gate.get("results", {}).get("overall", {})
         gate_pass = res.get("pass", False)
         gate_overall = "PASS" if gate_pass else "FAIL"
@@ -71,11 +71,11 @@ def generate_selection(
         # Normalizing candidate structure for selection.json if needed
         # optimizer_regime candidate: {params, score, metrics}
         # selection candidate: {rank, symbol, params, score}
-        # Note: optimizer_regime currently stores params but not explicit symbol if it was portfolio optimization
+        # Note: optimizer_regime currently stores params but not explicit symbol if it was portfolio optimization  # noqa: E501
         # However, for single-symbol or portfolio, params are what matters.
         # The user requested 'selected.symbol'.
         # In this context (portfolio strat), the strategy runs on all symbols config'd.
-        # "symbol" in selection might mean "Primary Symbol" or "Benchmark Symbol" (BTC) or list.
+        # "symbol" in selection might mean "Primary Symbol" or "Benchmark Symbol" (BTC) or list.  # noqa: E501
         # Let's map it to the "primary" symbol usually BTCUSDT or "PORTFOLIO".
         # For now, we will use "BTCUSDT" as representative if not explicit, or list all.
         # Requirement says: "symbol": "BTCUSDT|ETHUSDT|BNBUSDT"
@@ -113,13 +113,13 @@ def generate_selection(
         # Select Rank 1
         best = candidates[0]
         selected = {
-            "symbol": "BTCUSDT",  # Default primary for now, or derive from config if available (TODO)
+            "symbol": "BTCUSDT",  # Default primary for now, or derive from config if available (TODO)  # noqa: E501
             "params": best["params"],
             "rank": 1,
             "score": best["score"],
         }
     else:
-        # Even if HOLD, we might want to show what *would* have been selected (optional, per user req? "selected(可為null)")
+        # Even if HOLD, we might want to show what *would* have been selected (optional, per user req? "selected(可為null)")  # noqa: E501
         # User said "selected(可為null)"
         pass
 

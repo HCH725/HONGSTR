@@ -29,7 +29,7 @@ def mock_artifacts(tmp_path):
     # Fake Summary (10 days)
     summary = {
         "start_ts": "2024-01-01T00:00:00Z",
-        "end_ts": "2024-01-10T00:00:00Z",  # 10 days inclusive? (10-01).days = 9. +1 = 10.
+        "end_ts": "2024-01-10T00:00:00Z",  # 10 days inclusive? (10-01).days = 9. +1 = 10.  # noqa: E501
         "trades_count": 20,  # > 10 required
         "exposure_time": 0.2,
         "per_symbol": {"BTCUSDT": {"trades_count": 15}, "ETHUSDT": {"trades_count": 5}},

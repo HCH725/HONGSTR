@@ -41,17 +41,17 @@ def run_smoke_test():
     # Engine
     engine = BacktestEngine(sem, df_1h)
 
-    # Dummy Strategy: Buy if Close > Open (Green Candle), Sell if Close < Open (Red Candle)
+    # Dummy Strategy: Buy if Close > Open (Green Candle), Sell if Close < Open (Red Candle)  # noqa: E501
     # Just to generate trades
     def dummy_strategy(row):
         # We need state to not churn every bar
         # Simple: Buy at beginning, Hold?
         # Or: MA crossover stub? Need history.
-        # Simplest: Buy if Close > Open and Position == 0. Exit if Close < Open and Position != 0.
+        # Simplest: Buy if Close > Open and Position == 0. Exit if Close < Open and Position != 0.  # noqa: E501
         is_green = row["close"] > row["open"]
 
         if is_green:
-            return "BUY"  # Engine handles "if pos==0" check roughly, but better to be explicit in signal?
+            return "BUY"  # Engine handles "if pos==0" check roughly, but better to be explicit in signal?  # noqa: E501
             # Engine _open_position checks if pos!=0 and returns. So safe to spam BUY.
         else:
             return "EXIT"

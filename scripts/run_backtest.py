@@ -105,7 +105,7 @@ def main():
     if args.out_dir:
         out_dir = Path(args.out_dir)
         run_id = args.run_id if args.run_id else "custom"
-        # If run_id provided with out_dir, we just use out_dir as is, run_id is for metadata.
+        # If run_id provided with out_dir, we just use out_dir as is, run_id is for metadata.  # noqa: E501
     else:
         run_id = args.run_id if args.run_id else datetime.utcnow().strftime("%H%M%S")
         out_dir = Path(args.out_root) / date_str / run_id
@@ -217,7 +217,7 @@ def main():
             # Strategy Glue: map SignalEvent to direction
             def strategy_wrapper(row):
                 # The strategy expects List[Bar] up to current row index
-                # This is inefficient for full backtest but fits current C9 strategy signature
+                # This is inefficient for full backtest but fits current C9 strategy signature  # noqa: E501
                 # To optimize: strategies should ideally have an update(bar) method
                 # For Phase 1 C15, we'll slice a window of bars
                 idx = df_tf.index.get_loc(row.name)
@@ -261,7 +261,7 @@ def main():
         trds_n = counts.get("trades", 0)
         reason = res.get("no_trades_reason", "")
         print(
-            f"  {k}: Bars={bars_n}, Signals={sigs_n}, Trades={trds_n} {f'({reason})' if reason else ''}"
+            f"  {k}: Bars={bars_n}, Signals={sigs_n}, Trades={trds_n} {f'({reason})' if reason else ''}"  # noqa: E501
         )
 
         # Prepare for aggregation
@@ -286,7 +286,7 @@ def main():
         agg_df = pd.concat(equity_dfs, axis=1)
 
         # ffill/bfill defaults.
-        # If a backtest hasn't started yet for a symbol, its equity is effectively initial_capital.
+        # If a backtest hasn't started yet for a symbol, its equity is effectively initial_capital.  # noqa: E501
         agg_df.fillna(args.initial_capital, inplace=True)
 
         # Sum equities?
@@ -297,7 +297,7 @@ def main():
         # Re-calc metrics on aggregated curve
         # calc_metrics expects a DataFrame with 'equity' column
         metrics_input_df = pd.DataFrame(agg_equity, columns=["equity"])
-        # Also need cash/pos for perfect metrics? calc_metrics mainly uses equity for Sharpe/DD.
+        # Also need cash/pos for perfect metrics? calc_metrics mainly uses equity for Sharpe/DD.  # noqa: E501
         # It calculates returns from equity diffs.
 
         try:
@@ -347,8 +347,8 @@ def main():
             f.write(json.dumps(t) + "\n")
 
     # Save equity_curve.jsonl (picking the first for demo if multiple, or combined?)
-    # Requirements: "equity_curve.jsonl: ts, equity, cash, position_notional (at least ts+equity)"
-    # For C15 we'll just skip combined equity and export first symbol's curve as sample or all curves?
+    # Requirements: "equity_curve.jsonl: ts, equity, cash, position_notional (at least ts+equity)"  # noqa: E501
+    # For C15 we'll just skip combined equity and export first symbol's curve as sample or all curves?  # noqa: E501
     # Better: Save per-symbol-tf curve in subfolder or separate file.
     # User's schema check wants equity_curve.jsonl in run_id folder.
     # We'll save the first one there or an empty one if multiple symbols.

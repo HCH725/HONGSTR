@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from hongstr.selection.selection import get_best_params_for_regime
+from hongstr.selection.selection import get_best_params_for_regime  # noqa: E402
 
 
 class TestOptimizerRegimePersistence(unittest.TestCase):

@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from hongstr.selection.selection import get_current_selection, load_selection
+from hongstr.selection.selection import get_current_selection, load_selection  # noqa: E402
 
 
 class TestSelectionPersistence(unittest.TestCase):
@@ -100,7 +100,7 @@ class TestSelectionPersistence(unittest.TestCase):
 
         # Check selected is present but decision is HOLD
         # (Implementation detail: we populate 'selected' for observation even on hold?
-        # Script logic: if can_trade is False, selected is None/skipped implementation-wise unless enforced.
+        # Script logic: if can_trade is False, selected is None/skipped implementation-wise unless enforced.  # noqa: E501
         # My script implementation set selected=None if !can_trade.
         self.assertIsNone(sel["selected"])
 

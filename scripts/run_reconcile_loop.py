@@ -38,7 +38,7 @@ def run_loop():
         print("Stopping.")
 
 
-import pandas as pd  # Delayed import fix above
+import pandas as pd  # Delayed import fix above  # noqa: E402
 
 if __name__ == "__main__":
     run_loop()

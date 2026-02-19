@@ -58,12 +58,12 @@ def print_table(data: Dict):
 
         top = mode_data.get("top", {})
         print(
-            f"OVERALL: Ret={format_pct(top.get('total_return'))} MDD={format_pct(top.get('max_drawdown'))} Sharpe={format_float(top.get('sharpe'))} Trades={format_int(top.get('trades_count'))}"
+            f"OVERALL: Ret={format_pct(top.get('total_return'))} MDD={format_pct(top.get('max_drawdown'))} Sharpe={format_float(top.get('sharpe'))} Trades={format_int(top.get('trades_count'))}"  # noqa: E501
         )
 
         print("-" * 80)
         print(
-            f"{'SYMBOL':<15} | {'RET':>8} | {'MDD':>8} | {'SHARPE':>7} | {'TRADES':>7} | {'WIN%':>7} | {'SIGNALS':>7}"
+            f"{'SYMBOL':<15} | {'RET':>8} | {'MDD':>8} | {'SHARPE':>7} | {'TRADES':>7} | {'WIN%':>7} | {'SIGNALS':>7}"  # noqa: E501
         )
         print("-" * 80)
 
@@ -74,11 +74,11 @@ def print_table(data: Dict):
                 print(f"{sym:<15} | {'MISSING':^59}")
                 continue
 
-            # Note: summary.json symbols might not have 'Signals' directly if not in debug_counts
+            # Note: summary.json symbols might not have 'Signals' directly if not in debug_counts  # noqa: E501
             signals = s.get("debug_counts", {}).get("signal_emitted", "N/A")
 
             print(
-                f"{sym:<15} | {format_pct(s.get('total_return')):>8} | {format_pct(s.get('max_drawdown')):>8} | {format_float(s.get('sharpe')):>7} | {format_int(s.get('trades_count')):>7} | {format_pct(s.get('win_rate')):>7} | {format_int(signals):>7}"
+                f"{sym:<15} | {format_pct(s.get('total_return')):>8} | {format_pct(s.get('max_drawdown')):>8} | {format_float(s.get('sharpe')):>7} | {format_int(s.get('trades_count')):>7} | {format_pct(s.get('win_rate')):>7} | {format_int(signals):>7}"  # noqa: E501
             )
         print("-" * 80)
 

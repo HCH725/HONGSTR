@@ -49,7 +49,7 @@ class TestBacktestDeterministic(unittest.TestCase):
             out_dir,
         ]
 
-        # We need data for this to work. Assuming data/derived exists from previous steps.
+        # We need data for this to work. Assuming data/derived exists from previous steps.  # noqa: E501
         # If no data, script prints "Data missing" and exits 0-ish but no summary.
         # We assume the environment has data (as user verified earlier).
 

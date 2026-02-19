@@ -81,12 +81,12 @@ def check_metrics(name: str, metrics: Dict, result: GateResult):
 
     if mdd <= THRESHOLDS["hard_fail"]["max_drawdown_limit"]:
         result.fail(
-            f"[{name}] MaxDD {mdd:.4f} <= {THRESHOLDS['hard_fail']['max_drawdown_limit']}"
+            f"[{name}] MaxDD {mdd:.4f} <= {THRESHOLDS['hard_fail']['max_drawdown_limit']}"  # noqa: E501
         )
 
     if exposure > THRESHOLDS["hard_fail"]["exposure_time_max"]:
         result.fail(
-            f"[{name}] Exposure {exposure:.4f} > {THRESHOLDS['hard_fail']['exposure_time_max']}"
+            f"[{name}] Exposure {exposure:.4f} > {THRESHOLDS['hard_fail']['exposure_time_max']}"  # noqa: E501
         )
 
     if sharpe < THRESHOLDS["hard_fail"]["sharpe_min"]:
@@ -191,7 +191,7 @@ def main():
 
     print("-" * 80)
     print(
-        f"{'Name':<15} | {'Trades':<6} | {'Return':<8} | {'MDD':<8} | {'Sharpe':<8} | {'Exp':<8}"
+        f"{'Name':<15} | {'Trades':<6} | {'Return':<8} | {'MDD':<8} | {'Sharpe':<8} | {'Exp':<8}"  # noqa: E501
     )
     print("-" * 80)
 

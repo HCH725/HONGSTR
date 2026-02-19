@@ -22,7 +22,7 @@ def test_engine_io(tmp_path):
             # Write 30 lines (minutes)
             for i in range(30):
                 ts = 1704103200000 + (i * 60000)  # 2024-01-01 10:00
-                line = f'{{"stream":"btcusdt@kline_1m","data":{{"k":{{"t":{ts},"s":"BTCUSDT","i":"1m","o":"100","h":"100","l":"100","c":"{100 + (i % 2)}","v":"10","x":true}}}}}}'
+                line = f'{{"stream":"btcusdt@kline_1m","data":{{"k":{{"t":{ts},"s":"BTCUSDT","i":"1m","o":"100","h":"100","l":"100","c":"{100 + (i % 2)}","v":"10","x":true}}}}}}'  # noqa: E501
                 f.write(line + "\n")
 
         config = EngineConfig(

@@ -36,7 +36,7 @@ def main():
     config = summary.get("config", {})
 
     # Construct Optimizer Stub
-    # Schema: schema_version, run_id, timestamp, data_scope, objective, search, best, top_k
+    # Schema: schema_version, run_id, timestamp, data_scope, objective, search, best, top_k  # noqa: E501
 
     optimizer_data = {
         "schema_version": "1.0",
@@ -45,7 +45,7 @@ def main():
         "data_scope": {
             "symbols": config.get("symbols", []),
             "timeframes": config.get("timeframes", []),
-            "start": "N/A",  # Not in summary config usually, but could be inferred or skipped
+            "start": "N/A",  # Not in summary config usually, but could be inferred or skipped  # noqa: E501
             "end": "N/A",
         },
         "objective": {

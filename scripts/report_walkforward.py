@@ -228,17 +228,17 @@ def render_markdown(report: dict) -> str:
     lines.append(f"**Run Mode**: {report.get('run_mode', 'FULL')}")
     lines.append(f"**Rerun Scope**: {report.get('rerun_scope', 'ALL_WINDOWS')}")
     lines.append(
-        f"**Progress**: {report['windows_completed']} / {report['windows_total']} completed "
+        f"**Progress**: {report['windows_completed']} / {report['windows_total']} completed "  # noqa: E501
         f"(failed: {report['windows_failed']})"
     )
     lines.append("")
     if report["latest_updated"]:
         lines.append(
-            f"**Latest Pointer**: updated ({report.get('latest_warning_reason', 'LATEST_UPDATED')})"
+            f"**Latest Pointer**: updated ({report.get('latest_warning_reason', 'LATEST_UPDATED')})"  # noqa: E501
         )
     else:
         lines.append(
-            f"**Latest Pointer**: not updated ({report.get('latest_warning_reason', 'UNKNOWN_REASON')})"
+            f"**Latest Pointer**: not updated ({report.get('latest_warning_reason', 'UNKNOWN_REASON')})"  # noqa: E501
         )
     lines.append(
         f"**Latest Pointer Policy**: {report.get('latest_pointer_policy', '')}"
@@ -248,7 +248,7 @@ def render_markdown(report: dict) -> str:
 
     lines.append("## Windows Performance")
     lines.append(
-        "| Window | Start | End | Status | Gate | Decision | Sharpe | Return | MDD | Reason |"
+        "| Window | Start | End | Status | Gate | Decision | Sharpe | Return | MDD | Reason |"  # noqa: E501
     )
     lines.append("|---|---|---|---|---|---|---|---|---|---|")
     for window in report["windows"]:
@@ -261,8 +261,8 @@ def render_markdown(report: dict) -> str:
         mdd = f"{window['mdd']:.2%}" if window["mdd"] is not None else "-"
         reason = window["error"] or "-"
         lines.append(
-            f"| {window['name']} | {window['start']} | {window['end']} | {window['status']} | "
-            f"{window['gate_overall']} | {window['selection_decision']} | {sharpe} | {ret} | {mdd} | {reason} |"
+            f"| {window['name']} | {window['start']} | {window['end']} | {window['status']} | "  # noqa: E501
+            f"{window['gate_overall']} | {window['selection_decision']} | {sharpe} | {ret} | {mdd} | {reason} |"  # noqa: E501
         )
 
     lines.append("")
@@ -273,7 +273,7 @@ def render_markdown(report: dict) -> str:
         for regime, stats in report["stability"].items():
             lines.append(
                 f"| {regime} | {stats['count']} | {stats['mean_sharpe']:.3f} | "
-                f"{stats['min_sharpe']:.3f} | {stats['max_sharpe']:.3f} | {stats['median_sharpe']:.3f} |"
+                f"{stats['min_sharpe']:.3f} | {stats['max_sharpe']:.3f} | {stats['median_sharpe']:.3f} |"  # noqa: E501
             )
     else:
         lines.append("No stability data available.")
@@ -435,7 +435,7 @@ def main() -> int:
     else:
         print(
             f"WARN reason={report['latest_warning_reason']} "
-            f'run_id={run_id} run_dir={run_dir} detail="{report["latest_update_reason"]}"'
+            f'run_id={run_id} run_dir={run_dir} detail="{report["latest_update_reason"]}"'  # noqa: E501
         )
         rerun_latest_json = reports_dir / "walkforward_rerun_latest.json"
         if rerun_latest_json.exists():

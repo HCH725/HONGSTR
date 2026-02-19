@@ -56,7 +56,7 @@ class TestWalkForwardReport(unittest.TestCase):
         return subprocess.run(cmd, capture_output=True, text=True)
 
     def test_failed_run_does_not_update_latest(self):
-        ok_row = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"
+        ok_row = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"  # noqa: E501
         fail_row = (
             "W2_BEAR\t2022-01-01\t2022-06-01\tFAILED\t"
             "-\tUNKNOWN\tUNKNOWN\tINSUFFICIENT_DATA_RESAMPLE;exit=1;log=foo.log;out_dir=bar\tBTCUSDT"
@@ -78,8 +78,8 @@ class TestWalkForwardReport(unittest.TestCase):
         self.assertFalse((self.reports_dir / "walkforward_latest.json").exists())
 
     def test_complete_run_updates_latest(self):
-        row1 = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"
-        row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"
+        row1 = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"  # noqa: E501
+        row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"  # noqa: E501
         result = self._run_report("run_ok", [row1, row2])
         self.assertEqual(result.returncode, 0)
 

@@ -109,7 +109,7 @@ def generate_report(run_dir: Path, data_root: Path):
             df_regime.index = df_regime.index.tz_convert("UTC")
 
         # Merge regime (asof / reindex)
-        # We align to equity timestamps, using forward fill from regime (state persists until change)
+        # We align to equity timestamps, using forward fill from regime (state persists until change)  # noqa: E501
         df_merged = df_equity.join(df_regime, how="left")
         df_merged["regime"] = df_merged["regime"].fillna(
             "NEUTRAL"
@@ -144,7 +144,7 @@ def generate_report(run_dir: Path, data_root: Path):
 
                 # Time range (naive: first and last ts)
                 # Note: buckets requirement asks for "start_ts, end_ts (segments)"
-                # To keep it simple JSON-serializable, lets just list coverage % or simpler range
+                # To keep it simple JSON-serializable, lets just list coverage % or simpler range  # noqa: E501
                 buckets[label]["count_periods"] = int(len(seg_rets))
 
     # 3. Trade Metrics (Trades Count, Win Rate, Symbol breakdown)
@@ -167,7 +167,7 @@ def generate_report(run_dir: Path, data_root: Path):
             # Use values to avoid index issues during assignment
             df_trades["regime_label"] = df_regime_sorted.iloc[idx]["regime"].values
 
-            # Double check: searchsorted returns insertion point `i` such that a[i-1] <= v < a[i]
+            # Double check: searchsorted returns insertion point `i` such that a[i-1] <= v < a[i]  # noqa: E501
             # Correct, index-1 gives the regime effectively active at that time
         else:
             df_trades["regime_label"] = "NEUTRAL"
@@ -186,7 +186,7 @@ def generate_report(run_dir: Path, data_root: Path):
             # Update bucket
             buckets[label]["trades_count"] = int(count)
             buckets[label]["win_rate"] = win
-            # Note: bucket['total_return'] is from equity curve (more accurate for portfolio).
+            # Note: bucket['total_return'] is from equity curve (more accurate for portfolio).  # noqa: E501
             # If equity curve was missing, we could fallback here.
 
             # Per Symbol Breakdown
@@ -196,7 +196,7 @@ def generate_report(run_dir: Path, data_root: Path):
                 swin = len(sym_grp[sym_grp["pnl"] > 0]) / scount if scount > 0 else 0.0
                 sret = sym_grp["pnl_pct"].sum()
                 sret = sym_grp["pnl_pct"].sum()
-                # sduration = sym_grp['ts_exit'] - sym_grp['ts_entry'] if 'ts_exit' in sym_grp else pd.Series()
+                # sduration = sym_grp['ts_exit'] - sym_grp['ts_entry'] if 'ts_exit' in sym_grp else pd.Series()  # noqa: E501
 
                 # Trade-based Sharpe proxy?
                 s_rets = sym_grp["pnl_pct"]

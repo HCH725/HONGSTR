@@ -64,8 +64,8 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
         (self.reports / "walkforward_latest.json").write_text(
             json.dumps(stale), encoding="utf-8"
         )
-        ok_row = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"
-        fail_row = "W2_BEAR\t2022-01-01\t2022-06-01\tFAILED\t-\tUNKNOWN\tUNKNOWN\tpipeline_exit_1\tBTCUSDT"
+        ok_row = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"  # noqa: E501
+        fail_row = "W2_BEAR\t2022-01-01\t2022-06-01\tFAILED\t-\tUNKNOWN\tUNKNOWN\tpipeline_exit_1\tBTCUSDT"  # noqa: E501
 
         cp = self._run_report("run_fail", [ok_row, fail_row])
         self.assertEqual(cp.returncode, 0)
@@ -77,8 +77,8 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
         self.assertEqual(latest["run_id"], "old_ok")
 
     def test_success_run_updates_latest_and_gate_message_contract(self):
-        row1 = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"
-        row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"
+        row1 = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"  # noqa: E501
+        row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"  # noqa: E501
 
         cp = self._run_report("run_ok", [row1, row2])
         self.assertEqual(cp.returncode, 0)
@@ -108,8 +108,8 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
         (self.reports / "walkforward_latest.json").write_text(
             json.dumps(stale), encoding="utf-8"
         )
-        row1 = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"
-        row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"
+        row1 = f"W1_BULL\t2021-01-01\t2021-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tTRADE\t-\tBTCUSDT"  # noqa: E501
+        row2 = f"W2_BEAR\t2022-01-01\t2022-06-01\tCOMPLETED\t{self.run_dir}\tPASS\tHOLD\t-\tBTCUSDT"  # noqa: E501
         cp = self._run_report("run_quick_ok", [row1, row2], suite_mode="QUICK")
         self.assertEqual(cp.returncode, 0)
         self.assertIn("WARN reason=LATEST_NOT_UPDATED_QUICK_MODE", cp.stdout)

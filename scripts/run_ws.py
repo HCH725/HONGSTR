@@ -7,15 +7,15 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root / "src"))
 
-from hongstr.config import (
+from hongstr.config import (  # noqa: E402
     REALTIME_OUT_DIR,
     REALTIME_RUN_SECONDS,
     REALTIME_STREAMS,
     REALTIME_SYMBOLS,
     REALTIME_WS_BASE,
 )
-from hongstr.realtime.stream_manager import StreamManager
-from hongstr.realtime.types import WSConfig
+from hongstr.realtime.stream_manager import StreamManager  # noqa: E402
+from hongstr.realtime.types import WSConfig  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"

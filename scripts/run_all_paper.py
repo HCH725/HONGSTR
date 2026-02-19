@@ -57,8 +57,8 @@ async def main():
 
     # Fail-closed check
     if mode != "B":
-        # logic supports C too, but user request specifically titles this "run_all_paper" and asks for fail-closed on config?
-        # "Maintain fail-closed semantics: if EXECUTION_MODE not B ... runner should exit"
+        # logic supports C too, but user request specifically titles this "run_all_paper" and asks for fail-closed on config?  # noqa: E501
+        # "Maintain fail-closed semantics: if EXECUTION_MODE not B ... runner should exit"  # noqa: E501
         # Let's enforce B for this script as requested.
         logger.error(f"Invalid Mode {mode}. This script is for Paper Mode (B).")
         sys.exit(1)
@@ -148,11 +148,11 @@ async def main():
             # But the requirement says "produces execution_result jsonl reliably".
             # To do that, we need a valid selection.
             # We can't easily modify selection from here without side effects.
-            # Strategy: Inject, and if executor ignores it, that's "reliable" (SKIPPED is a result).
-            # But "lines in execution_result" is the prompt metric. SKIPPED writes to execution_skipped?
+            # Strategy: Inject, and if executor ignores it, that's "reliable" (SKIPPED is a result).  # noqa: E501
+            # But "lines in execution_result" is the prompt metric. SKIPPED writes to execution_skipped?  # noqa: E501
             # Start of C12 executor:
             # self._persist_execution("SKIPPED", ...) -> execution_skipped.jsonl?
-            # self._persist_execution("RESULT", ...) -> execution_result.jsonl (for NO_POSITION/CLOSE)
+            # self._persist_execution("RESULT", ...) -> execution_result.jsonl (for NO_POSITION/CLOSE)  # noqa: E501
             # Rejection writes to RESULT.
             # Selection Check:
             # if not selected: return (no persistence?)
@@ -160,7 +160,7 @@ async def main():
             # if not is_selected: send_alert(...); return.
             # So if not selected, NO RESULT LINE.
             # This means Ops Smoke will fail if strategy not selected.
-            # We should probably use a strategy that is likely selected (e.g. one from config STRATEGY_LIST)?
+            # We should probably use a strategy that is likely selected (e.g. one from config STRATEGY_LIST)?  # noqa: E501
             # Config default: vwap_supertrend...
             # We'll use "vwap_supertrend" as strategy_id.
 

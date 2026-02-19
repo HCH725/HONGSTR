@@ -16,7 +16,7 @@ class TestRerunNeverUpdatesLatest(unittest.TestCase):
                     "#!/usr/bin/env bash",
                     "set -euo pipefail",
                     'OUT_DIR="$(mktemp -d /tmp/hongstr_fake_run_XXXX)"',
-                    'echo \'{"results":{"overall":{"pass":true}}}\' > "$OUT_DIR/gate.json"',
+                    'echo \'{"results":{"overall":{"pass":true}}}\' > "$OUT_DIR/gate.json"',  # noqa: E501
                     'echo \'{"decision":"HOLD"}\' > "$OUT_DIR/selection.json"',
                     'echo "OUT_DIR: $OUT_DIR"',
                 ]

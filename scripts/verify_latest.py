@@ -51,7 +51,7 @@ else:
             summary_path = p
         else:
             print(
-                f"LATEST_DIR ({latest_dir}) has no summary.json yet, falling back to latest completed run...",
+                f"LATEST_DIR ({latest_dir}) has no summary.json yet, falling back to latest completed run...",  # noqa: E501
                 file=sys.stderr,
             )
 
@@ -64,7 +64,7 @@ else:
 
 if not summary_path:
     print(
-        "No completed backtest found (summary.json missing). Backtest may still be running.",
+        "No completed backtest found (summary.json missing). Backtest may still be running.",  # noqa: E501
         file=sys.stderr,
     )
     sys.exit(1)
