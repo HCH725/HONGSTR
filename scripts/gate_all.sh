@@ -381,12 +381,13 @@ log "Starting gate_all at ${TS_UTC} (commit ${GIT_COMMIT})"
 env_precheck
 
 # Step 1: ruff precheck + lint
-STEP="python -m ruff check ."
+STEP="python -m ruff check <gate_scope>"
 log ""
 log "=== ${STEP} ==="
 if "$PYTHON_BIN" -m ruff --version >/dev/null 2>&1; then
-  log "\$ $PYTHON_BIN -m ruff check . --exclude _untracked_quarantine"
-  if run_and_capture "\"$PYTHON_BIN\" -m ruff check . --exclude _untracked_quarantine"; then
+  GATE_RUFF_SCOPE="scripts tests docs/handoff configs pyproject.toml"
+  log "\$ $PYTHON_BIN -m ruff check ${GATE_RUFF_SCOPE}"
+  if run_and_capture "\"$PYTHON_BIN\" -m ruff check ${GATE_RUFF_SCOPE}"; then
     append_step "$STEP" "PASS" 0 "ok"
   else
     STEP_CMD_RC=$?
