@@ -691,7 +691,7 @@ else
 fi
 stop_if_failed
 
-# Step 9: exchange smoke test (missing key -> WARN)
+# Step 9: exchange smoke test (missing keys are local/offline SKIP)
 STEP="python3 scripts/exchange_smoke_test.py --debug_signing"
 log ""
 log "=== ${STEP} ==="
@@ -701,17 +701,14 @@ if run_and_capture "\"$PYTHON_BIN\" scripts/exchange_smoke_test.py --debug_signi
   if [ -n "$SMOKE_LINE" ]; then
     SMOKE_STATUS="$(parse_smoke_field "$SMOKE_LINE" "status")"
     SMOKE_REASON="$(parse_smoke_field "$SMOKE_LINE" "reason")"
-    if [ "$SMOKE_STATUS" = "PASS" ]; then
+    if [ "$SMOKE_REASON" = "ENV_MISSING_KEYS" ] || [ "$SMOKE_STATUS" = "SKIP" ]; then
+      append_step "$STEP" "SKIP" 0 "${SMOKE_REASON:-SKIPPED}"
+    elif [ "$SMOKE_STATUS" = "PASS" ]; then
       append_step "$STEP" "PASS" 0 "${SMOKE_REASON:-ok}"
     elif [ "$SMOKE_STATUS" = "WARN" ]; then
       append_step "$STEP" "WARN" 0 "${SMOKE_REASON:-SMOKE_WARN}"
       update_overall_for_warn
       add_warn_remediation "exchange smoke: python3 scripts/exchange_smoke_test.py --mode TIME --timeout_sec 20 --debug_signing"
-    elif [ "$SMOKE_REASON" = "ENV_MISSING_KEYS" ]; then
-      append_step "$STEP" "WARN" 1 "ENV_MISSING_KEYS"
-      update_overall_for_warn
-      add_warn_remediation "exchange smoke env: export BINANCE_API_KEY=... && export BINANCE_API_SECRET=..."
-      add_warn_remediation "exchange smoke template: cp .env.example .env && export \$(grep -v '^#' .env | xargs)"
     else
       append_step "$STEP" "FAIL" 1 "${SMOKE_REASON:-SMOKE_FAIL}"
       mark_fail 1 "exchange smoke test failed"
@@ -725,16 +722,13 @@ else
   if [ -n "$SMOKE_LINE" ]; then
     SMOKE_STATUS="$(parse_smoke_field "$SMOKE_LINE" "status")"
     SMOKE_REASON="$(parse_smoke_field "$SMOKE_LINE" "reason")"
-    if [ "$SMOKE_STATUS" = "WARN" ]; then
+    if [ "$SMOKE_REASON" = "ENV_MISSING_KEYS" ] || [ "$SMOKE_STATUS" = "SKIP" ]; then
+      append_step "$STEP" "SKIP" "$STEP_CMD_RC" "${SMOKE_REASON:-SKIPPED}"
+    elif [ "$SMOKE_STATUS" = "WARN" ]; then
       append_step "$STEP" "WARN" "$STEP_CMD_RC" "${SMOKE_REASON:-SMOKE_WARN}"
       update_overall_for_warn
       EXTERNAL_EVENTS+=("${STEP} (rc=${STEP_CMD_RC})")
       add_warn_remediation "exchange smoke: python3 scripts/exchange_smoke_test.py --mode TIME --timeout_sec 20 --debug_signing"
-    elif [ "$SMOKE_REASON" = "ENV_MISSING_KEYS" ]; then
-      append_step "$STEP" "WARN" "$STEP_CMD_RC" "ENV_MISSING_KEYS"
-      update_overall_for_warn
-      add_warn_remediation "exchange smoke env: export BINANCE_API_KEY=... && export BINANCE_API_SECRET=..."
-      add_warn_remediation "exchange smoke template: cp .env.example .env && export \$(grep -v '^#' .env | xargs)"
     elif [ "$SMOKE_STATUS" = "FAIL" ]; then
       append_step "$STEP" "FAIL" "$STEP_CMD_RC" "${SMOKE_REASON:-SMOKE_FAIL}"
       mark_fail "$STEP_CMD_RC" "exchange smoke test failed"

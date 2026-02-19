@@ -24,7 +24,8 @@ def test_missing_env_keys_classified():
             req_get.assert_not_called()
             req.assert_not_called()
             emit.assert_called_once()
-            _, reason, *_ = emit.call_args[0]
+            status, reason, *_ = emit.call_args[0]
+            assert status == "SKIP"
             assert reason == "ENV_MISSING_KEYS"
 
 

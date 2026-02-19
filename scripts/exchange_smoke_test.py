@@ -128,7 +128,7 @@ def main() -> int:
         if args.mode == "GET_ACCOUNT" and missing:
             emit_missing_keys_warning(missing, classify_only=True)
             emit_result(
-                "WARN",
+                "SKIP",
                 "ENV_MISSING_KEYS",
                 "NA",
                 endpoint,
@@ -144,7 +144,7 @@ def main() -> int:
     if args.mode == "GET_ACCOUNT" and missing:
         emit_missing_keys_warning(missing, classify_only=False)
         emit_result(
-            "WARN",
+            "SKIP",
             "ENV_MISSING_KEYS",
             "NA",
             endpoint,

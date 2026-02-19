@@ -24,6 +24,7 @@ def test_missing_env_vars_message(capsys):
         assert run_main() == 0
     out = capsys.readouterr().out
     assert "ENV_MISSING_KEYS missing=[BINANCE_API_KEY,BINANCE_API_SECRET]" in out
+    assert "SMOKE_RESULT status=SKIP reason=ENV_MISSING_KEYS" in out
     assert (
         "remediation: export BINANCE_API_KEY=... && export BINANCE_API_SECRET=..."
         in out
