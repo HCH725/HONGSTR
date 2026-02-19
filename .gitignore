@@ -50,3 +50,16 @@ secrets/
 
 # Temp
 tmp/
+
+# Generated artifacts
+reports/
+reports_tmp/
+reports_null/
+logs/
+*.log
+dashboard.log
+
+# Local caches
+.pytest_cache/
+.ruff_cache/
+__pycache__/
