@@ -23,7 +23,9 @@ class TestWalkForwardReport(unittest.TestCase):
             json.dump(self.windows, handle)
 
         with open(self.run_dir / "summary.json", "w", encoding="utf-8") as handle:
-            json.dump({"sharpe": 2.0, "max_drawdown": -0.1, "total_return": 0.5}, handle)
+            json.dump(
+                {"sharpe": 2.0, "max_drawdown": -0.1, "total_return": 0.5}, handle
+            )
         with open(self.run_dir / "gate.json", "w", encoding="utf-8") as handle:
             json.dump({"results": {"overall": {"pass": True}}}, handle)
         with open(self.run_dir / "selection.json", "w", encoding="utf-8") as handle:
@@ -69,7 +71,9 @@ class TestWalkForwardReport(unittest.TestCase):
         self.assertEqual(payload["windows_completed"], 1)
         self.assertEqual(payload["windows_total"], 2)
         self.assertEqual(payload["failed_windows_summary"][0]["name"], "W2_BEAR")
-        self.assertIn("INSUFFICIENT_DATA_RESAMPLE", payload["failed_windows_summary"][0]["error"])
+        self.assertIn(
+            "INSUFFICIENT_DATA_RESAMPLE", payload["failed_windows_summary"][0]["error"]
+        )
         self.assertFalse(payload["latest_updated"])
         self.assertFalse((self.reports_dir / "walkforward_latest.json").exists())
 

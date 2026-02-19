@@ -53,7 +53,9 @@ class TestEnsureQuickData(unittest.TestCase):
 
         data_file = self.data_root / "BTCUSDT" / "1m" / "klines.jsonl"
         self.assertTrue(data_file.exists())
-        lines = [x for x in data_file.read_text(encoding="utf-8").splitlines() if x.strip()]
+        lines = [
+            x for x in data_file.read_text(encoding="utf-8").splitlines() if x.strip()
+        ]
         self.assertGreater(len(lines), 1000)
 
 

@@ -9,10 +9,13 @@ def test_build_stream_url():
 
     url = build_stream_url(base_url, symbols, streams)
 
-    expected_streams = "btcusdt@aggTrade/btcusdt@kline_1m/ethusdt@aggTrade/ethusdt@kline_1m"
+    expected_streams = (
+        "btcusdt@aggTrade/btcusdt@kline_1m/ethusdt@aggTrade/ethusdt@kline_1m"
+    )
     expected_url = f"{base_url}?streams={expected_streams}"
 
     assert url == expected_url
+
 
 def test_parse_aggtrade():
     payload = {
@@ -26,7 +29,7 @@ def test_parse_aggtrade():
         "l": 105,
         "T": 123456785,
         "m": True,
-        "M": True
+        "M": True,
     }
 
     event = parse_aggtrade(payload)
@@ -37,6 +40,7 @@ def test_parse_aggtrade():
     assert event.quantity == 100.0
     assert event.is_buyer_maker is True
     assert event.event_time == 123456789
+
 
 def test_parse_kline():
     payload = {
@@ -60,8 +64,8 @@ def test_parse_kline():
             "q": "1.0000",
             "V": "500",
             "Q": "0.500",
-            "B": "123456"
-        }
+            "B": "123456",
+        },
     }
 
     event = parse_kline(payload)

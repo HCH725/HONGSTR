@@ -20,8 +20,11 @@ from hongstr.config import (
 from hongstr.signal.engine import SignalEngine
 from hongstr.signal.types import EngineConfig
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("run_signal")
+
 
 async def main():
     parser = argparse.ArgumentParser(description="Run Signal Engine")
@@ -48,7 +51,7 @@ async def main():
         output_root=SIGNAL_OUTPUT_ROOT,
         state_root=SIGNAL_STATE_ROOT,
         mode=args.mode,
-        max_bars=SIGNAL_MAX_BARS
+        max_bars=SIGNAL_MAX_BARS,
     )
 
     engine = SignalEngine(config)
@@ -62,6 +65,7 @@ async def main():
         sys.exit(1)
 
     logger.info("--- Signal Engine Complete ---")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

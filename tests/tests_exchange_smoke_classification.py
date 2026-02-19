@@ -29,7 +29,9 @@ def test_missing_env_keys_classified():
 
 
 def test_ssl_error_classified():
-    with patch.dict(os.environ, {"BINANCE_API_KEY": "k", "BINANCE_API_SECRET": "s"}, clear=True):
+    with patch.dict(
+        os.environ, {"BINANCE_API_KEY": "k", "BINANCE_API_SECRET": "s"}, clear=True
+    ):
         with patch("scripts.exchange_smoke_test.build_signed_request") as signed:
             signed.return_value = ("https://fapi.binance.com/fapi/v2/account", {}, None)
             with patch("scripts.exchange_smoke_test.requests.request") as req:
@@ -52,12 +54,17 @@ def test_connection_error_classified():
 
 
 def test_signature_mismatch_classified():
-    with patch.dict(os.environ, {"BINANCE_API_KEY": "k", "BINANCE_API_SECRET": "s"}, clear=True):
+    with patch.dict(
+        os.environ, {"BINANCE_API_KEY": "k", "BINANCE_API_SECRET": "s"}, clear=True
+    ):
         with patch("scripts.exchange_smoke_test.build_signed_request") as signed:
             signed.return_value = ("https://fapi.binance.com/fapi/v2/account", {}, None)
             with patch("scripts.exchange_smoke_test.requests.request") as req:
                 resp = MagicMock(status_code=400)
-                resp.json.return_value = {"code": -1022, "msg": "Signature for this request is not valid."}
+                resp.json.return_value = {
+                    "code": -1022,
+                    "msg": "Signature for this request is not valid.",
+                }
                 req.return_value = resp
                 with patch("scripts.exchange_smoke_test.emit_result") as emit:
                     rc = run_smoke(["--mode", "GET_ACCOUNT"])
@@ -67,12 +74,17 @@ def test_signature_mismatch_classified():
 
 
 def test_auth_rejected_classified():
-    with patch.dict(os.environ, {"BINANCE_API_KEY": "k", "BINANCE_API_SECRET": "s"}, clear=True):
+    with patch.dict(
+        os.environ, {"BINANCE_API_KEY": "k", "BINANCE_API_SECRET": "s"}, clear=True
+    ):
         with patch("scripts.exchange_smoke_test.build_signed_request") as signed:
             signed.return_value = ("https://fapi.binance.com/fapi/v2/account", {}, None)
             with patch("scripts.exchange_smoke_test.requests.request") as req:
                 resp = MagicMock(status_code=401)
-                resp.json.return_value = {"code": -2015, "msg": "Invalid API-key, IP, or permissions."}
+                resp.json.return_value = {
+                    "code": -2015,
+                    "msg": "Invalid API-key, IP, or permissions.",
+                }
                 req.return_value = resp
                 with patch("scripts.exchange_smoke_test.emit_result") as emit:
                     rc = run_smoke(["--mode", "GET_ACCOUNT"])

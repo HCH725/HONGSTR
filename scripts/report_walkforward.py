@@ -19,7 +19,9 @@ def load_json(path: Path):
 
 def atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, delete=False
+    ) as tmp:
         tmp.write(content)
         tmp_path = Path(tmp.name)
     tmp_path.replace(path)
@@ -52,7 +54,9 @@ def parse_suite_results(results_path: Path) -> List[dict]:
                     "gate_overall": parts[5],
                     "selection_decision": parts[6],
                     "failure_reason": parts[7] if parts[7] != "-" else "",
-                    "symbols": parts[8].split(",") if parts[8] and parts[8] != "-" else [],
+                    "symbols": parts[8].split(",")
+                    if parts[8] and parts[8] != "-"
+                    else [],
                 }
             )
     return rows
@@ -146,7 +150,9 @@ def build_report(
                     gpass = gate.get("results", {}).get("overall", {}).get("pass")
                     result["gate_overall"] = "PASS" if gpass else "FAIL"
                 if selection:
-                    result["selection_decision"] = selection.get("decision", result["selection_decision"])
+                    result["selection_decision"] = selection.get(
+                        "decision", result["selection_decision"]
+                    )
                 if summary:
                     result["sharpe"] = summary.get("sharpe")
                     result["mdd"] = summary.get("max_drawdown")
@@ -158,7 +164,9 @@ def build_report(
         report_windows.append(result)
 
     completed = sum(1 for row in report_windows if row["status"] == "COMPLETED")
-    failed_windows = [row for row in report_windows if row["status"] in {"FAILED", "ERROR"}]
+    failed_windows = [
+        row for row in report_windows if row["status"] in {"FAILED", "ERROR"}
+    ]
     failed = len(failed_windows)
     total = len(config_windows)
 
@@ -232,16 +240,24 @@ def render_markdown(report: dict) -> str:
         lines.append(
             f"**Latest Pointer**: not updated ({report.get('latest_warning_reason', 'UNKNOWN_REASON')})"
         )
-    lines.append(f"**Latest Pointer Policy**: {report.get('latest_pointer_policy', '')}")
+    lines.append(
+        f"**Latest Pointer Policy**: {report.get('latest_pointer_policy', '')}"
+    )
     lines.append(f"**Latest Pointer Detail**: {report['latest_update_reason']}")
     lines.append("")
 
     lines.append("## Windows Performance")
-    lines.append("| Window | Start | End | Status | Gate | Decision | Sharpe | Return | MDD | Reason |")
+    lines.append(
+        "| Window | Start | End | Status | Gate | Decision | Sharpe | Return | MDD | Reason |"
+    )
     lines.append("|---|---|---|---|---|---|---|---|---|---|")
     for window in report["windows"]:
         sharpe = f"{window['sharpe']:.3f}" if window["sharpe"] is not None else "-"
-        ret = f"{window['total_return']:.2%}" if window["total_return"] is not None else "-"
+        ret = (
+            f"{window['total_return']:.2%}"
+            if window["total_return"] is not None
+            else "-"
+        )
         mdd = f"{window['mdd']:.2%}" if window["mdd"] is not None else "-"
         reason = window["error"] or "-"
         lines.append(
@@ -267,11 +283,19 @@ def render_markdown(report: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="configs/windows.json", help="Path to windows config")
+    parser.add_argument(
+        "--config", default="configs/windows.json", help="Path to windows config"
+    )
     parser.add_argument("--reports_dir", default="reports", help="Output directory")
-    parser.add_argument("--data_root", default="data/backtests", help="Unused legacy argument for compatibility")
+    parser.add_argument(
+        "--data_root",
+        default="data/backtests",
+        help="Unused legacy argument for compatibility",
+    )
     parser.add_argument("--run_id", default="", help="Walkforward suite run id")
-    parser.add_argument("--suite_results_tsv", default="", help="Path to suite results TSV")
+    parser.add_argument(
+        "--suite_results_tsv", default="", help="Path to suite results TSV"
+    )
     parser.add_argument(
         "--no_latest_update",
         action="store_true",
@@ -295,7 +319,9 @@ def main() -> int:
         windows_config = json.load(handle)
 
     run_id = args.run_id.strip()
-    suite_path: Optional[Path] = Path(args.suite_results_tsv) if args.suite_results_tsv else None
+    suite_path: Optional[Path] = (
+        Path(args.suite_results_tsv) if args.suite_results_tsv else None
+    )
 
     if not run_id and suite_path:
         run_id = suite_path.parent.name
@@ -322,7 +348,9 @@ def main() -> int:
     run_dir = reports_dir / "walkforward" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    has_terminal_fail = any(w["status"] in {"FAILED", "ERROR"} for w in report["windows"])
+    has_terminal_fail = any(
+        w["status"] in {"FAILED", "ERROR"} for w in report["windows"]
+    )
     run_dir_exists = run_dir.exists()
     is_latest_run = is_latest_suite_run(reports_dir, run_id)
     success_ready = (
@@ -364,7 +392,9 @@ def main() -> int:
             report["latest_pointer_policy"] = "block_update_quick"
         elif report["windows_failed"] > 0 or has_terminal_fail:
             report["latest_warning_reason"] = "LATEST_NOT_UPDATED_FAILED"
-            failed_names = ",".join(w["name"] for w in report["failed_windows_summary"]) or "none"
+            failed_names = (
+                ",".join(w["name"] for w in report["failed_windows_summary"]) or "none"
+            )
             report["latest_update_reason"] = (
                 f"LATEST_NOT_UPDATED_FAILED status={report['status']} "
                 f"completed={report['windows_completed']}/{report['windows_total']} "
@@ -374,8 +404,7 @@ def main() -> int:
         elif not is_latest_run:
             report["latest_warning_reason"] = "LATEST_NOT_UPDATED_FAILED"
             report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_FAILED run_id={run_id} "
-                "is not the latest suite run"
+                f"LATEST_NOT_UPDATED_FAILED run_id={run_id} is not the latest suite run"
             )
             report["latest_pointer_policy"] = "block_update_not_latest"
         else:
@@ -393,7 +422,9 @@ def main() -> int:
 
     if report["latest_updated"]:
         atomic_write_json(reports_dir / "walkforward_latest.json", report)
-        atomic_write_text(reports_dir / "walkforward_latest.md", render_markdown(report))
+        atomic_write_text(
+            reports_dir / "walkforward_latest.md", render_markdown(report)
+        )
         print(
             "LATEST_UPDATED "
             f"run_id={run_id} "
@@ -404,7 +435,7 @@ def main() -> int:
     else:
         print(
             f"WARN reason={report['latest_warning_reason']} "
-            f"run_id={run_id} run_dir={run_dir} detail=\"{report['latest_update_reason']}\""
+            f'run_id={run_id} run_dir={run_dir} detail="{report["latest_update_reason"]}"'
         )
         rerun_latest_json = reports_dir / "walkforward_rerun_latest.json"
         if rerun_latest_json.exists():

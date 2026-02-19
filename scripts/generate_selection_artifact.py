@@ -17,13 +17,17 @@ def load_json(path: Path) -> Optional[Dict]:
         print(f"Error loading {path}: {e}", file=sys.stderr)
         return None
 
+
 def save_json_atomic(path: Path, data: Dict):
     tmp_path = path.with_suffix(".json.tmp")
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.rename(tmp_path, path)
 
-def generate_selection(run_dir: Path, regime_tf: str = "4h", top_k_val: int = 5, respect_gate: bool = True):
+
+def generate_selection(
+    run_dir: Path, regime_tf: str = "4h", top_k_val: int = 5, respect_gate: bool = True
+):
     regime_report_path = run_dir / "regime_report.json"
     gate_path = run_dir / "gate.json"
     optimizer_regime_path = run_dir / "optimizer_regime.json"
@@ -81,7 +85,7 @@ def generate_selection(run_dir: Path, regime_tf: str = "4h", top_k_val: int = 5,
                 "rank": idx + 1,
                 "params": c.get("params"),
                 "score": c.get("score"),
-                "metrics": c.get("metrics")
+                "metrics": c.get("metrics"),
             }
             candidates.append(cand)
     else:
@@ -109,10 +113,10 @@ def generate_selection(run_dir: Path, regime_tf: str = "4h", top_k_val: int = 5,
         # Select Rank 1
         best = candidates[0]
         selected = {
-            "symbol": "BTCUSDT", # Default primary for now, or derive from config if available (TODO)
+            "symbol": "BTCUSDT",  # Default primary for now, or derive from config if available (TODO)
             "params": best["params"],
             "rank": 1,
-            "score": best["score"]
+            "score": best["score"],
         }
     else:
         # Even if HOLD, we might want to show what *would* have been selected (optional, per user req? "selected(可為null)")
@@ -126,31 +130,36 @@ def generate_selection(run_dir: Path, regime_tf: str = "4h", top_k_val: int = 5,
         "run_dir": str(run_dir.absolute()),
         "regime_tf": regime_tf,
         "regime": current_regime,
-        "gate": {
-            "overall": gate_overall,
-            "reasons": gate_reasons
-        },
+        "gate": {"overall": gate_overall, "reasons": gate_reasons},
         "decision": decision,
         "selected": selected,
-        "candidates": candidates, # Summary of top K
-        "reasons": warnings, # Mapping 'warnings' to 'reasons' field for UI
+        "candidates": candidates,  # Summary of top K
+        "reasons": warnings,  # Mapping 'warnings' to 'reasons' field for UI
         "inputs": {
             "regime_report_path": str(regime_report_path),
             "gate_path": str(gate_path),
-            "optimizer_regime_path": str(optimizer_regime_path)
-        }
+            "optimizer_regime_path": str(optimizer_regime_path),
+        },
     }
 
     out_path = run_dir / "selection.json"
     save_json_atomic(out_path, output)
     print(f"Generated selection.json in {run_dir} (Decision: {decision})")
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate Regime-Driven Selection Artifact")
+    parser = argparse.ArgumentParser(
+        description="Generate Regime-Driven Selection Artifact"
+    )
     parser.add_argument("--run_dir", required=True, help="Backtest run directory")
     parser.add_argument("--regime_tf", default="4h", help="Regime timeframe")
     parser.add_argument("--topk", type=int, default=5, help="Top K results to keep")
-    parser.add_argument("--respect_gate", type=str, default="true", help="Respect gate status (true/false)")
+    parser.add_argument(
+        "--respect_gate",
+        type=str,
+        default="true",
+        help="Respect gate status (true/false)",
+    )
 
     args = parser.parse_args()
     respect = args.respect_gate.lower() == "true"

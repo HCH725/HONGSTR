@@ -24,24 +24,27 @@ st.set_page_config(
     page_title="HONGSTR Dashboard",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
+
 
 # --- Helpers ---
 def load_json(path):
     try:
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             return json.load(f)
     except FileNotFoundError:
         return None
     except Exception:
         return None
 
+
 def get_file_mtime(path):
     try:
         return datetime.fromtimestamp(os.path.getmtime(path))
     except FileNotFoundError:
         return None
+
 
 def get_backtest_runs(base_dir, limit=50):
     # Find all summary.json files
@@ -53,14 +56,13 @@ def get_backtest_runs(base_dir, limit=50):
         run_id = p.parent.name
         date_str = p.parent.parent.name
         mtime = os.path.getmtime(f)
-        runs.append({
-            "path": p.parent,
-            "display": f"{date_str} / {run_id}",
-            "mtime": mtime
-        })
+        runs.append(
+            {"path": p.parent, "display": f"{date_str} / {run_id}", "mtime": mtime}
+        )
     # Sort by mtime desc
     runs.sort(key=lambda x: x["mtime"], reverse=True)
     return runs[:limit]
+
 
 def format_delta(dt):
     if not dt:
@@ -70,13 +72,15 @@ def format_delta(dt):
     if seconds < 60:
         return f"{int(seconds)}s ago"
     elif seconds < 3600:
-        return f"{int(seconds/60)}m ago"
+        return f"{int(seconds / 60)}m ago"
     else:
-        return f"{int(seconds/3600)}h ago"
+        return f"{int(seconds / 3600)}h ago"
+
 
 def load_benchmark_data():
     path = PROJECT_ROOT / "reports" / "benchmark_latest.json"
     return load_json(path)
+
 
 def safe_get(d, *keys, default=None):
     for k in keys:
@@ -86,14 +90,18 @@ def safe_get(d, *keys, default=None):
             return default
     return d
 
+
 def fmt_pct(x):
     return f"{x:.2%}" if isinstance(x, (float, int)) else "N/A"
+
 
 def fmt_float(x):
     return f"{x:.2f}" if isinstance(x, (float, int)) else "N/A"
 
+
 def fmt_int(x):
     return f"{int(x)}" if isinstance(x, (float, int)) else "N/A"
+
 
 # --- Sidebar ---
 st.sidebar.title("HONGSTR Local")
@@ -101,8 +109,8 @@ st.sidebar.title("HONGSTR Local")
 # Refresh
 auto_refresh = st.sidebar.checkbox("Auto Refresh (10s)", value=True)
 if auto_refresh:
-    time.sleep(1) # Small delay to avoid busy loop
-    st.empty() # Placeholder for refresh logic handled by rerun?
+    time.sleep(1)  # Small delay to avoid busy loop
+    st.empty()  # Placeholder for refresh logic handled by rerun?
     # Streamlit rerun is tricky in loops. Using valid method:
     # st.experimental_rerun() is deprecated.
     # We rely on user action or simple loop structure if supported,
@@ -127,11 +135,12 @@ run_options = {r["display"]: r for r in runs}
 
 selected_run_display = st.sidebar.selectbox(
     "Selected Backtest Run",
-    options=list(run_options.keys()) if run_options else ["No Runs Found"]
+    options=list(run_options.keys()) if run_options else ["No Runs Found"],
 )
 
 # Metrics Timeframe
 metrics_tf = st.sidebar.selectbox("Metrics Timeframe", ["4h", "1h"], index=0)
+
 
 # --- Mode Detection ---
 def detect_execution_mode():
@@ -153,9 +162,12 @@ def detect_execution_mode():
         try:
             with open(env_path) as f:
                 for line in f:
-                    if line.startswith("HONGSTR_EXEC_MODE=") or line.startswith("EXECUTION_MODE="):
+                    if line.startswith("HONGSTR_EXEC_MODE=") or line.startswith(
+                        "EXECUTION_MODE="
+                    ):
                         return line.strip().split("=", 1)[1].upper()
-        except: pass
+        except:
+            pass
 
     # 2. State Files (LOCAL_SERVICES detection)
     # Check for active service indicators
@@ -164,7 +176,7 @@ def detect_execution_mode():
         str(data_dir / "state" / "*.json"),
         str(data_dir / "realtime" / "state" / "*.json"),
         str(PROJECT_ROOT / "logs" / "*heartbeat*.json"),
-        str(PROJECT_ROOT / "logs" / "*state*.json")
+        str(PROJECT_ROOT / "logs" / "*state*.json"),
     ]
 
     for pat in patterns:
@@ -173,6 +185,7 @@ def detect_execution_mode():
 
     # 3. Default
     return "LOCAL"
+
 
 # --- Panel A: Environment Control ---
 st.header("A. Environment Control")
@@ -185,8 +198,10 @@ with col1:
 
     # Color coding
     color = "blue"
-    if mode == "LOCAL_SERVICES": color = "green"
-    elif mode in ["PAPER", "LIVE"]: color = "red"
+    if mode == "LOCAL_SERVICES":
+        color = "green"
+    elif mode in ["PAPER", "LIVE"]:
+        color = "red"
 
     st.markdown(f"Mode: :{color}[**{mode}**]")
 
@@ -255,7 +270,7 @@ else:
         if btc_4h.exists():
             try:
                 df = pd.read_json(btc_4h, lines=True)
-                if not df.empty and 'close' in df.columns:
+                if not df.empty and "close" in df.columns:
                     labeler = RegimeLabeler()
                     labels = labeler.label_regime(df)
                     regime_label = labels.iloc[-1]
@@ -320,7 +335,7 @@ if selected_run_display != "No Runs Found":
                     "Sharpe": f"{m.get('sharpe', 0):.2f}",
                     "Trades": m.get("trades_count", 0),
                     "WinRate": f"{m.get('win_rate', 0):.2%}",
-                    "Exp": f"{m.get('exposure_time', 0):.2%}"
+                    "Exp": f"{m.get('exposure_time', 0):.2%}",
                 }
                 # Debug counts
                 dbg = m.get("debug_counts") or m.get("debug")
@@ -330,14 +345,20 @@ if selected_run_display != "No Runs Found":
                     row["Signals"] = "?"
                 rows.append(row)
             else:
-                rows.append({
-                    "Symbol": key,
-                    "Ret": "MISSING",
-                    "MDD": "-", "Sharpe": "-", "Trades": "-", "WinRate": "-", "Exp": "-", "Signals": "-"
-                })
+                rows.append(
+                    {
+                        "Symbol": key,
+                        "Ret": "MISSING",
+                        "MDD": "-",
+                        "Sharpe": "-",
+                        "Trades": "-",
+                        "WinRate": "-",
+                        "Exp": "-",
+                        "Signals": "-",
+                    }
+                )
 
         st.table(pd.DataFrame(rows))
-
 
         # 4. Equity Curve
         st.subheader("4. Equity Curve")
@@ -376,11 +397,13 @@ if selected_run_display != "No Runs Found":
         c1, c2 = st.columns(2)
 
         for idx, kind in enumerate(["FULL", "SHORT"]):
-            with (c1 if idx==0 else c2):
+            with c1 if idx == 0 else c2:
                 st.markdown(f"**{kind}**")
                 top = safe_get(bench_data, kind, "top")
                 if top:
-                    st.write(f"Period: {top.get('start_ts', '')[:10]} -> {top.get('end_ts', '')[:10]}")
+                    st.write(
+                        f"Period: {top.get('start_ts', '')[:10]} -> {top.get('end_ts', '')[:10]}"
+                    )
                     st.write(f"Return: {fmt_pct(top.get('total_return'))}")
                     st.write(f"MDD: {fmt_pct(top.get('max_drawdown'))}")
                     st.write(f"Sharpe: {fmt_float(top.get('sharpe'))}")
@@ -403,7 +426,14 @@ if selected_run_display != "No Runs Found":
             for kind in ["FULL", "SHORT"]:
                 d = safe_get(bench_data, kind, "per_symbol_4h", sym)
                 if d:
-                    for k_short, k_long in [("total_return", "Ret"), ("max_drawdown", "MDD"), ("sharpe", "Sharpe"), ("trades_count", "Trades"), ("win_rate", "Win"), ("signal_emitted", "Signals")]:
+                    for k_short, k_long in [
+                        ("total_return", "Ret"),
+                        ("max_drawdown", "MDD"),
+                        ("sharpe", "Sharpe"),
+                        ("trades_count", "Trades"),
+                        ("win_rate", "Win"),
+                        ("signal_emitted", "Signals"),
+                    ]:
                         val = d.get(k_short)
                         if k_long in ["Ret", "MDD", "Win"]:
                             fmt_val = fmt_pct(val)
@@ -413,14 +443,14 @@ if selected_run_display != "No Runs Found":
                             fmt_val = fmt_int(val)
                         row[f"{kind}_{k_long}"] = fmt_val
                 else:
-                     for k_long in ["Ret", "MDD", "Sharpe", "Trades", "Win", "Signals"]:
-                         row[f"{kind}_{k_long}"] = "N/A"
+                    for k_long in ["Ret", "MDD", "Sharpe", "Trades", "Win", "Signals"]:
+                        row[f"{kind}_{k_long}"] = "N/A"
             rows.append(row)
 
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     else:
-         st.info("No benchmark_latest.json yet. Run scripts/benchmark_suite.sh first.")
+        st.info("No benchmark_latest.json yet. Run scripts/benchmark_suite.sh first.")
 
     # --- Panel D: Regime Performance (Fixed 4h) ---
     st.header("D. Regime Performance (Fixed 4h)")
@@ -437,7 +467,7 @@ if selected_run_display != "No Runs Found":
         # 3 Columns for Overall Metrics
         c1, c2, c3 = st.columns(3)
         for idx, label in enumerate(["BULL", "NEUTRAL", "BEAR"]):
-            with (c1 if idx==0 else c2 if idx==1 else c3):
+            with c1 if idx == 0 else c2 if idx == 1 else c3:
                 st.markdown(f"**{label}**")
                 b = buckets.get(label, {})
                 if b and b.get("trades_count", 0) > 0 or b.get("total_return", 0) != 0:
@@ -500,15 +530,19 @@ if selected_run_display != "No Runs Found":
         table_rows = []
         for reg in ["BULL", "NEUTRAL", "BEAR"]:
             rdata = by_regime.get(reg, {})
-            table_rows.append({
-                "Regime": reg,
-                "Sharpe": f"{rdata.get('sharpe', 0.0):.3f}",
-                "MDD": f"{rdata.get('max_mdd', 0.0):.2%}",
-                "Trades": rdata.get("trades", 0),
-                "PASS": "✅" if rdata.get("pass") else "❌",
-                "Reasons": ", ".join(rdata.get("reasons", []))
-            })
-        st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+            table_rows.append(
+                {
+                    "Regime": reg,
+                    "Sharpe": f"{rdata.get('sharpe', 0.0):.3f}",
+                    "MDD": f"{rdata.get('max_mdd', 0.0):.2%}",
+                    "Trades": rdata.get("trades", 0),
+                    "PASS": "✅" if rdata.get("pass") else "❌",
+                    "Reasons": ", ".join(rdata.get("reasons", [])),
+                }
+            )
+        st.dataframe(
+            pd.DataFrame(table_rows), use_container_width=True, hide_index=True
+        )
 
     else:
         st.warning("Gate: N/A (no gate.json for this run yet)")
@@ -527,7 +561,7 @@ if selected_run_display != "No Runs Found":
         st.subheader("Benchmark Summary")
         c1, c2 = st.columns(2)
         for idx, kind in enumerate(["FULL", "SHORT"]):
-            with (c1 if idx==0 else c2):
+            with c1 if idx == 0 else c2:
                 st.markdown(f"### {kind}")
                 d = bench_data.get(kind, {})
                 top = d.get("top", {})
@@ -593,16 +627,22 @@ if selected_run_display != "No Runs Found":
                     # Flatten for dataframe
                     rows = []
                     for cand in topk:
-                        row = {"Score (Sharpe)": f"{cand.get('score', {}).get('sharpe', 0.0):.3f}"}
+                        row = {
+                            "Score (Sharpe)": f"{cand.get('score', {}).get('sharpe', 0.0):.3f}"
+                        }
                         row.update(cand.get("params", {}))
                         m = cand.get("metrics", {})
-                        row.update({
-                            "Ret": fmt_pct(m.get("total_return")),
-                            "MDD": fmt_pct(m.get("max_drawdown")),
-                            "Trades": m.get("trades_count")
-                        })
+                        row.update(
+                            {
+                                "Ret": fmt_pct(m.get("total_return")),
+                                "MDD": fmt_pct(m.get("max_drawdown")),
+                                "Trades": m.get("trades_count"),
+                            }
+                        )
                         rows.append(row)
-                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                    st.dataframe(
+                        pd.DataFrame(rows), use_container_width=True, hide_index=True
+                    )
                 else:
                     st.info("No candidates for this regime.")
     else:
@@ -659,7 +699,10 @@ if selected_run_display != "No Runs Found":
 
     else:
         st.warning("No selection.json found.")
-        st.code(f"python3 scripts/generate_selection_artifact.py --run_dir {run_dir}", language="bash")
+        st.code(
+            f"python3 scripts/generate_selection_artifact.py --run_dir {run_dir}",
+            language="bash",
+        )
 
     # --- Panel I: Walk-Forward / Regime Dataset ---
     st.header("I. Walk-Forward / Regime Dataset")
@@ -670,7 +713,10 @@ if selected_run_display != "No Runs Found":
         # Summary Metrics
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.metric("Windows Completed", f"{wf_data.get('windows_completed', 0)} / {wf_data.get('windows_total', 0)}")
+            st.metric(
+                "Windows Completed",
+                f"{wf_data.get('windows_completed', 0)} / {wf_data.get('windows_total', 0)}",
+            )
         with c2:
             st.caption(f"Generated: {wf_data.get('generated_at')}")
 
@@ -680,13 +726,18 @@ if selected_run_display != "No Runs Found":
         if stab:
             s_rows = []
             for regime, stats in stab.items():
-                row = {"Regime": regime, "Count": stats.get("count"),
-                       "Mean": f"{stats.get('mean_sharpe',0):.2f}",
-                       "Median": f"{stats.get('median_sharpe',0):.2f}",
-                       "Min": f"{stats.get('min_sharpe',0):.2f}",
-                       "Max": f"{stats.get('max_sharpe',0):.2f}"}
+                row = {
+                    "Regime": regime,
+                    "Count": stats.get("count"),
+                    "Mean": f"{stats.get('mean_sharpe', 0):.2f}",
+                    "Median": f"{stats.get('median_sharpe', 0):.2f}",
+                    "Min": f"{stats.get('min_sharpe', 0):.2f}",
+                    "Max": f"{stats.get('max_sharpe', 0):.2f}",
+                }
                 s_rows.append(row)
-            st.dataframe(pd.DataFrame(s_rows), use_container_width=True, hide_index=True)
+            st.dataframe(
+                pd.DataFrame(s_rows), use_container_width=True, hide_index=True
+            )
         else:
             st.info("No stability data (need >1 run per regime type)")
 
@@ -696,15 +747,26 @@ if selected_run_display != "No Runs Found":
         if windows:
             w_df = pd.DataFrame(windows)
             # Select columns
-            cols = ["name", "start", "end", "gate_overall", "selection_decision", "sharpe", "mdd", "total_return"]
+            cols = [
+                "name",
+                "start",
+                "end",
+                "gate_overall",
+                "selection_decision",
+                "sharpe",
+                "mdd",
+                "total_return",
+            ]
             # Rename for display
-            w_df = w_df[cols].rename(columns={
-                "gate_overall": "Gate",
-                "selection_decision": "Decision",
-                "sharpe": "Sharpe",
-                "mdd": "MDD",
-                "total_return": "Return"
-            })
+            w_df = w_df[cols].rename(
+                columns={
+                    "gate_overall": "Gate",
+                    "selection_decision": "Decision",
+                    "sharpe": "Sharpe",
+                    "mdd": "MDD",
+                    "total_return": "Return",
+                }
+            )
 
             # Format
             w_df["Sharpe"] = w_df["Sharpe"].map(lambda x: f"{x:.2f}")
@@ -740,12 +802,12 @@ else:
         decision = actions_data.get("decision", "UNKNOWN")
 
         with col1:
-             if gate == "PASS":
-                 st.success(f"Overall Gate: {gate}")
-             else:
-                 st.error(f"Overall Gate: {gate}")
+            if gate == "PASS":
+                st.success(f"Overall Gate: {gate}")
+            else:
+                st.error(f"Overall Gate: {gate}")
         with col2:
-             st.metric("Decision", decision)
+            st.metric("Decision", decision)
 
         # Top Actions
         st.subheader("Top Recommended Actions")
@@ -773,16 +835,24 @@ else:
             st.subheader("Failing Windows Details")
             f_rows = []
             for w in failing:
-                f_rows.append({
-                    "Window": w.get("name"),
-                    "Regime": w.get("regime"),
-                    "Gate": w.get("gate"),
-                    "Sharpe": f"{w.get('sharpe', 0):.2f}" if w.get('sharpe') is not None else "-",
-                    "MDD": f"{w.get('mdd', 0):.2%}" if w.get('mdd') is not None else "-",
-                    "Trades": w.get("trades", "-"),
-                    "Notes": w.get("notes", "")
-                })
-            st.dataframe(pd.DataFrame(f_rows), use_container_width=True, hide_index=True)
+                f_rows.append(
+                    {
+                        "Window": w.get("name"),
+                        "Regime": w.get("regime"),
+                        "Gate": w.get("gate"),
+                        "Sharpe": f"{w.get('sharpe', 0):.2f}"
+                        if w.get("sharpe") is not None
+                        else "-",
+                        "MDD": f"{w.get('mdd', 0):.2%}"
+                        if w.get("mdd") is not None
+                        else "-",
+                        "Trades": w.get("trades", "-"),
+                        "Notes": w.get("notes", ""),
+                    }
+                )
+            st.dataframe(
+                pd.DataFrame(f_rows), use_container_width=True, hide_index=True
+            )
 
     else:
         st.info("No action_items_latest.json found.")

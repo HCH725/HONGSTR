@@ -15,21 +15,30 @@ from hongstr.execution.binance_testnet import BinanceFuturesTestnetBroker
 
 
 def load_json(path: Path) -> Optional[Dict]:
-    if not path.exists(): return None
+    if not path.exists():
+        return None
     with open(path, "r") as f:
         return json.load(f)
+
 
 def save_json(path: Path, data: Dict):
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
 
+
 def update_markdown(path: Path, data: Dict):
     # Reuse generate_markdown_report logic or import it
     generate_markdown_report(path, data)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Order Reconciliation Script")
-    parser.add_argument("--report", type=str, default="reports/orders_latest.json", help="Path to orders report")
+    parser.add_argument(
+        "--report",
+        type=str,
+        default="reports/orders_latest.json",
+        help="Path to orders report",
+    )
     args = parser.parse_args()
 
     report_path = Path(args.report)
@@ -71,13 +80,15 @@ def main():
             if new_status != status:
                 print(f"Status changed: {status} -> {new_status}")
                 # Update order object
-                orders[i].update({
-                    "status": new_status,
-                    "avgPrice": details.get("avgPrice"),
-                    "executedQty": details.get("executedQty"),
-                    "cumQuote": details.get("cumQuote"),
-                    "updateTime": details.get("updateTime")
-                })
+                orders[i].update(
+                    {
+                        "status": new_status,
+                        "avgPrice": details.get("avgPrice"),
+                        "executedQty": details.get("executedQty"),
+                        "cumQuote": details.get("cumQuote"),
+                        "updateTime": details.get("updateTime"),
+                    }
+                )
                 changes += 1
             else:
                 print(f"Status remains: {status}")
@@ -91,6 +102,7 @@ def main():
         print("Done.")
     else:
         print("No changes needed.")
+
 
 if __name__ == "__main__":
     main()

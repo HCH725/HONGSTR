@@ -17,13 +17,10 @@ def mock_selection_file(tmp_path):
     sel_path = d / "selection.json"
     return sel_path
 
+
 def test_execute_hold(mock_selection_file, tmp_path):
     """Test that HOLD decision generates no orders."""
-    sel_data = {
-        "decision": "HOLD",
-        "regime": "BEAR",
-        "selected_symbol": "BTCUSDT"
-    }
+    sel_data = {"decision": "HOLD", "regime": "BEAR", "selected_symbol": "BTCUSDT"}
     with open(mock_selection_file, "w") as f:
         json.dump(sel_data, f)
 
@@ -32,10 +29,12 @@ def test_execute_hold(mock_selection_file, tmp_path):
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
 
-    with patch("scripts.execute_paper.get_latest_selection", return_value=mock_selection_file):
-        with patch("pathlib.Path.mkdir"): # Safety
-             with patch("scripts.execute_paper.save_report") as mock_save:
-                 with patch("scripts.execute_paper.generate_markdown_report"):
+    with patch(
+        "scripts.execute_paper.get_latest_selection", return_value=mock_selection_file
+    ):
+        with patch("pathlib.Path.mkdir"):  # Safety
+            with patch("scripts.execute_paper.save_report") as mock_save:
+                with patch("scripts.execute_paper.generate_markdown_report"):
                     # We need to monkeypatch the reports directory in the script
                     # or just let it write to a temp reports folder.
                     # Let's mock the report savers to verify output data.
@@ -51,13 +50,10 @@ def test_execute_hold(mock_selection_file, tmp_path):
                         assert data["decision"] == "HOLD"
                         assert len(data["orders"]) == 0
 
+
 def test_execute_trade_dry_run(mock_selection_file, tmp_path):
     """Test that TRADE decision generates a DRY_RUN order."""
-    sel_data = {
-        "decision": "TRADE",
-        "regime": "BULL",
-        "selected_symbol": "ETHUSDT"
-    }
+    sel_data = {"decision": "TRADE", "regime": "BULL", "selected_symbol": "ETHUSDT"}
     with open(mock_selection_file, "w") as f:
         json.dump(sel_data, f)
 
@@ -65,23 +61,20 @@ def test_execute_trade_dry_run(mock_selection_file, tmp_path):
 
     with patch("scripts.execute_paper.save_report") as mock_save:
         with patch("scripts.execute_paper.generate_markdown_report"):
-                with patch("sys.argv", ["execute_paper.py", "--run_dir", run_dir]):
-                    execute_main()
+            with patch("sys.argv", ["execute_paper.py", "--run_dir", run_dir]):
+                execute_main()
 
-                    args, kwargs = mock_save.call_args
-                    data = args[1]
-                    assert data["decision"] == "TRADE"
-                    assert len(data["orders"]) == 1
-                    assert data["orders"][0]["symbol"] == "ETHUSDT"
-                    assert data["orders"][0]["status"] == "DRY_RUN"
+                args, kwargs = mock_save.call_args
+                data = args[1]
+                assert data["decision"] == "TRADE"
+                assert len(data["orders"]) == 1
+                assert data["orders"][0]["symbol"] == "ETHUSDT"
+                assert data["orders"][0]["status"] == "DRY_RUN"
+
 
 def test_execute_notional_limit(mock_selection_file, tmp_path):
     """Test that orders exceeding max_notional_usd are rejected."""
-    sel_data = {
-        "decision": "TRADE",
-        "regime": "BULL",
-        "selected_symbol": "BTCUSDT"
-    }
+    sel_data = {"decision": "TRADE", "regime": "BULL", "selected_symbol": "BTCUSDT"}
     with open(mock_selection_file, "w") as f:
         json.dump(sel_data, f)
 
@@ -90,7 +83,10 @@ def test_execute_notional_limit(mock_selection_file, tmp_path):
     with patch("scripts.execute_paper.save_report") as mock_save:
         with patch("scripts.execute_paper.generate_markdown_report"):
             # Set a very low limit
-            with patch("sys.argv", ["execute_paper.py", "--run_dir", run_dir, "--max_notional_usd", "5.0"]):
+            with patch(
+                "sys.argv",
+                ["execute_paper.py", "--run_dir", run_dir, "--max_notional_usd", "5.0"],
+            ):
                 execute_main()
 
                 args, kwargs = mock_save.call_args

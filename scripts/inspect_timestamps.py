@@ -31,8 +31,8 @@ def inspect_timestamps(symbol: str = "BTCUSDT"):
     start_ts_utc = df.index[0]
     end_ts_utc = df.index[-1]
 
-    start_ts_local = start_ts_utc.tz_localize('UTC').tz_convert(tz)
-    end_ts_local = end_ts_utc.tz_localize('UTC').tz_convert(tz)
+    start_ts_local = start_ts_utc.tz_localize("UTC").tz_convert(tz)
+    end_ts_local = end_ts_utc.tz_localize("UTC").tz_convert(tz)
 
     print(f"Start (UTC):   {start_ts_utc}")
     print(f"Start (Local): {start_ts_local}")
@@ -51,7 +51,7 @@ def inspect_timestamps(symbol: str = "BTCUSDT"):
     sample = df.sample(min(10, len(df)))
     unaligned_count = 0
     for ts in sample.index:
-        ts_local = ts.tz_localize('UTC').tz_convert(tz)
+        ts_local = ts.tz_localize("UTC").tz_convert(tz)
         if ts_local.second != 0 or ts_local.microsecond != 0:
             unaligned_count += 1
             print(f"Unaligned: {ts} -> {ts_local}")
@@ -60,6 +60,7 @@ def inspect_timestamps(symbol: str = "BTCUSDT"):
         print("Sampled rows are all minute-aligned.")
     else:
         print(f"WARNING: Found {unaligned_count} unaligned rows in sample.")
+
 
 if __name__ == "__main__":
     inspect_timestamps()

@@ -79,5 +79,6 @@ class TestDashboardMode(unittest.TestCase):
         f.touch()
         self.assertEqual(dashboard.detect_execution_mode(), "LOCAL_SERVICES")
 
+
 if __name__ == "__main__":
     unittest.main()

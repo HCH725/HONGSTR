@@ -23,7 +23,7 @@ def run_dry_run():
     start_ts = int(start_dt.timestamp() * 1000)
     end_ts = int(end_dt.timestamp() * 1000)
 
-    symbol = "BTCUSDT" # Test with one symbol
+    symbol = "BTCUSDT"  # Test with one symbol
     print(f"Fetching {symbol} from {start_dt} to {end_dt}...")
 
     df = fetch_klines(symbol, start_ts, end_ts)
@@ -48,6 +48,7 @@ def run_dry_run():
         print(f"Read back {len(saved_df)} rows from parquet.")
     else:
         print(f"Error: {path} not found.")
+
 
 if __name__ == "__main__":
     run_dry_run()

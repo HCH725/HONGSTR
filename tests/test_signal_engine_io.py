@@ -21,8 +21,8 @@ def test_engine_io(tmp_path):
         with open(kline_file, "w") as f:
             # Write 30 lines (minutes)
             for i in range(30):
-                ts = 1704103200000 + (i * 60000) # 2024-01-01 10:00
-                line = f'{{"stream":"btcusdt@kline_1m","data":{{"k":{{"t":{ts},"s":"BTCUSDT","i":"1m","o":"100","h":"100","l":"100","c":"{100+(i%2)}","v":"10","x":true}}}}}}'
+                ts = 1704103200000 + (i * 60000)  # 2024-01-01 10:00
+                line = f'{{"stream":"btcusdt@kline_1m","data":{{"k":{{"t":{ts},"s":"BTCUSDT","i":"1m","o":"100","h":"100","l":"100","c":"{100 + (i % 2)}","v":"10","x":true}}}}}}'
                 f.write(line + "\n")
 
         config = EngineConfig(
@@ -32,7 +32,7 @@ def test_engine_io(tmp_path):
             output_root=str(output_dir),
             state_root=str(state_dir),
             mode="tail_jsonl",
-            max_bars=100
+            max_bars=100,
         )
 
         engine = SignalEngine(config)

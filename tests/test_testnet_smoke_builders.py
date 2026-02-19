@@ -10,12 +10,12 @@ class TestSmokeBuilders:
         # ExchangeFilters currently hardcodes defaults if fetch fails or logic is static.
 
         price = 50000.0
-        notional = SMOKE_NOTIONAL_USD # Should be 10.0
+        notional = SMOKE_NOTIONAL_USD  # Should be 10.0
         raw = notional / price
         rounded = filters.round_qty("BTCUSDT", raw)
 
         assert rounded > 0
-        assert rounded * price >= 5.0 # Check against likely min notional
+        assert rounded * price >= 5.0  # Check against likely min notional
         # 10 / 50000 = 0.0002. Min qty usually 0.001?
         # If min qty is 0.001, then 0.0002 rounds to 0.001? Or 0?
         # logic: round(qty / step) * step.

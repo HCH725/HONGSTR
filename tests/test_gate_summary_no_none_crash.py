@@ -36,7 +36,15 @@ def test_gate_summary_does_not_crash_on_none_metrics(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         "sys.argv",
-        ["gate_summary.py", "--summary", str(summary), "--symbols", "BTCUSDT", "--timeframes", "1h"],
+        [
+            "gate_summary.py",
+            "--summary",
+            str(summary),
+            "--symbols",
+            "BTCUSDT",
+            "--timeframes",
+            "1h",
+        ],
     )
 
     with pytest.raises(SystemExit) as exc:

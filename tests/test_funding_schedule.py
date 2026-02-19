@@ -27,8 +27,11 @@ def test_funding_schedule_utc():
     assert sem.is_funding_timestamp(ts_taipei_funding_3) is True
 
     # Random time
-    ts_taipei_random = pd.Timestamp("2024-01-01 12:00:00").tz_localize("Asia/Taipei") # 04:00 UTC
+    ts_taipei_random = pd.Timestamp("2024-01-01 12:00:00").tz_localize(
+        "Asia/Taipei"
+    )  # 04:00 UTC
     assert sem.is_funding_timestamp(ts_taipei_random) is False
+
 
 def test_funding_schedule_naive():
     # If naive, assumes UTC

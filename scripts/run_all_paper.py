@@ -30,9 +30,15 @@ from hongstr.signal.types import EngineConfig
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="Run HONGSTR All-in-One (Paper/Testnet)")
-    parser.add_argument("--seconds", type=int, default=30, help="Run duration in seconds")
-    parser.add_argument("--mode", type=str, default="B", help="Execution Mode (B=Paper)")
+    parser = argparse.ArgumentParser(
+        description="Run HONGSTR All-in-One (Paper/Testnet)"
+    )
+    parser.add_argument(
+        "--seconds", type=int, default=30, help="Run duration in seconds"
+    )
+    parser.add_argument(
+        "--mode", type=str, default="B", help="Execution Mode (B=Paper)"
+    )
     args = parser.parse_args()
 
     # 1. Setup Logging
@@ -50,7 +56,7 @@ async def main():
     logger.info(f"Duration: {args.seconds}s")
 
     # Fail-closed check
-    if mode != 'B':
+    if mode != "B":
         # logic supports C too, but user request specifically titles this "run_all_paper" and asks for fail-closed on config?
         # "Maintain fail-closed semantics: if EXECUTION_MODE not B ... runner should exit"
         # Let's enforce B for this script as requested.
@@ -64,12 +70,9 @@ async def main():
         symbols=REALTIME_SYMBOLS,
         output_dir=REALTIME_OUT_DIR,
         ws_base_url=REALTIME_WS_BASE,
-        intervals=["1m"]
+        intervals=["1m"],
     )
-    c7_manager = StreamManager(
-        config=ws_config,
-        streams=REALTIME_STREAMS
-    )
+    c7_manager = StreamManager(config=ws_config, streams=REALTIME_STREAMS)
 
     # C8 Signal Engine
     c8_config = EngineConfig(
@@ -79,7 +82,7 @@ async def main():
         output_root=SIGNAL_OUTPUT_ROOT,
         state_root=SIGNAL_STATE_ROOT,
         mode="tail_jsonl",
-        max_bars=SIGNAL_MAX_BARS
+        max_bars=SIGNAL_MAX_BARS,
     )
     c8_engine = SignalEngine(c8_config)
 
@@ -92,7 +95,8 @@ async def main():
     signals_file = os.path.join(signals_dir, "signals.jsonl")
     os.makedirs(signals_dir, exist_ok=True)
     if not os.path.exists(signals_file):
-        with open(signals_file, 'w') as f: pass
+        with open(signals_file, "w") as f:
+            pass
 
     # 4. Run Loop
     logger.info("Launching Components...")
@@ -100,7 +104,7 @@ async def main():
     tasks = [
         asyncio.create_task(c7_manager.run(duration=args.seconds)),
         asyncio.create_task(c8_engine.run_tail_jsonl(duration=args.seconds)),
-        asyncio.create_task(bridge.run(duration=args.seconds))
+        asyncio.create_task(bridge.run(duration=args.seconds)),
     ]
 
     # 5. Smoke Injection Monitor
@@ -114,7 +118,7 @@ async def main():
         res_file = os.path.join(PROJECT_ROOT, "data/state/execution_result.jsonl")
         has_result = False
         if os.path.exists(res_file):
-            with open(res_file, 'r') as f:
+            with open(res_file, "r") as f:
                 if len(f.readlines()) > 0:
                     has_result = True
 
@@ -127,12 +131,12 @@ async def main():
             payload = {
                 "ts": datetime.utcnow().isoformat(),
                 "symbol": "BTCUSDT",
-                "portfolio_id": PORTFOLIO_ID, # defaults to HONG or test_portfolio
-                "strategy_id": "smoke_injector", # Executor checks selection
+                "portfolio_id": PORTFOLIO_ID,  # defaults to HONG or test_portfolio
+                "strategy_id": "smoke_injector",  # Executor checks selection
                 "direction": "LONG",
                 "timeframe": "1m",
                 "regime": "TREND",
-                "confidence": 1.0
+                "confidence": 1.0,
             }
 
             # Note: Executor strictly checks selection artifact.
@@ -167,16 +171,16 @@ async def main():
 
             selection_path = "data/selection/hong_selected.json"
             if os.path.exists(selection_path):
-                 try:
-                     with open(selection_path) as f:
-                         sel_data = json.load(f)
-                         bulls = sel_data.get('selection', {}).get('BULL', [])
-                         if bulls:
-                             payload['strategy_id'] = bulls[0]
-                 except:
-                     pass
+                try:
+                    with open(selection_path) as f:
+                        sel_data = json.load(f)
+                        bulls = sel_data.get("selection", {}).get("BULL", [])
+                        if bulls:
+                            payload["strategy_id"] = bulls[0]
+                except:
+                    pass
 
-            with open(signals_file, 'a') as f:
+            with open(signals_file, "a") as f:
                 f.write(json.dumps(payload) + "\n")
             logger.info(f"Injected Signal: {payload['strategy_id']}")
 
@@ -191,6 +195,7 @@ async def main():
         c7_manager.stop()
 
     logger.info("--- HONGSTR Run Complete ---")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

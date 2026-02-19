@@ -17,8 +17,11 @@ from hongstr.config import (
 from hongstr.realtime.stream_manager import StreamManager
 from hongstr.realtime.types import WSConfig
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("run_ws")
+
 
 async def main():
     logger.info("--- Starting Realtime WS Smoke Test ---")
@@ -29,10 +32,10 @@ async def main():
 
     config = WSConfig(
         symbols=REALTIME_SYMBOLS,
-        intervals=[], # intervals are embedded in streams list for this simple manager
+        intervals=[],  # intervals are embedded in streams list for this simple manager
         output_dir=REALTIME_OUT_DIR,
         ws_base_url=REALTIME_WS_BASE,
-        run_seconds=REALTIME_RUN_SECONDS
+        run_seconds=REALTIME_RUN_SECONDS,
     )
 
     manager = StreamManager(config, REALTIME_STREAMS)
@@ -55,6 +58,7 @@ async def main():
             logger.info(f" - {f} ({f.stat().st_size} bytes)")
 
     logger.info("--- Smoke Test Complete ---")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

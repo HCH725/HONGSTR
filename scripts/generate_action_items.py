@@ -18,9 +18,11 @@ def load_json(path: Path) -> Optional[Dict]:
         print(f"Error loading {path}: {e}", file=sys.stderr)
         return None
 
+
 def save_json(path: Path, data: Dict):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
 
 def get_latest_run_dir(base_dir: Path) -> Optional[Path]:
     # Find all summary.json files
@@ -31,6 +33,7 @@ def get_latest_run_dir(base_dir: Path) -> Optional[Path]:
     # Sort by mtime, newest first
     files.sort(key=os.path.getmtime, reverse=True)
     return Path(files[0]).parent
+
 
 def generate_action_items(reports_dir: Path, data_dir: Path):
     # 1. Determine Source
@@ -64,24 +67,30 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
         windows = wf_data.get("windows", [])
         for w in windows:
             if w.get("gate_overall") != "PASS":
-                failing_windows.append({
-                    "name": w.get("name"),
-                    "regime": w.get("regime", "UNKNOWN"),
-                    # If unknown, try to infer from name
-                    # actually wf report windows list usually has name/start/end. regime might be inferred from name.
-                    "gate": w.get("gate_overall"),
-                    "sharpe": w.get("sharpe"),
-                    "mdd": w.get("mdd"),
-                    "trades": w.get("trades"), # trades_total?
-                    "notes": w.get("notes") or f"Decision: {w.get('selection_decision')}"
-                })
+                failing_windows.append(
+                    {
+                        "name": w.get("name"),
+                        "regime": w.get("regime", "UNKNOWN"),
+                        # If unknown, try to infer from name
+                        # actually wf report windows list usually has name/start/end. regime might be inferred from name.
+                        "gate": w.get("gate_overall"),
+                        "sharpe": w.get("sharpe"),
+                        "mdd": w.get("mdd"),
+                        "trades": w.get("trades"),  # trades_total?
+                        "notes": w.get("notes")
+                        or f"Decision: {w.get('selection_decision')}",
+                    }
+                )
 
                 # Infer Regime if missing
                 if failing_windows[-1]["regime"] == "UNKNOWN":
                     name = failing_windows[-1]["name"].upper()
-                    if "BULL" in name: failing_windows[-1]["regime"] = "BULL"
-                    elif "BEAR" in name: failing_windows[-1]["regime"] = "BEAR"
-                    elif "NEUTRAL" in name: failing_windows[-1]["regime"] = "NEUTRAL"
+                    if "BULL" in name:
+                        failing_windows[-1]["regime"] = "BULL"
+                    elif "BEAR" in name:
+                        failing_windows[-1]["regime"] = "BEAR"
+                    elif "NEUTRAL" in name:
+                        failing_windows[-1]["regime"] = "NEUTRAL"
 
     # If no WF failures or no WF data, look at single run gate
     if not failing_windows and run_gate:
@@ -92,18 +101,20 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
         if not overall.get("pass", False):
             # Create a "pseudo-window" for the single run
             reasons = overall.get("reasons", [])
-            failing_windows.append({
-                "name": "CURRENT_RUN",
-                "regime": run_gate.get("inputs", {}).get("mode", "UNKNOWN"),
-                "gate": "FAIL",
-                "sharpe": run_summary.get("sharpe") if run_summary else None,
-                "mdd": run_summary.get("max_drawdown") if run_summary else None,
-                "trades": run_summary.get("trades_count") if run_summary else None,
-                "notes": "; ".join(reasons)
-            })
+            failing_windows.append(
+                {
+                    "name": "CURRENT_RUN",
+                    "regime": run_gate.get("inputs", {}).get("mode", "UNKNOWN"),
+                    "gate": "FAIL",
+                    "sharpe": run_summary.get("sharpe") if run_summary else None,
+                    "mdd": run_summary.get("max_drawdown") if run_summary else None,
+                    "trades": run_summary.get("trades_count") if run_summary else None,
+                    "notes": "; ".join(reasons),
+                }
+            )
 
     # 2. Generate Actions based on Failures
-    failing_windows_list = failing_windows # Rename for clarity
+    failing_windows_list = failing_windows  # Rename for clarity
 
     # Analyze Failures
     has_low_trades = False
@@ -112,11 +123,11 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
     has_high_exposure = False
 
     # Specific window failures for Type E
-    regime_failures = {} # regime -> list of window names
+    regime_failures = {}  # regime -> list of window names
 
     for w in failing_windows_list:
         notes = (w.get("notes") or "").lower()
-        reasons = [] # We might want to parse from notes if it contains explicit reason string
+        reasons = []  # We might want to parse from notes if it contains explicit reason string
 
         # Check metrics vs strict thresholds if reasons vague,
         # but mostly rely on Gate output strings if available.
@@ -129,13 +140,13 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
         mdd = w.get("mdd")
 
         # Heuristics
-        if tr is not None and tr < 30: # 30 is a safe default min
+        if tr is not None and tr < 30:  # 30 is a safe default min
             has_low_trades = True
 
         if sh is not None and sh < 0.0:
             has_low_sharpe = True
 
-        if mdd is not None and mdd < -0.25: # Deeper than -25%
+        if mdd is not None and mdd < -0.25:  # Deeper than -25%
             has_high_mdd = True
 
         # Check explicit notes for "Exposure"
@@ -152,87 +163,99 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
 
     # A. Low Trades
     if has_low_trades:
-        top_actions.append({
-            "rank": 1,
-            "title": "Increase Signal Frequency (Low Trades)",
-            "why": "Portfolio trade count is below statistical significance threshold (e.g., < 30).",
-            "changes": [
-                "Reduce Supertrend ATR Length/Multiplier",
-                "Relax VWAP Trend Filter (e.g., use 1h instead of 4h)",
-                "Decrease Cooldown period"
-            ],
-            "commands": [
-                "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_fast_freq"
-            ],
-            "verify": ["Daily Trades >= 0.8", "Portfolio Trades >= 30"]
-        })
+        top_actions.append(
+            {
+                "rank": 1,
+                "title": "Increase Signal Frequency (Low Trades)",
+                "why": "Portfolio trade count is below statistical significance threshold (e.g., < 30).",
+                "changes": [
+                    "Reduce Supertrend ATR Length/Multiplier",
+                    "Relax VWAP Trend Filter (e.g., use 1h instead of 4h)",
+                    "Decrease Cooldown period",
+                ],
+                "commands": [
+                    "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_fast_freq"
+                ],
+                "verify": ["Daily Trades >= 0.8", "Portfolio Trades >= 30"],
+            }
+        )
 
     # B. Low Sharpe (but Trades OK - implied if we fix trades first or if trades are fine)
     if has_low_sharpe and not has_low_trades:
-        top_actions.append({
-            "rank": 2,
-            "title": "Improve Signal Quality (Noise Reduction)",
-            "why": "Sharpe Ratio is negative or low, indicating poor risk-adjusted returns.",
-            "changes": [
-                "Increase Supertrend ATR Multiplier (reduce churn)",
-                "Add Higher Timeframe (4h/1d) Trend Confirmation",
-                "Tighten Stop Loss / Enable Trailing Stop"
-            ],
-            "commands": [
-                "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_high_quality"
-            ],
-            "verify": ["Sharpe > 0.0", "Win Rate > 40%"]
-        })
+        top_actions.append(
+            {
+                "rank": 2,
+                "title": "Improve Signal Quality (Noise Reduction)",
+                "why": "Sharpe Ratio is negative or low, indicating poor risk-adjusted returns.",
+                "changes": [
+                    "Increase Supertrend ATR Multiplier (reduce churn)",
+                    "Add Higher Timeframe (4h/1d) Trend Confirmation",
+                    "Tighten Stop Loss / Enable Trailing Stop",
+                ],
+                "commands": [
+                    "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_high_quality"
+                ],
+                "verify": ["Sharpe > 0.0", "Win Rate > 40%"],
+            }
+        )
 
     # C. High MDD
     if has_high_mdd:
-        top_actions.append({
-            "rank": 3,
-            "title": "Tighten Risk Controls (Deep Drawdown)",
-            "why": "Max Drawdown exceeds safety limits (e.g., < -25%).",
-            "changes": [
-                "Reduce Position Size (size_notional_usd)",
-                "Reduce Max Leverage",
-                "Implement 'HOLD' logic for adverse regimes (e.g. NEUTRAL/BEAR)"
-            ],
-            "commands": [
-                "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_safe"
-            ],
-            "verify": ["MDD > -0.20", "Sharpe remains positive"]
-        })
+        top_actions.append(
+            {
+                "rank": 3,
+                "title": "Tighten Risk Controls (Deep Drawdown)",
+                "why": "Max Drawdown exceeds safety limits (e.g., < -25%).",
+                "changes": [
+                    "Reduce Position Size (size_notional_usd)",
+                    "Reduce Max Leverage",
+                    "Implement 'HOLD' logic for adverse regimes (e.g. NEUTRAL/BEAR)",
+                ],
+                "commands": [
+                    "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_safe"
+                ],
+                "verify": ["MDD > -0.20", "Sharpe remains positive"],
+            }
+        )
 
     # D. Exposure
     if has_high_exposure:
-        top_actions.append({
-            "rank": 4,
-            "title": "Reduce Market Exposure",
-            "why": "Time in market exceeds threshold (e.g., > 98%), risking over-exposure.",
-            "changes": [
-                "Add Max Hold Time (bars) exit",
-                "Require Stricter Re-entry logic (e.g., opposite signal)"
-            ],
-            "commands": [
-                "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_low_exposure"
-            ],
-            "verify": ["Exposure Time < 0.90"]
-        })
+        top_actions.append(
+            {
+                "rank": 4,
+                "title": "Reduce Market Exposure",
+                "why": "Time in market exceeds threshold (e.g., > 98%), risking over-exposure.",
+                "changes": [
+                    "Add Max Hold Time (bars) exit",
+                    "Require Stricter Re-entry logic (e.g., opposite signal)",
+                ],
+                "commands": [
+                    "scripts/run_backtest.py --strategy vwap_supertrend --grid preset_low_exposure"
+                ],
+                "verify": ["Exposure Time < 0.90"],
+            }
+        )
 
     # E. Regime Specific (Optimizer)
     if not top_actions and regime_failures:
         # If no global issues but specific regimes fail
         for reg, wins in regime_failures.items():
             if reg in ["BULL", "BEAR", "NEUTRAL"]:
-                top_actions.append({
-                    "rank": 5,
-                    "title": f"optimize {reg} Regime Parameters",
-                    "why": f"Windows in {reg} regime are failing ({', '.join(wins)}).",
-                    "changes": [f"Apply optimized parameters for {reg} from optimizer_regime.json"],
-                    "commands": [
-                        "python3 scripts/generate_optimizer_regime_artifact.py",
-                        f"scripts/run_backtest.py --mode {reg} --grid preset_optimized_{reg.lower()}"
-                    ],
-                    "verify": [f"{reg} Window Sharpe > 0.5"]
-                })
+                top_actions.append(
+                    {
+                        "rank": 5,
+                        "title": f"optimize {reg} Regime Parameters",
+                        "why": f"Windows in {reg} regime are failing ({', '.join(wins)}).",
+                        "changes": [
+                            f"Apply optimized parameters for {reg} from optimizer_regime.json"
+                        ],
+                        "commands": [
+                            "python3 scripts/generate_optimizer_regime_artifact.py",
+                            f"scripts/run_backtest.py --mode {reg} --grid preset_optimized_{reg.lower()}",
+                        ],
+                        "verify": [f"{reg} Window Sharpe > 0.5"],
+                    }
+                )
 
     # Sort and slice
     top_actions.sort(key=lambda x: x["rank"])
@@ -244,12 +267,12 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
         "source": {
             "type": source_type,
             "run_dir": str(run_dir) if run_dir else None,
-            "walkforward": str(wf_path) if wf_data else None
+            "walkforward": str(wf_path) if wf_data else None,
         },
-        "decision": "UNKNOWN", # Could infer from selection.json or notes
+        "decision": "UNKNOWN",  # Could infer from selection.json or notes
         "overall_gate": "FAIL" if failing_windows_list else "PASS",
         "top_actions": top_actions,
-        "failing_windows": failing_windows_list
+        "failing_windows": failing_windows_list,
     }
 
     # Save JSON and MD (same as before)
@@ -271,11 +294,11 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
                 f.write(f"### {act['rank']}. {act['title']}\n")
                 f.write(f"**Why:** {act['why']}\n\n")
                 f.write("**Suggested Changes:**\n")
-                for c in act['changes']:
+                for c in act["changes"]:
                     f.write(f"- {c}\n")
                 f.write("\n**Run Command:**\n")
                 f.write("```bash\n")
-                for cmd in act['commands']:
+                for cmd in act["commands"]:
                     f.write(f"{cmd}\n")
                 f.write("```\n")
                 f.write(f"**Verify:** {', '.join(act['verify'])}\n\n")
@@ -289,12 +312,19 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
             f.write("|---|---|---|---|---|---|---|\n")
             for w in failing_windows:
                 # Safe formatting
-                s_sh = f"{w.get('sharpe', 0.0):.2f}" if w.get('sharpe') is not None else "-"
-                s_mdd = f"{w.get('mdd', 0.0):.2%}" if w.get('mdd') is not None else "-"
-                s_tr = str(w.get('trades', "-"))
-                f.write(f"| {w['name']} | {w['regime']} | {w['gate']} | {s_sh} | {s_mdd} | {s_tr} | {w['notes']} |\n")
+                s_sh = (
+                    f"{w.get('sharpe', 0.0):.2f}"
+                    if w.get("sharpe") is not None
+                    else "-"
+                )
+                s_mdd = f"{w.get('mdd', 0.0):.2%}" if w.get("mdd") is not None else "-"
+                s_tr = str(w.get("trades", "-"))
+                f.write(
+                    f"| {w['name']} | {w['regime']} | {w['gate']} | {s_sh} | {s_mdd} | {s_tr} | {w['notes']} |\n"
+                )
 
     print(f"Generated {md_out} and {json_out}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

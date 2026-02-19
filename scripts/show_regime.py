@@ -23,13 +23,14 @@ def demo_regime():
     labeler = RegimeLabeler()
     labels = labeler.label_regime(df_4h)
 
-    df_4h['regime'] = labels
+    df_4h["regime"] = labels
 
     print("\nRecent Regimes:")
-    print(df_4h[['close', 'regime']].tail(10))
+    print(df_4h[["close", "regime"]].tail(10))
 
     print("\nRegime Distribution:")
     print(labels.value_counts(normalize=True))
+
 
 if __name__ == "__main__":
     demo_regime()

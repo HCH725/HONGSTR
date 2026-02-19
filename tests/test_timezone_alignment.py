@@ -22,6 +22,7 @@ def test_timezone_conversion_alignment():
     assert ts_local.minute == 0
     assert ts_local.second == 0
 
+
 def test_binance_start_alignment():
     # Spec start: 2020-01-01 00:00:00 GMT+8
     # Should be 2019-12-31 16:00:00 UTC

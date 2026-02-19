@@ -10,14 +10,18 @@ from hongstr.data.quality import report_metrics
 def mock_1m_data():
     # 2 hours of data (120 min)
     idx = pd.date_range("2024-01-01 00:00:00", periods=120, freq="1min")
-    df = pd.DataFrame({
-        "open": np.arange(120),
-        "high": np.arange(120) + 1,
-        "low": np.arange(120) - 1,
-        "close": np.arange(120) + 0.5,
-        "volume": np.ones(120) * 100
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": np.arange(120),
+            "high": np.arange(120) + 1,
+            "low": np.arange(120) - 1,
+            "close": np.arange(120) + 0.5,
+            "volume": np.ones(120) * 100,
+        },
+        index=idx,
+    )
     return df
+
 
 def test_aggregation_1h(mock_1m_data):
     # Aggregate to 1h. Should produce 2 rows (00:00, 01:00)
@@ -38,12 +42,13 @@ def test_aggregation_1h(mock_1m_data):
     assert row0["close"] == 59.5
     assert row0["volume"] == 6000
 
+
 def test_missing_data_quality():
     # Create data with gap
     idx1 = pd.date_range("2024-01-01 00:00:00", periods=10, freq="1min")
     idx2 = pd.date_range("2024-01-01 00:20:00", periods=10, freq="1min")
-    df = pd.DataFrame(index=idx1.append(idx2)) # Gap of 10 mins (00:10..00:19)
-    df["close"] = 1.0 # dummy
+    df = pd.DataFrame(index=idx1.append(idx2))  # Gap of 10 mins (00:10..00:19)
+    df["close"] = 1.0  # dummy
 
     # Expected: 20 rows. Total range 00:00 to 00:29 (30 mins).
     # Missing: 10 mins.
@@ -52,4 +57,4 @@ def test_missing_data_quality():
     assert metrics["total_expected"] == 30
     assert metrics["actual"] == 20
     assert metrics["missing_count"] == 10
-    assert metrics["missing_ratio"] == 10/30
+    assert metrics["missing_ratio"] == 10 / 30

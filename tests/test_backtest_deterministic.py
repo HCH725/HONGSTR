@@ -1,4 +1,3 @@
-
 import json
 import os
 import shutil
@@ -20,8 +19,12 @@ class TestBacktestDeterministic(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
         self.python = sys.executable
-        self.script = os.path.join(os.path.dirname(__file__), "../scripts/run_backtest.py")
-        self.verify_script = os.path.join(os.path.dirname(__file__), "../scripts/verify_latest.py")
+        self.script = os.path.join(
+            os.path.dirname(__file__), "../scripts/run_backtest.py"
+        )
+        self.verify_script = os.path.join(
+            os.path.dirname(__file__), "../scripts/verify_latest.py"
+        )
 
     def tearDown(self):
         shutil.rmtree(self.test_dir)
@@ -32,12 +35,18 @@ class TestBacktestDeterministic(unittest.TestCase):
 
         # Run backtest with minimal range to be fast
         cmd = [
-            self.python, self.script,
-            "--symbols", "BTCUSDT",
-            "--timeframes", "1h",
-            "--start", "2024-01-01",
-            "--end", "2024-01-02",
-            "--out_dir", out_dir
+            self.python,
+            self.script,
+            "--symbols",
+            "BTCUSDT",
+            "--timeframes",
+            "1h",
+            "--start",
+            "2024-01-01",
+            "--end",
+            "2024-01-02",
+            "--out_dir",
+            out_dir,
         ]
 
         # We need data for this to work. Assuming data/derived exists from previous steps.
@@ -64,10 +73,14 @@ class TestBacktestDeterministic(unittest.TestCase):
 
             # Now verify with verify_latest.py --dir
             verify_cmd = [
-                self.python, self.verify_script,
-                "--dir", out_dir,
-                "--symbols", "BTCUSDT",
-                "--timeframes", "1h"
+                self.python,
+                self.verify_script,
+                "--dir",
+                out_dir,
+                "--symbols",
+                "BTCUSDT",
+                "--timeframes",
+                "1h",
             ]
             v_result = subprocess.run(verify_cmd, capture_output=True, text=True)
             self.assertEqual(v_result.returncode, 0)
@@ -76,6 +89,7 @@ class TestBacktestDeterministic(unittest.TestCase):
 
         else:
             print(f"Skipping summary check: Backtest output:\n{result.stdout}")
+
 
 if __name__ == "__main__":
     unittest.main()

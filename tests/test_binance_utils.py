@@ -25,7 +25,9 @@ def test_build_signed_request_deterministic():
     key = "my_api_key"
     secret = "my_secret"
 
-    url, headers, debug = build_signed_request("GET", base, path, params, key, secret, debug=True)
+    url, headers, debug = build_signed_request(
+        "GET", base, path, params, key, secret, debug=True
+    )
 
     # Check headers
     assert headers["X-MBX-APIKEY"] == key
@@ -56,6 +58,7 @@ def test_build_signed_request_deterministic():
     assert "Sent Mode:     sent_with_final_url_only: true" in debug
     assert "Note: urlencode performed exactly once on sorted items." in debug
 
+
 def test_signing_consistency():
     """Verify that the same params result in the same signature regardless of input order."""
     base = "https://test.com"
@@ -72,6 +75,7 @@ def test_signing_consistency():
 
     assert url1 == url2
     assert "a=1&b=2&timestamp=100" in url1
+
 
 def test_broker_request_uses_signed_url_only():
     """Verify broker sends signed params via requests.post and does not send body/json."""
@@ -103,6 +107,7 @@ def test_broker_request_uses_signed_url_only():
         assert kwargs["params"]["timestamp"] is not None
         assert kwargs.get("data") is None
         assert kwargs.get("json") is None
+
 
 def test_broker_request_has_empty_body():
     """Verify broker uses query params only (no body payload) for signed order requests."""

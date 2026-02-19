@@ -48,31 +48,32 @@ def run_smoke_test():
         # Simple: Buy at beginning, Hold?
         # Or: MA crossover stub? Need history.
         # Simplest: Buy if Close > Open and Position == 0. Exit if Close < Open and Position != 0.
-        is_green = row['close'] > row['open']
+        is_green = row["close"] > row["open"]
 
         if is_green:
-            return 'BUY' # Engine handles "if pos==0" check roughly, but better to be explicit in signal?
-                         # Engine _open_position checks if pos!=0 and returns. So safe to spam BUY.
+            return "BUY"  # Engine handles "if pos==0" check roughly, but better to be explicit in signal?
+            # Engine _open_position checks if pos!=0 and returns. So safe to spam BUY.
         else:
-            return 'EXIT'
+            return "EXIT"
 
     results = engine.run(dummy_strategy)
 
     print("\n--- Run Summary ---")
     print(f"Semantics Version: {results['semantics_version']}")
     print(f"Total Trades: {len(results['trades'])}")
-    metrics = results['full_metrics']
+    metrics = results["full_metrics"]
     print(f"Start Equity: {metrics.get('start_equity')}")
     print(f"End Equity:   {metrics.get('end_equity')}")
     print(f"Sharpe:       {metrics.get('sharpe')}")
     print(f"MaxDD:        {metrics.get('max_dd')}")
 
     print("\n--- OOS Splits ---")
-    for split, m in results['splits'].items():
+    for split, m in results["splits"].items():
         if m:
             print(f"{split}: Trades={m.get('total_trades')}, Sharpe={m.get('sharpe')}")
         else:
             print(f"{split}: No data")
+
 
 if __name__ == "__main__":
     run_smoke_test()

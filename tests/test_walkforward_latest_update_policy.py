@@ -90,7 +90,9 @@ class TestWalkforwardLatestUpdatePolicy(unittest.TestCase):
         )
         self.assertEqual(latest["run_id"], "run_ok")
         self.assertTrue(latest["latest_updated"])
-        self.assertIn("latest updated ->", Path("scripts/gate_all.sh").read_text(encoding="utf-8"))
+        self.assertIn(
+            "latest updated ->", Path("scripts/gate_all.sh").read_text(encoding="utf-8")
+        )
 
     def test_quick_mode_never_updates_latest(self):
         stale = {

@@ -20,7 +20,7 @@ class TestGateSummary(unittest.TestCase):
             "max_drawdown": -0.10,
             "exposure_time": 0.50,
             "sharpe": 1.5,
-            "total_return": 0.10
+            "total_return": 0.10,
         }
         gate_summary.check_metrics("TestPass", metrics, self.result)
         self.assertEqual(len(self.result.errors), 0)
@@ -28,10 +28,10 @@ class TestGateSummary(unittest.TestCase):
     def test_check_metrics_fail_trades(self):
         # Too few trades
         metrics = {
-            "trades_count": 10, # < 30
+            "trades_count": 10,  # < 30
             "max_drawdown": -0.10,
             "exposure_time": 0.50,
-            "sharpe": 1.5
+            "sharpe": 1.5,
         }
         gate_summary.check_metrics("TestFailTrades", metrics, self.result)
         self.assertTrue(any("Trades" in e for e in self.result.errors))
@@ -40,9 +40,9 @@ class TestGateSummary(unittest.TestCase):
         # MDD too deep (<= -0.25)
         metrics = {
             "trades_count": 50,
-            "max_drawdown": -0.30, # <= -0.25 check
+            "max_drawdown": -0.30,  # <= -0.25 check
             "exposure_time": 0.50,
-            "sharpe": 1.5
+            "sharpe": 1.5,
         }
         gate_summary.check_metrics("TestFailMDD", metrics, self.result)
         self.assertTrue(any("MaxDD" in e for e in self.result.errors))
@@ -53,7 +53,7 @@ class TestGateSummary(unittest.TestCase):
             "trades_count": 50,
             "max_drawdown": -0.10,
             "exposure_time": 0.50,
-            "sharpe": -0.5
+            "sharpe": -0.5,
         }
         gate_summary.check_metrics("TestFailSharpe", metrics, self.result)
         self.assertTrue(any("Sharpe" in e for e in self.result.errors))
@@ -67,15 +67,15 @@ class TestGateSummary(unittest.TestCase):
                     "max_drawdown": -0.05,
                     "exposure_time": 0.6,
                     "sharpe": 1.0,
-                    "total_return": 0.1
+                    "total_return": 0.1,
                 },
                 "BTCUSDT_4h": {
                     "trades_count": 40,
                     "max_drawdown": -0.1,
                     "exposure_time": 0.8,
                     "sharpe": 0.5,
-                    "total_return": 0.05
-                }
+                    "total_return": 0.05,
+                },
             }
         }
 
@@ -85,6 +85,7 @@ class TestGateSummary(unittest.TestCase):
             gate_summary.check_metrics(k, v, self.result)
 
         self.assertEqual(len(self.result.errors), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

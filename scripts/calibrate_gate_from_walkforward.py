@@ -17,6 +17,7 @@ def load_json(path: Path):
         print(f"Error loading {path}: {e}", file=sys.stderr)
         return None
 
+
 def calibrate():
     report_path = Path("reports/walkforward_latest.json")
     if not report_path.exists():
@@ -61,15 +62,19 @@ def calibrate():
             per_symbol_counts.append(sym_trades)
             # Check exposure per symbol/tf if needed
 
-        data_points.append({
-            "window": w["name"],
-            "days": window_days,
-            "trades": trades,
-            "trades_per_day": trades_per_day,
-            "exposure": exposure
-        })
+        data_points.append(
+            {
+                "window": w["name"],
+                "days": window_days,
+                "trades": trades,
+                "trades_per_day": trades_per_day,
+                "exposure": exposure,
+            }
+        )
 
-        print(f"  {w['name']}: {window_days} days, {trades} trades ({trades_per_day:.2f}/day), Exp={exposure:.2f}")
+        print(
+            f"  {w['name']}: {window_days} days, {trades} trades ({trades_per_day:.2f}/day), Exp={exposure:.2f}"
+        )
 
     if not data_points:
         print("No completed windows found.")
@@ -100,16 +105,16 @@ def calibrate():
             if tpd > best_tpd:
                 best_tpd = tpd
                 best_pass_rate = rate
-        elif rate > 0.8 and  best_pass_rate < 0.6:
-             # Fallback: if we can't get into 0.6-0.8 band, take best > 0.8
-             best_tpd = tpd
-             best_pass_rate = rate
+        elif rate > 0.8 and best_pass_rate < 0.6:
+            # Fallback: if we can't get into 0.6-0.8 band, take best > 0.8
+            best_tpd = tpd
+            best_pass_rate = rate
 
     # If no candidate fell in 0.6-0.8, pick the one closest to 0.7 or just 20th percentile
     if best_pass_rate < 0.1:
-         p20 = np.percentile(trades_per_day_vals, 20)
-         best_tpd = p20
-         print(f"  Fallback to 20th percentile: {best_tpd:.4f}")
+        p20 = np.percentile(trades_per_day_vals, 20)
+        best_tpd = p20
+        print(f"  Fallback to 20th percentile: {best_tpd:.4f}")
 
     # Portfolio Min
     # 10th percentile of absolute trades
@@ -117,14 +122,17 @@ def calibrate():
     suggested_portfolio_min = max(10, int(np.percentile(trades_vals, 10)))
 
     # Per Symbol Min
-    suggested_symbol_min = max(1, int(np.percentile(per_symbol_counts, 10))) if per_symbol_counts else 5
+    suggested_symbol_min = (
+        max(1, int(np.percentile(per_symbol_counts, 10))) if per_symbol_counts else 5
+    )
 
     # Exposure
     # Max observed? or 95th percentile?
     exposures = [d["exposure"] for d in data_points]
     max_exp_obs = max(exposures) if exposures else 1.0
-    suggested_exposure = min(1.0, max_exp_obs * 1.05) # Buffer
-    if suggested_exposure < 0.1: suggested_exposure = 1.0 # Default if low usage
+    suggested_exposure = min(1.0, max_exp_obs * 1.05)  # Buffer
+    if suggested_exposure < 0.1:
+        suggested_exposure = 1.0  # Default if low usage
 
     print("\n--- Calibration Results ---")
     print(f"Suggested Min Trades/Day: {best_tpd:.4f}")
@@ -138,18 +146,16 @@ def calibrate():
         "min_trades_portfolio_min": suggested_portfolio_min,
         "min_trades_per_symbol_min": suggested_symbol_min,
         "per_symbol_trade_check": "WARN",
-        "exposure_check": "WARN", # Default to warn based on variance
+        "exposure_check": "WARN",  # Default to warn based on variance
         "max_exposure": round(suggested_exposure, 2),
         "thresholds": {
-             "FULL": {
+            "FULL": {
                 "BULL": {"min_sharpe": 0.3, "max_mdd": -0.25},
                 "BEAR": {"min_sharpe": 0.1, "max_mdd": -0.30},
-                "NEUTRAL": {"min_sharpe": 0.2, "max_mdd": -0.25}
-             },
-             "SHORT": {
-                 "ANY": {"min_sharpe": 0.0, "max_mdd": -0.15}
-             }
-        }
+                "NEUTRAL": {"min_sharpe": 0.2, "max_mdd": -0.25},
+            },
+            "SHORT": {"ANY": {"min_sharpe": 0.0, "max_mdd": -0.15}},
+        },
     }
 
     out_json = Path("configs/gate_thresholds_suggested.json")
@@ -181,6 +187,7 @@ Copy `configs/gate_thresholds_suggested.json` to `configs/gate_thresholds.json` 
     with open("reports/gate_calibration_latest.md", "w") as f:
         f.write(md_content)
     print("Saved report to reports/gate_calibration_latest.md")
+
 
 if __name__ == "__main__":
     calibrate()

@@ -10,14 +10,18 @@ from hongstr.semantics.core import SemanticsV1
 def synthetic_data():
     # Create 48 hours of data (hourly)
     idx = pd.date_range("2024-02-01 00:00:00", periods=48, freq="1h", tz="Asia/Taipei")
-    df = pd.DataFrame({
-        "open": np.linspace(100, 105, 48),
-        "high": np.linspace(101, 106, 48),
-        "low": np.linspace(99, 104, 48),
-        "close": np.linspace(100.5, 105.5, 48),
-        "volume": 1000
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": np.linspace(100, 105, 48),
+            "high": np.linspace(101, 106, 48),
+            "low": np.linspace(99, 104, 48),
+            "close": np.linspace(100.5, 105.5, 48),
+            "volume": 1000,
+        },
+        index=idx,
+    )
     return df
+
 
 def test_backtest_smoke(synthetic_data):
     sem = SemanticsV1()
@@ -27,14 +31,14 @@ def test_backtest_smoke(synthetic_data):
     def strategy(row):
         # We need a way to know index in this simple stub, but row is just series.
         # Stateful hack for test only
-        if not hasattr(strategy, 'count'):
+        if not hasattr(strategy, "count"):
             strategy.count = 0
 
         strategy.count += 1
         if strategy.count == 1:
-            return 'LONG'
+            return "LONG"
         if strategy.count == 48:
-            return 'FLAT'
+            return "FLAT"
         return None
 
     results = engine.run("BTCUSDT", strategy)
