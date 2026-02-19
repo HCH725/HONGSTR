@@ -5,7 +5,7 @@ import time
 from collections import defaultdict, deque
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional, Deque
+from typing import Deque, Dict, List, Optional, Set
 
 import pandas as pd
 import aiofiles
@@ -275,4 +275,3 @@ class SignalEngine:
             await self.run_tail_jsonl(duration)
         else:
             logger.warning("Unsupported mode")
-
