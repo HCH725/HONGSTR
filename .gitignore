@@ -63,3 +63,6 @@ dashboard.log
 .pytest_cache/
 .ruff_cache/
 __pycache__/
+# Local-only artifacts (do not commit)
+_untracked_quarantine/
+_local/
