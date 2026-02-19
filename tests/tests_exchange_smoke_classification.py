@@ -20,7 +20,7 @@ def test_missing_env_keys_classified():
             with patch("scripts.exchange_smoke_test.requests.get") as req_get:
                 with patch("scripts.exchange_smoke_test.requests.request") as req:
                     rc = run_smoke(["--mode", "GET_ACCOUNT"])
-            assert rc == 2
+            assert rc == 0
             req_get.assert_not_called()
             req.assert_not_called()
             emit.assert_called_once()

@@ -95,3 +95,12 @@ Rerun artifacts to consume:
 - `reports/walkforward_rerun_latest.md`
 
 Gate must not treat rerun partial as FAIL/FATAL and must keep `walkforward_latest.*` full-suite-only.
+
+## Exchange Smoke Policy
+
+- Step: `python3 scripts/exchange_smoke_test.py --debug_signing`
+- Missing credentials are a deterministic WARN-with-success-exit path:
+  - token: `ENV_MISSING_KEYS missing=[BINANCE_API_KEY,BINANCE_API_SECRET]`
+  - script exit: `0` (non-blocking)
+  - gate class: `WARN` from `SMOKE_RESULT status=WARN reason=ENV_MISSING_KEYS`
+- If keys are present but auth/signing/network fails, the script returns non-zero and gate classifies by reason (`AUTH_REJECTED`, `SIGNATURE_MISMATCH`, `NETWORK_ERROR`, etc.).

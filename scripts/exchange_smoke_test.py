@@ -13,6 +13,7 @@ from hongstr.execution.binance_utils import build_signed_request
 RC_PASS = 0
 RC_FAIL = 1
 RC_WARN = 2
+REQUIRED_PRIVATE_KEYS = ("BINANCE_API_KEY", "BINANCE_API_SECRET")
 
 
 def emit_result(status: str, reason: str, http_code: str, endpoint: str, elapsed_ms: int) -> None:
@@ -61,6 +62,26 @@ def mode_endpoint(mode: str) -> str:
     return "/fapi/v2/account"
 
 
+def missing_private_keys(api_key: str, api_secret: str) -> list[str]:
+    key_pairs = (
+        ("BINANCE_API_KEY", api_key),
+        ("BINANCE_API_SECRET", api_secret),
+    )
+    return [name for name, value in key_pairs if not value]
+
+
+def emit_missing_keys_warning(missing: list[str], classify_only: bool) -> None:
+    missing_csv = ",".join(missing)
+    print(f"ENV_MISSING_KEYS missing=[{missing_csv}]")
+    print(f"Required env vars for GET_ACCOUNT: {', '.join(REQUIRED_PRIVATE_KEYS)}")
+    if classify_only:
+        print("No network calls made: classify_only mode with missing keys.")
+    else:
+        print("Private account endpoint intentionally not run due to missing keys.")
+        print("No network calls made for GET_ACCOUNT mode.")
+    print("remediation: export BINANCE_API_KEY=... && export BINANCE_API_SECRET=...")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Binance Futures smoke diagnostics")
     parser.add_argument(
@@ -89,20 +110,19 @@ def main() -> int:
 
     start_ms = int(time.time() * 1000)
     if args.classify_only:
-        if args.mode == "GET_ACCOUNT" and (not api_key or not api_secret):
-            print("Required env vars for GET_ACCOUNT: BINANCE_API_KEY, BINANCE_API_SECRET")
-            print("No network calls made: classify_only mode with missing keys.")
+        missing = missing_private_keys(api_key, api_secret)
+        if args.mode == "GET_ACCOUNT" and missing:
+            emit_missing_keys_warning(missing, classify_only=True)
             emit_result("WARN", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
-            return RC_WARN
+            return RC_PASS
         emit_result("PASS", "CLASSIFY_ONLY", "NA", endpoint, int(time.time() * 1000) - start_ms)
         return RC_PASS
 
-    if args.mode == "GET_ACCOUNT" and (not api_key or not api_secret):
-        print("Required env vars for GET_ACCOUNT: BINANCE_API_KEY, BINANCE_API_SECRET")
-        print("Private account endpoint intentionally not run due to missing keys.")
-        print("No network calls made for GET_ACCOUNT mode.")
+    missing = missing_private_keys(api_key, api_secret)
+    if args.mode == "GET_ACCOUNT" and missing:
+        emit_missing_keys_warning(missing, classify_only=False)
         emit_result("WARN", "ENV_MISSING_KEYS", "NA", endpoint, int(time.time() * 1000) - start_ms)
-        return RC_WARN
+        return RC_PASS
 
     try:
         if args.mode == "PING":

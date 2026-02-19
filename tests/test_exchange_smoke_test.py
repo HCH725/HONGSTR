@@ -16,7 +16,15 @@ def run_main():
 def test_missing_env_vars():
     """Missing keys should degrade to WARN for GET_ACCOUNT mode."""
     with patch.dict(os.environ, {}, clear=True):
-        assert run_main() == 2
+        assert run_main() == 0
+
+
+def test_missing_env_vars_message(capsys):
+    with patch.dict(os.environ, {}, clear=True):
+        assert run_main() == 0
+    out = capsys.readouterr().out
+    assert "ENV_MISSING_KEYS missing=[BINANCE_API_KEY,BINANCE_API_SECRET]" in out
+    assert "remediation: export BINANCE_API_KEY=... && export BINANCE_API_SECRET=..." in out
 
 def test_testnet_mode_detection():
     """Test that base_url is set correctly based on env."""
