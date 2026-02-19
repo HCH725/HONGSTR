@@ -2,13 +2,27 @@ import argparse
 import os
 import sys
 import time
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
-import requests
+
+def _suppress_notopenssl_warning() -> None:
+    # Suppress only urllib3's LibreSSL/OpenSSL compatibility warning.
+    warnings.filterwarnings(
+        "ignore",
+        message=r"urllib3 v2 only supports OpenSSL 1\.1\.1\+.*",
+        category=Warning,
+        module=r"urllib3",
+    )
+
+
+_suppress_notopenssl_warning()
+
+import requests  # noqa: E402
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
-from hongstr.execution.binance_utils import build_signed_request
+from hongstr.execution.binance_utils import build_signed_request  # noqa: E402
 
 RC_PASS = 0
 RC_FAIL = 1

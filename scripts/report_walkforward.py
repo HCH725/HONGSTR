@@ -472,26 +472,38 @@ def main() -> int:
     )
     run_dir_exists = run_dir.exists()
     is_latest_run = is_latest_suite_run(reports_dir, run_id)
-    success_ready = (
-        report["status"] == "COMPLETED"
-        and report["windows_completed"] == report["windows_total"]
+    quick_success_ready = (
+        args.suite_mode == "QUICK"
+        and report["windows_selected"] > 0
         and report["windows_failed"] == 0
         and not has_terminal_fail
+        and report["windows_completed"] == report["windows_selected"]
+    )
+    success_ready = (
+        (quick_success_ready or report["status"] == "COMPLETED")
         and run_dir_exists
         and is_latest_run
         and not args.no_latest_update
-        and args.suite_mode == "FULL_SUITE"
+        and args.suite_mode in {"FULL_SUITE", "QUICK"}
     )
 
     if success_ready:
+        latest_policy = (
+            "allow_update_quick_completed"
+            if args.suite_mode == "QUICK"
+            else "allow_update_full_suite_completed"
+        )
+        latest_policy_tag = (
+            "QUICK_COMPLETED" if args.suite_mode == "QUICK" else "FULL_SUITE_COMPLETED"
+        )
         report["latest_updated"] = True
         report["latest_warning_reason"] = "LATEST_UPDATED"
         report["latest_update_reason"] = (
-            "LATEST_UPDATED policy=FULL_SUITE_COMPLETED "
+            f"LATEST_UPDATED policy={latest_policy_tag} "
             f"completed={report['windows_completed']}/{report['windows_total']}"
         )
         report["latest_update_path"] = str((reports_dir / "walkforward_latest.json"))
-        report["latest_pointer_policy"] = "allow_update_full_suite_completed"
+        report["latest_pointer_policy"] = latest_policy
     else:
         report["latest_updated"] = False
         report["latest_update_path"] = ""

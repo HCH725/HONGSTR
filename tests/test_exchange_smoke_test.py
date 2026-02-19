@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -79,3 +80,20 @@ def test_production_mode_detection():
                 assert run_main() == 0
                 args, _ = mock_req.call_args
                 assert "fapi.binance.com" in args[1]
+
+
+def test_classify_only_suppresses_notopenssl_warning():
+    root = Path(__file__).parent.parent
+    env = os.environ.copy()
+    env.pop("BINANCE_API_KEY", None)
+    env.pop("BINANCE_API_SECRET", None)
+    cp = subprocess.run(
+        ["python3", "scripts/exchange_smoke_test.py", "--classify_only"],
+        cwd=str(root),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert cp.returncode == 0
+    assert "NotOpenSSLWarning" not in cp.stderr
