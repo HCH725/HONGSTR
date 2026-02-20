@@ -47,6 +47,9 @@ def get_file_mtime(path):
 
 
 def get_backtest_runs(base_dir, limit=50):
+    run_dirs = [p for p in base_dir.glob("*/*") if p.is_dir()]
+    total_runs = len(run_dirs)
+
     # Find all summary.json files
     pattern = str(base_dir / "*" / "*" / "summary.json")
     files = glob.glob(pattern)
@@ -61,7 +64,7 @@ def get_backtest_runs(base_dir, limit=50):
         )
     # Sort by mtime desc
     runs.sort(key=lambda x: x["mtime"], reverse=True)
-    return runs[:limit]
+    return runs[:limit], total_runs
 
 
 def format_delta(dt):
@@ -130,8 +133,12 @@ if auto_refresh:
 # Backtest Selection
 data_dir = PROJECT_ROOT / "data"
 backtest_dir = data_dir / "backtests"
-runs = get_backtest_runs(backtest_dir)
+run_limit = st.sidebar.slider("Loaded Runs Limit", 50, 500, 50, 50)
+runs, total_runs = get_backtest_runs(backtest_dir, limit=run_limit)
 run_options = {r["display"]: r for r in runs}
+st.sidebar.caption(
+    f"Loaded: {len(runs)} (limit={run_limit}) | Total detected: {total_runs}"
+)
 
 selected_run_display = st.sidebar.selectbox(
     "Selected Backtest Run",
@@ -235,10 +242,9 @@ with col2:
 
 with col3:
     st.subheader("System Info")
-    # Disk Usage (Approx)
-    # Just count files in data/backtests?
-    num_runs = len(runs)
-    st.metric("Total Backtests", num_runs)
+    st.metric("Total Backtests", total_runs)
+    st.caption(f"Loaded runs: {len(runs)} (limit={run_limit})")
+    st.caption("Note: scripts/retention_cleanup.sh may keep only latest N runs.")
 
     # Alerts Preview
     # Try logs/
