@@ -49,6 +49,9 @@ cp .env.example .env
 # TG_PARSE_MODE=Markdown
 # TG_DISABLE=0
 # TG_TIMEOUT=8
+# TG_RETRIES=3
+# TG_RETRY_BACKOFF_SEC=2
+# TG_CONNECT_TIMEOUT=5
 ```
 
 `scripts/load_env.sh` 會在執行時讀取 repo root `.env` 並 export。  
@@ -68,6 +71,20 @@ Launchd 注入有兩種方式：
 
 1. 直接在 plist 的 `EnvironmentVariables` 設定 `TG_BOT_TOKEN` / `TG_CHAT_ID`。
 2. 推薦：在 command 內 `source scripts/load_env.sh`，統一讀 repo root `.env`（目前模板使用這個方式）。
+
+Telegram sanity 檢查（不輸出 token/chat id 原文）：
+
+```bash
+bash scripts/tg_sanity.sh
+```
+
+`notify_telegram.sh` retry/backoff 可透過 `.env` 調整：
+
+- `TG_RETRIES`：重試次數（預設 `3`）
+- `TG_RETRY_BACKOFF_SEC`：退避秒數基數（預設 `2`，實際 2/4/8...）
+- `TG_CONNECT_TIMEOUT`：TCP connect timeout（預設 `5`）
+
+DNS 不穩時，Telegram 通知會輸出 WARN 並跳過，不會阻斷 ETL/backfill/recovery 主流程。
 
 範例（只替換 `__REPO_ROOT__`，不把 TG secret 注入 plist）：
 

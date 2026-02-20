@@ -15,6 +15,9 @@ tail_lines="60"
 parse_mode="${TG_PARSE_MODE:-Markdown}"
 tg_disable="${TG_DISABLE:-0}"
 tg_timeout="${TG_TIMEOUT:-8}"
+tg_retries="${TG_RETRIES:-3}"
+tg_backoff="${TG_RETRY_BACKOFF_SEC:-2}"
+tg_connect_timeout="${TG_CONNECT_TIMEOUT:-5}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -79,67 +82,133 @@ api_base="https://api.telegram.org/bot${tg_token}"
 send_msg_url="${api_base}/sendMessage"
 send_doc_url="${api_base}/sendDocument"
 
-send_message() {
-  local resp
-  if [[ -n "$parse_mode" ]]; then
-    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_msg_url" \
-      --data-urlencode "chat_id=${tg_chat_id}" \
-      --data-urlencode "text=${msg}" \
-      --data-urlencode "parse_mode=${parse_mode}" \
-      2>&1)" || {
-      echo "WARN: Telegram sendMessage failed: $resp" >&2
-      return 1
-    }
-  else
-    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_msg_url" \
-      --data-urlencode "chat_id=${tg_chat_id}" \
-      --data-urlencode "text=${msg}" \
-      2>&1)" || {
-      echo "WARN: Telegram sendMessage failed: $resp" >&2
-      return 1
-    }
-  fi
+if ! [[ "$tg_retries" =~ ^[0-9]+$ ]] || [[ "$tg_retries" -lt 1 ]]; then
+  tg_retries=3
+fi
+if ! [[ "$tg_backoff" =~ ^[0-9]+$ ]] || [[ "$tg_backoff" -lt 1 ]]; then
+  tg_backoff=2
+fi
+if ! [[ "$tg_connect_timeout" =~ ^[0-9]+$ ]] || [[ "$tg_connect_timeout" -lt 1 ]]; then
+  tg_connect_timeout=5
+fi
 
-  if ! grep -q '"ok":true' <<< "$resp"; then
-    echo "WARN: Telegram sendMessage response not ok: $resp" >&2
-    return 1
+extract_http_code() {
+  local payload="$1"
+  echo "$payload" | sed -n 's/.*__HTTP_CODE__:\([0-9][0-9][0-9]\).*/\1/p' | tail -n 1
+}
+
+extract_body() {
+  local payload="$1"
+  echo "$payload" | sed '/__HTTP_CODE__:[0-9][0-9][0-9]/d'
+}
+
+extract_desc() {
+  local body="$1"
+  local desc
+  desc="$(echo "$body" | sed -n 's/.*"description":"\([^"]*\)".*/\1/p' | head -n 1)"
+  if [[ -z "$desc" ]]; then
+    desc="$(echo "$body" | tr '\n' ' ' | cut -c1-160)"
   fi
-  echo "INFO: Telegram sendMessage ok"
-  return 0
+  echo "$desc"
+}
+
+retry_send() {
+  local action="$1"
+  shift
+  local attempt=1
+  local max_attempts="$tg_retries"
+  local last_reason="unknown"
+
+  while [[ "$attempt" -le "$max_attempts" ]]; do
+    local err_file="/tmp/hongstr_tg_err_${action}_${attempt}_$$.log"
+    local payload=""
+    set +e
+    payload="$(curl -sS --connect-timeout "$tg_connect_timeout" --max-time "$tg_timeout" -w $'\n__HTTP_CODE__:%{http_code}' "$@" 2>"$err_file")"
+    local curl_rc=$?
+    set -e
+    local err_text=""
+    [[ -f "$err_file" ]] && err_text="$(cat "$err_file")"
+    rm -f "$err_file" || true
+
+    local retryable=0
+    if [[ "$curl_rc" -eq 0 ]]; then
+      local body
+      body="$(extract_body "$payload")"
+      local http_code
+      http_code="$(extract_http_code "$payload")"
+      if grep -q '"ok":true' <<< "$body"; then
+        echo "INFO: Telegram ${action} ok"
+        return 0
+      fi
+
+      local desc
+      desc="$(extract_desc "$body")"
+      if [[ "$http_code" =~ ^5 ]]; then
+        last_reason="api_5xx(${http_code}): ${desc}"
+        retryable=1
+      elif [[ "$http_code" =~ ^4 ]]; then
+        last_reason="api_4xx(${http_code}): ${desc}"
+        retryable=0
+      else
+        last_reason="api_error(${http_code:-unknown}): ${desc}"
+        retryable=1
+      fi
+    else
+      if grep -qi "Could not resolve host" <<< "$err_text"; then
+        last_reason="dns: Could not resolve host"
+        retryable=1
+      elif [[ "$curl_rc" -eq 28 ]] || grep -Eqi "Operation timed out|timed out" <<< "$err_text"; then
+        last_reason="timeout"
+        retryable=1
+      else
+        last_reason="curl_exit_${curl_rc}: $(echo "$err_text" | tr '\n' ' ' | cut -c1-140)"
+        retryable=1
+      fi
+    fi
+
+    if [[ "$retryable" -eq 1 && "$attempt" -lt "$max_attempts" ]]; then
+      local sleep_sec=$((tg_backoff * (2 ** (attempt - 1))))
+      echo "WARN: Telegram ${action} attempt ${attempt}/${max_attempts} failed (${last_reason}); retry in ${sleep_sec}s" >&2
+      sleep "$sleep_sec"
+      attempt=$((attempt + 1))
+      continue
+    fi
+
+    break
+  done
+
+  echo "WARN: Telegram ${action} failed after ${attempt} attempts: ${last_reason}" >&2
+  return 1
+}
+
+send_message() {
+  if [[ -n "$parse_mode" ]]; then
+    retry_send "sendMessage" -X POST "$send_msg_url" \
+      --data-urlencode "chat_id=${tg_chat_id}" \
+      --data-urlencode "text=${msg}" \
+      --data-urlencode "parse_mode=${parse_mode}"
+  else
+    retry_send "sendMessage" -X POST "$send_msg_url" \
+      --data-urlencode "chat_id=${tg_chat_id}" \
+      --data-urlencode "text=${msg}"
+  fi
 }
 
 send_document() {
   local f="$1"
   [[ -f "$f" ]] || return 0
-
-  local resp
   if [[ -n "$parse_mode" ]]; then
-    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_doc_url" \
+    retry_send "sendDocument" -X POST "$send_doc_url" \
       -F "chat_id=${tg_chat_id}" \
       -F "caption=${prefix} ${title}" \
       -F "parse_mode=${parse_mode}" \
-      -F "document=@${f}" \
-      2>&1)" || {
-      echo "WARN: Telegram sendDocument failed: $resp" >&2
-      return 1
-    }
+      -F "document=@${f}"
   else
-    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_doc_url" \
+    retry_send "sendDocument" -X POST "$send_doc_url" \
       -F "chat_id=${tg_chat_id}" \
       -F "caption=${prefix} ${title}" \
-      -F "document=@${f}" \
-      2>&1)" || {
-      echo "WARN: Telegram sendDocument failed: $resp" >&2
-      return 1
-    }
+      -F "document=@${f}"
   fi
-
-  if ! grep -q '"ok":true' <<< "$resp"; then
-    echo "WARN: Telegram sendDocument response not ok: $resp" >&2
-    return 1
-  fi
-  echo "INFO: Telegram sendDocument ok"
-  return 0
 }
 
 send_message || true
