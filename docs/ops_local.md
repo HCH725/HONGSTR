@@ -135,6 +135,7 @@ Monitor system health, data freshness, and strategy details (Regime/Selection) v
 
 ```bash
 ./scripts/run_dashboard.sh
+bash scripts/healthcheck_dashboard.sh
 ```
 
 Use `http://127.0.0.1:8501` in your browser.

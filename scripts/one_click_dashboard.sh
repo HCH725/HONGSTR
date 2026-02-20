@@ -16,6 +16,7 @@ SKIP_WALKFORWARD=0
 OPEN_SAFARI=0
 LOG_PIPE="/tmp/hongstr_dashboard_pipeline.log"
 LOG_ST="/tmp/hongstr_streamlit_8501.log"
+ACTIVE_LOG_ST="$LOG_ST"
 
 usage() {
   cat <<'EOF'
@@ -355,12 +356,23 @@ ACTIVE_PORT="$PORT"
 start_streamlit() {
   local p="$1"
   local pidfile="/tmp/hongstr_streamlit_${p}.pid"
-  rm -f "$LOG_ST" "$pidfile" || true
+  local slog="$LOG_ST"
+  if [[ "$LOG_ST" == "/tmp/hongstr_streamlit_8501.log" ]]; then
+    slog="/tmp/hongstr_streamlit_${p}.log"
+  elif [[ "$p" != "$PORT" ]]; then
+    if [[ "$LOG_ST" == *.* ]]; then
+      slog="${LOG_ST%.*}_p${p}.${LOG_ST##*.}"
+    else
+      slog="${LOG_ST}_p${p}"
+    fi
+  fi
+  ACTIVE_LOG_ST="$slog"
+  rm -f "$ACTIVE_LOG_ST" "$pidfile" || true
   nohup streamlit run scripts/dashboard.py \
     --server.address "$HOST_127" \
     --server.port "$p" \
     --server.headless true \
-    < /dev/null >"$LOG_ST" 2>&1 &
+    < /dev/null >"$ACTIVE_LOG_ST" 2>&1 &
   local spid=$!
   disown "$spid" 2>/dev/null || true
   echo "$spid" > "$pidfile"
@@ -389,7 +401,7 @@ if ! start_streamlit "$ACTIVE_PORT"; then
   ACTIVE_PORT="$((ACTIVE_PORT + 1))"
   if ! start_streamlit "$ACTIVE_PORT"; then
     echo "ERROR: streamlit failed to start on both ports"
-    tail -n 120 "$LOG_ST" || true
+    tail -n 120 "$ACTIVE_LOG_ST" || true
     exit 4
   fi
 fi
@@ -397,21 +409,33 @@ fi
 echo "=== [5] SMOKE ==="
 if ! lsof -nP -iTCP:"$ACTIVE_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "ERROR: port $ACTIVE_PORT is not listening after startup"
-  tail -n 120 "$LOG_ST" || true
+  tail -n 120 "$ACTIVE_LOG_ST" || true
   exit 5
 fi
 if ! curl -fsS "http://$HOST_127:$ACTIVE_PORT/" >/dev/null; then
   echo "ERROR: HTTP check failed on http://$HOST_127:$ACTIVE_PORT/"
-  tail -n 120 "$LOG_ST" || true
+  tail -n 120 "$ACTIVE_LOG_ST" || true
   exit 6
 fi
 echo "HTTP_OK http://$HOST_127:$ACTIVE_PORT/"
 
 echo "=== [5.1] STREAMLIT ERROR SCAN ==="
-if egrep -n "Traceback|Exception|NoneType.__format__|unsupported format string passed to NoneType" "$LOG_ST"; then
+if egrep -n "Traceback|Exception|NoneType.__format__|unsupported format string passed to NoneType" "$ACTIVE_LOG_ST"; then
   echo "WARN: fatal patterns detected in streamlit log"
 else
   echo "OK: no fatal patterns in streamlit log"
+fi
+
+echo "=== [5.2] HEALTHCHECK ==="
+if [[ -f scripts/healthcheck_dashboard.sh ]]; then
+  if ! PORT="$ACTIVE_PORT" PID_FILE="/tmp/hongstr_streamlit_${ACTIVE_PORT}.pid" LOG_FILE="$ACTIVE_LOG_ST" bash scripts/healthcheck_dashboard.sh; then
+    echo "ERROR: final healthcheck failed"
+    exit 7
+  fi
+else
+  echo "ERROR: scripts/healthcheck_dashboard.sh not found."
+  echo "HINT: restore scripts/healthcheck_dashboard.sh before using one_click_dashboard.sh"
+  exit 8
 fi
 
 echo "=== [6] ARTIFACT SNAPSHOT ==="
@@ -443,7 +467,7 @@ fi
 echo "PIDFILE=/tmp/hongstr_streamlit_${ACTIVE_PORT}.pid"
 echo "LATEST_RUN_DIR=$LATEST_RUN_DIR"
 echo "PIPELINE_LOG=$LOG_PIPE"
-echo "STREAMLIT_LOG=$LOG_ST"
+echo "STREAMLIT_LOG=$ACTIVE_LOG_ST"
 
 if [[ "$OPEN_SAFARI" -eq 1 ]]; then
   if command -v open >/dev/null 2>&1; then
