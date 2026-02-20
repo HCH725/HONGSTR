@@ -8,6 +8,7 @@ SYMBOLS="BTCUSDT,ETHUSDT,BNBUSDT"
 START_DATE="2024-01-01"
 END_DATE="now"
 HOST="127.0.0.1"
+HOST_127="127.0.0.1"
 PORT="8501"
 SYNC_MAIN=0
 SKIP_BENCHMARK=0
@@ -96,18 +97,18 @@ else
   # shellcheck disable=SC1091
   source ".venv/bin/activate"
 fi
-python -V
-python -m pip -q install -U pip >/dev/null || echo "WARN: pip upgrade skipped (offline/blocked)"
+python3 -V
+python3 -m pip -q install -U pip >/dev/null || echo "WARN: pip upgrade skipped (offline/blocked)"
 if [[ -f requirements.txt ]]; then
-  python -m pip -q install -r requirements.txt >/dev/null || echo "WARN: requirements install skipped (offline/blocked)"
+  python3 -m pip -q install -r requirements.txt >/dev/null || echo "WARN: requirements install skipped (offline/blocked)"
 fi
-if ! python -m pip -q show streamlit >/dev/null; then
-  python -m pip -q install streamlit >/dev/null
+if ! python3 -m pip -q show streamlit >/dev/null; then
+  python3 -m pip -q install streamlit >/dev/null
 fi
 
 echo "=== [2] PREP DATA (prefer local parquet -> derived) ==="
 set +e
-python scripts/sync_derived_from_parquet.py \
+python3 scripts/sync_derived_from_parquet.py \
   --symbols "$SYMBOLS" \
   --start "$START_DATE" \
   --end "$END_DATE" \
@@ -120,13 +121,13 @@ if [[ "$SYNC_RC" -ne 0 ]]; then
   for sym in "${SYM_ARR[@]}"; do
     sym="$(echo "$sym" | xargs)"
     [[ -z "$sym" ]] && continue
-    python scripts/ingest_historical.py --symbol "$sym" --start "$START_DATE" --end "$END_DATE"
-    python scripts/aggregate_data.py --symbol "$sym" --tfs "1h,4h"
+    python3 scripts/ingest_historical.py --symbol "$sym" --start "$START_DATE" --end "$END_DATE"
+    python3 scripts/aggregate_data.py --symbol "$sym" --tfs "1h,4h"
   done
 fi
 
 echo "=== [2.1] BAR COUNTS ==="
-python - "$SYMBOLS" <<'PY'
+python3 - "$SYMBOLS" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -182,8 +183,8 @@ echo "LATEST_RUN_DIR=$LATEST_RUN_DIR"
 MAIN_RUN_DIR="$LATEST_RUN_DIR"
 
 echo "=== [3.1] ENSURE RUN ARTIFACTS ==="
-python scripts/generate_selection_artifact.py --run_dir "$LATEST_RUN_DIR" || true
-python scripts/generate_action_items.py --data_dir data || true
+python3 scripts/generate_selection_artifact.py --run_dir "$LATEST_RUN_DIR" || true
+python3 scripts/generate_action_items.py --data_dir data || true
 
 if [[ "$SKIP_BENCHMARK" -eq 0 ]]; then
   echo "=== [3.2] BENCHMARK SUITE ==="
@@ -204,7 +205,7 @@ if [[ "$SKIP_WALKFORWARD" -eq 0 ]]; then
   set -e
   echo "walkforward_suite rc=$WF_RC"
   set +e
-  python scripts/report_walkforward.py --suite_mode QUICK 2>&1 | tee -a "$LOG_PIPE"
+  python3 scripts/report_walkforward.py --suite_mode QUICK 2>&1 | tee -a "$LOG_PIPE"
   WFR_RC=${PIPESTATUS[0]}
   set -e
   echo "report_walkforward rc=$WFR_RC"
@@ -214,7 +215,7 @@ else
 fi
 
 echo "=== [3.4] FALLBACK LATEST ARTIFACTS ==="
-python - "$LATEST_RUN_DIR" <<'PY'
+python3 - "$LATEST_RUN_DIR" <<'PY'
 import json
 from datetime import datetime
 from pathlib import Path
@@ -330,7 +331,7 @@ if [[ -n "${MAIN_RUN_DIR:-}" && -f "$MAIN_RUN_DIR/summary.json" ]]; then
 fi
 
 echo "=== [3.6] RESYNC ACTION ITEMS TO PROMOTED RUN ==="
-python scripts/generate_action_items.py --data_dir data || true
+python3 scripts/generate_action_items.py --data_dir data || true
 
 echo "=== [4] RESTART STREAMLIT ==="
 if command -v lsof >/dev/null 2>&1; then
@@ -356,11 +357,12 @@ start_streamlit() {
   local pidfile="/tmp/hongstr_streamlit_${p}.pid"
   rm -f "$LOG_ST" "$pidfile" || true
   nohup streamlit run scripts/dashboard.py \
-    --server.address "$HOST" \
+    --server.address "$HOST_127" \
     --server.port "$p" \
     --server.headless true \
-    >"$LOG_ST" 2>&1 &
+    < /dev/null >"$LOG_ST" 2>&1 &
   local spid=$!
+  disown "$spid" 2>/dev/null || true
   echo "$spid" > "$pidfile"
   sleep 1
   if ! kill -0 "$spid" 2>/dev/null; then
@@ -370,7 +372,11 @@ start_streamlit() {
     if ! kill -0 "$spid" 2>/dev/null; then
       return 1
     fi
-    if curl -fsS "http://$HOST:$p/" >/dev/null 2>&1; then
+    if ! lsof -nP -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1; then
+      sleep 0.25
+      continue
+    fi
+    if curl -fsS "http://$HOST_127:$p/" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.25
@@ -389,8 +395,17 @@ if ! start_streamlit "$ACTIVE_PORT"; then
 fi
 
 echo "=== [5] SMOKE ==="
-curl -fsS "http://$HOST:$ACTIVE_PORT/" >/dev/null
-echo "HTTP_OK http://$HOST:$ACTIVE_PORT/"
+if ! lsof -nP -iTCP:"$ACTIVE_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "ERROR: port $ACTIVE_PORT is not listening after startup"
+  tail -n 120 "$LOG_ST" || true
+  exit 5
+fi
+if ! curl -fsS "http://$HOST_127:$ACTIVE_PORT/" >/dev/null; then
+  echo "ERROR: HTTP check failed on http://$HOST_127:$ACTIVE_PORT/"
+  tail -n 120 "$LOG_ST" || true
+  exit 6
+fi
+echo "HTTP_OK http://$HOST_127:$ACTIVE_PORT/"
 
 echo "=== [5.1] STREAMLIT ERROR SCAN ==="
 if egrep -n "Traceback|Exception|NoneType.__format__|unsupported format string passed to NoneType" "$LOG_ST"; then
@@ -420,10 +435,10 @@ do
 done
 
 echo "=== DONE ==="
-echo "URL=http://$HOST:$ACTIVE_PORT/"
+echo "URL_127=http://$HOST_127:$ACTIVE_PORT/"
 echo "URL_LOCALHOST=http://localhost:$ACTIVE_PORT/"
 if ! curl -fsS "http://localhost:$ACTIVE_PORT/" >/dev/null 2>&1; then
-  echo "WARN: localhost may resolve to IPv6 (::1) on some Macs. Prefer URL=http://$HOST:$ACTIVE_PORT/"
+  echo "WARN: localhost may resolve to IPv6 (::1) on some Macs. Prefer URL_127=http://$HOST_127:$ACTIVE_PORT/"
 fi
 echo "PIDFILE=/tmp/hongstr_streamlit_${ACTIVE_PORT}.pid"
 echo "LATEST_RUN_DIR=$LATEST_RUN_DIR"
@@ -432,6 +447,6 @@ echo "STREAMLIT_LOG=$LOG_ST"
 
 if [[ "$OPEN_SAFARI" -eq 1 ]]; then
   if command -v open >/dev/null 2>&1; then
-    open -a "Safari" "http://$HOST:$ACTIVE_PORT/?ts=$(date +%s)" || true
+    open -a "Safari" "http://$HOST_127:$ACTIVE_PORT/?ts=$(date +%s)" || true
   fi
 fi
