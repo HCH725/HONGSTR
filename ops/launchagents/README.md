@@ -18,15 +18,14 @@ These files contain a `__REPO_ROOT__` placeholder. **Do not copy them directly t
 
 Use the deployment instructions in [`docs/ops_local.md`](../../docs/ops_local.md) to replace the placeholder with your absolute repository path.
 
-### Telegram Placeholders
+### Telegram via `.env`
 
-`com.hongstr.daily_etl.plist` and `com.hongstr.weekly_backfill.plist` include:
+`com.hongstr.daily_etl.plist` and `com.hongstr.weekly_backfill.plist` now execute:
 
-- `__TG_BOT_TOKEN__`
-- `__TG_CHAT_ID__`
-- `__TG_PARSE_MODE__`
+- `source scripts/load_env.sh`
+- then run ETL/backfill script
 
-Do not commit real tokens. Replace placeholders only when generating local files in `~/Library/LaunchAgents`.
+This allows both interactive shell and launchd jobs to share the same repo-root `.env` without storing secrets in plist templates.
 
 ## Log Files
 

@@ -8,7 +8,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>cd __REPO_ROOT__ &amp;&amp; bash scripts/backfill_1m_from_2020.sh</string>
+        <string>cd __REPO_ROOT__ &amp;&amp; source scripts/load_env.sh &amp;&amp; bash scripts/backfill_1m_from_2020.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -25,12 +25,6 @@
         <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>PY</key>
         <string>__REPO_ROOT__/.venv/bin/python</string>
-        <key>TG_BOT_TOKEN</key>
-        <string>__TG_BOT_TOKEN__</string>
-        <key>TG_CHAT_ID</key>
-        <string>__TG_CHAT_ID__</string>
-        <key>TG_PARSE_MODE</key>
-        <string>__TG_PARSE_MODE__</string>
     </dict>
     <key>StandardOutPath</key>
     <string>__REPO_ROOT__/logs/launchd_weekly_backfill.out.log</string>

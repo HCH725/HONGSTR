@@ -39,18 +39,24 @@ HONGSTR relies on a clear distinction between realtime and historical data:
 
 ### Telegram 通知設定
 
-先在終端設定（僅本機 session）：
+在 repo root 建立 `.env`（從 `.env.example` 複製）：
 
 ```bash
-export TG_BOT_TOKEN="123456:your_bot_token"
-export TG_CHAT_ID="123456789"
-export TG_PARSE_MODE="HTML"   # optional: HTML or MarkdownV2
+cp .env.example .env
+# edit .env
+# TG_BOT_TOKEN=123456:your_bot_token
+# TG_CHAT_ID=123456789
+# TG_PARSE_MODE=Markdown
+# TG_DISABLE=0
+# TG_TIMEOUT=8
 ```
 
-`launchd` 不會自動繼承你互動 shell 的環境變數。  
-排程要生效，需把 TG_* 寫進本機 `~/Library/LaunchAgents/*.plist` 的 `EnvironmentVariables`。
+`scripts/load_env.sh` 會在執行時讀取 repo root `.env` 並 export。  
+`notify_telegram.sh`、`daily_etl.sh`、`backfill_1m_from_2020.sh`、`recover_dashboard_full.sh`、`check_data_coverage.sh` 都會載入它。
 
-範例（以模板產生本機 plist，token 不進 repo）：
+`launchd` 也會在 command 內先 `source scripts/load_env.sh`，所以排程與手動執行使用同一份 `.env`。
+
+範例（只替換 `__REPO_ROOT__`，不把 TG secret 注入 plist）：
 
 ```bash
 REPO_ROOT=/Users/hong/Projects/HONGSTR
@@ -58,17 +64,11 @@ mkdir -p ~/Library/LaunchAgents
 
 sed \
   -e "s|__REPO_ROOT__|$REPO_ROOT|g" \
-  -e "s|__TG_BOT_TOKEN__|$TG_BOT_TOKEN|g" \
-  -e "s|__TG_CHAT_ID__|$TG_CHAT_ID|g" \
-  -e "s|__TG_PARSE_MODE__|${TG_PARSE_MODE:-HTML}|g" \
   "$REPO_ROOT/ops/launchagents/com.hongstr.daily_etl.plist" \
   > "$HOME/Library/LaunchAgents/com.hongstr.daily_etl.plist"
 
 sed \
   -e "s|__REPO_ROOT__|$REPO_ROOT|g" \
-  -e "s|__TG_BOT_TOKEN__|$TG_BOT_TOKEN|g" \
-  -e "s|__TG_CHAT_ID__|$TG_CHAT_ID|g" \
-  -e "s|__TG_PARSE_MODE__|${TG_PARSE_MODE:-HTML}|g" \
   "$REPO_ROOT/ops/launchagents/com.hongstr.weekly_backfill.plist" \
   > "$HOME/Library/LaunchAgents/com.hongstr.weekly_backfill.plist"
 ```
