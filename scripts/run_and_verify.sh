@@ -6,12 +6,21 @@ set -euo pipefail
 
 MODE="foreground"
 PASSTHROUGH_ARGS=()
+NO_FAIL_ON_GATE=0
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --mode)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --mode requires a value (foreground|background)." >&2
+        exit 2
+      fi
       MODE="$2"
       shift 2
+      ;;
+    --no_fail_on_gate|--no-fail-on-gate)
+      NO_FAIL_ON_GATE=1
+      shift
       ;;
     *)
       PASSTHROUGH_ARGS+=("$1")
@@ -38,7 +47,41 @@ echo "=== HONGSTR Backtest Runner ==="
 echo "RUN_ID:  $RUN_ID"
 echo "OUT_DIR: $OUT_DIR"
 echo "MODE:    $MODE"
+echo "GATE:    $( [ "$NO_FAIL_ON_GATE" -eq 1 ] && echo "warn-only" || echo "strict" )"
 echo "LOG:     $LOG_FILE"
+
+extract_arg_value() {
+  local flag="$1"
+  local default_value="$2"
+  local value="$default_value"
+  local args=()
+  if (( ${#PASSTHROUGH_ARGS[@]} > 0 )); then
+    args=("${PASSTHROUGH_ARGS[@]}")
+  fi
+  local i
+  for ((i = 0; i < ${#args[@]}; i++)); do
+    if [[ "${args[$i]}" == "$flag" ]] && (( i + 1 < ${#args[@]} )); then
+      value="${args[$((i + 1))]}"
+    fi
+  done
+  echo "$value"
+}
+
+normalize_symbols() {
+  local raw="${1:-}"
+  if [[ -z "$raw" ]]; then
+    echo ""
+    return
+  fi
+  # Accept either CSV or space-separated symbols and normalize to CSV.
+  local squashed
+  squashed="$(echo "$raw" | tr ',\t\r\n' '    ' | xargs 2>/dev/null || true)"
+  if [[ -z "$squashed" ]]; then
+    echo ""
+    return
+  fi
+  echo "$squashed" | tr ' ' ','
+}
 
 # Prepare Python Command
 # We explicitly pass --out_dir to enforce deterministic output
@@ -46,8 +89,10 @@ CMD=(
   "./.venv/bin/python" "-u" "scripts/run_backtest.py"
   "--out_dir" "$OUT_DIR"
   "--run_id" "$RUN_ID"
-  "${PASSTHROUGH_ARGS[@]}"
 )
+if (( ${#PASSTHROUGH_ARGS[@]} > 0 )); then
+  CMD+=("${PASSTHROUGH_ARGS[@]}")
+fi
 
 if [ "$MODE" == "background" ]; then
   echo "Starting backtest in background..."
@@ -107,15 +152,19 @@ echo "--- Generating Regime Report ---"
 echo "--- Generating Regime Gate Artifact ---"
 G_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
 G_MODE="SHORT"
-for i in "${!PASSTHROUGH_ARGS[@]}"; do
-  if [[ "${PASSTHROUGH_ARGS[$i]}" == "--symbols" ]]; then
-    G_SYMS="${PASSTHROUGH_ARGS[$((i+1))]}"
-  fi
-  # If any passthrough arg contains 'FULL', assume FULL mode for gate
-  if [[ "${PASSTHROUGH_ARGS[$i]}" == *"FULL"* ]]; then
-    G_MODE="FULL"
-  fi
-done
+G_SYMS="$(extract_arg_value "--symbols" "$G_SYMS")"
+G_SYMS="$(normalize_symbols "$G_SYMS")"
+if [[ -z "$G_SYMS" ]]; then
+  G_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
+if (( ${#PASSTHROUGH_ARGS[@]} > 0 )); then
+  for arg in "${PASSTHROUGH_ARGS[@]}"; do
+    # If any passthrough arg contains 'FULL', assume FULL mode for gate.
+    if [[ "$arg" == *"FULL"* ]]; then
+      G_MODE="FULL"
+    fi
+  done
+fi
 ./.venv/bin/python scripts/generate_gate_artifact.py --dir "$OUT_DIR" --mode "$G_MODE" --symbols "$G_SYMS" --timeframe 4h
 
 # Generate Regime-Aware Optimization
@@ -134,11 +183,11 @@ echo "--- Verifying Results ---"
 # Let's verify with the same symbols passed to run_backtest.py if available.
 
 VERIFY_SYMS="BTCUSDT,ETHUSDT,BNBUSDT" # Default
-for i in "${!PASSTHROUGH_ARGS[@]}"; do
-  if [[ "${PASSTHROUGH_ARGS[$i]}" == "--symbols" ]]; then
-    VERIFY_SYMS="${PASSTHROUGH_ARGS[$((i+1))]}"
-  fi
-done
+VERIFY_SYMS="$(extract_arg_value "--symbols" "$VERIFY_SYMS")"
+VERIFY_SYMS="$(normalize_symbols "$VERIFY_SYMS")"
+if [[ -z "$VERIFY_SYMS" ]]; then
+  VERIFY_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
 
 ./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR" --symbols "$VERIFY_SYMS"
 
@@ -146,20 +195,28 @@ done
 echo "--- Checking Quality Gate ---"
 # Attempt to find symbols in passthrough args, fallback to default
 GATE_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
-for i in "${!PASSTHROUGH_ARGS[@]}"; do
-  if [[ "${PASSTHROUGH_ARGS[$i]}" == "--symbols" ]]; then
-    GATE_SYMS="${PASSTHROUGH_ARGS[$((i+1))]}"
-  fi
-done
+GATE_SYMS="$(extract_arg_value "--symbols" "$GATE_SYMS")"
+GATE_SYMS="$(normalize_symbols "$GATE_SYMS")"
+if [[ -z "$GATE_SYMS" ]]; then
+  GATE_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
 
+GATE_FAILED=0
 if ! ./.venv/bin/python scripts/gate_summary.py --dir "$OUT_DIR" --timeframes 1h,4h --symbols "$GATE_SYMS"; then
-    echo "Backtest failed quality gate."
-    echo "--- Generating Action Items ---"
-    ./.venv/bin/python scripts/generate_action_items.py --data_dir "data"
-    exit 2
+  GATE_FAILED=1
+  echo "Backtest failed quality gate."
 fi
 
 echo "--- Generating Action Items ---"
 ./.venv/bin/python scripts/generate_action_items.py --data_dir "data"
+
+if [ "$GATE_FAILED" -eq 1 ]; then
+  if [ "$NO_FAIL_ON_GATE" -eq 1 ]; then
+    echo "Gate failed but continue requested via --no_fail_on_gate."
+    echo "Done (with gate warning)."
+    exit 0
+  fi
+  exit 2
+fi
 
 echo "Done."

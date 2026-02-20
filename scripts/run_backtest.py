@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -77,6 +78,16 @@ def load_1m_data(data_root: str, symbol: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 
+def split_arg_values(raw: str, *, to_upper: bool = False, to_lower: bool = False):
+    """Parse comma/space separated CLI lists into non-empty tokens."""
+    tokens = [t.strip() for t in re.split(r"[,\s]+", raw or "") if t.strip()]
+    if to_upper:
+        return [t.upper() for t in tokens]
+    if to_lower:
+        return [t.lower() for t in tokens]
+    return tokens
+
+
 def main():
     parser = argparse.ArgumentParser(description="HONGSTR Offline Backtest Runner")
     parser.add_argument("--symbols", type=str, default="BTCUSDT,ETHUSDT,BNBUSDT")
@@ -97,8 +108,12 @@ def main():
     args = parser.parse_args()
 
     # 1. Prepare Environment
-    symbols = [s.strip() for s in args.symbols.split(",")]
-    timeframes = [tf.strip() for tf in args.timeframes.split(",")]
+    symbols = split_arg_values(args.symbols, to_upper=True)
+    timeframes = split_arg_values(args.timeframes, to_lower=True)
+    if not symbols:
+        parser.error("--symbols resolved to empty list")
+    if not timeframes:
+        parser.error("--timeframes resolved to empty list")
 
     date_str = datetime.utcnow().strftime("%Y-%m-%d")
 
@@ -133,7 +148,7 @@ def main():
                 f"Data missing for {symbol}. Expected in {args.data_root}/{symbol}/1m/"
             )
             print(
-                f"Please run: {py_exe} scripts/ingest_historical.py --symbol {symbol}"
+                f"Please run: {py_exe} scripts/ingest_historical.py --symbol {symbol} --tf 1m"
             )
             print(f"Then: {py_exe} scripts/aggregate_data.py --symbol {symbol}")
             continue

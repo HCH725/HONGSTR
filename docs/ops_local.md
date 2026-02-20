@@ -137,7 +137,8 @@ Monitor system health, data freshness, and strategy details (Regime/Selection) v
 ./scripts/run_dashboard.sh
 ```
 
-This will open `http://localhost:8501` in your browser.
+Use `http://127.0.0.1:8501` in your browser.
+(`localhost` may resolve to IPv6 `::1` first on macOS, which can be flaky in some setups.)
 
 **Features**:
 

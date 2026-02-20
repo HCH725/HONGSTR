@@ -23,6 +23,21 @@ SIZE_USD="1000"
 
 mkdir -p logs
 
+normalize_symbols_csv() {
+  local raw="${1:-}"
+  if [[ -z "$raw" ]]; then
+    echo ""
+    return
+  fi
+  local squashed
+  squashed="$(echo "$raw" | tr ',\t\r\n' '    ' | xargs 2>/dev/null || true)"
+  if [[ -z "$squashed" ]]; then
+    echo ""
+    return
+  fi
+  echo "$squashed" | tr ' ' ','
+}
+
 # ===== helper to run backtest + verify =====
 run_bt () {
   local TAG="$1"
@@ -48,9 +63,10 @@ run_bt () {
     --end "$END" \
     --size_notional_usd "$SIZE_USD" \
     --fee_bps "$FEE_BPS" \
-    --slippage_bps "$SLIP_BPS" 2>&1 | tee /dev/tty)
+    --slippage_bps "$SLIP_BPS" 2>&1)
   local EXIT_CODE=$?
   set -e
+  echo "$PIPE_OUT"
 
   if [[ $EXIT_CODE -ne 0 && $EXIT_CODE -ne 2 ]]; then
     echo "ERROR: Pipeline failed for ${TAG} with exit code ${EXIT_CODE}"
@@ -71,10 +87,70 @@ run_bt () {
 }
 
 # ===== date ranges =====
-NOW_UTC="$(date -u +%Y-%m-%d)"
+# Prefer dataset end date instead of wall-clock "now", so SHORT window stays valid
+# when local historical data is stale.
+NOW_UTC="$("$PY" - "$SYMBOLS" <<'PY'
+from datetime import datetime, timezone
+from pathlib import Path
+import json
+import pandas as pd
+import sys
+
+symbols = [s.strip().upper() for s in sys.argv[1].split(",") if s.strip()]
+latest = None
+
+for sym in symbols:
+    pq = Path("data") / f"{sym}_1m.parquet"
+    if pq.exists():
+        try:
+            col = pd.read_parquet(pq, columns=["open_time"])["open_time"]
+            ts = pd.to_datetime(col, utc=True).max()
+            if pd.notna(ts):
+                latest = ts if latest is None else max(latest, ts)
+                continue
+        except Exception:
+            pass
+
+    # Fallback: read last valid line from derived jsonl
+    j = Path("data/derived") / sym / "1m" / "klines.jsonl"
+    if j.exists():
+        try:
+            last_ts = None
+            with j.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        ts = rec.get("ts")
+                        if isinstance(ts, int):
+                            last_ts = ts
+                    except Exception:
+                        continue
+            if last_ts is not None:
+                ts = datetime.fromtimestamp(last_ts / 1000.0, tz=timezone.utc)
+                latest = ts if latest is None else max(latest, ts)
+        except Exception:
+            pass
+
+if latest is None:
+    latest = datetime.now(timezone.utc)
+print(latest.strftime("%Y-%m-%d"))
+PY
+)"
 # CLI Overrides (Simple parsing)
 START_FULL_VAL="2020-01-01"
-START_SHORT_VAL="$(date -u -v -90d +%Y-%m-%d 2>/dev/null || date -d '90 days ago' +%Y-%m-%d)"
+START_SHORT_VAL="$("$PY" - "$NOW_UTC" <<'PY'
+from datetime import timedelta
+import pandas as pd
+import sys
+
+end = pd.to_datetime(sys.argv[1], utc=True)
+start = end - timedelta(days=90)
+print(start.strftime("%Y-%m-%d"))
+PY
+)"
 
 # Parsing args (crude)
 while [[ $# -gt 0 ]]; do
@@ -85,6 +161,11 @@ while [[ $# -gt 0 ]]; do
     *) shift ;;
   esac
 done
+
+SYMBOLS="$(normalize_symbols_csv "$SYMBOLS")"
+if [[ -z "$SYMBOLS" ]]; then
+  SYMBOLS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
 
 # ===== execute =====
 run_bt "FULL"  "$START_FULL_VAL"  "$NOW_UTC"

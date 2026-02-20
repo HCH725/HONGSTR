@@ -72,3 +72,6 @@ _untracked_quarantine/
 _local/
 *.bak.*
 scripts/agent_*.sh
+
+# macOS
+.DS_Store
