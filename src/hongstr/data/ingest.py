@@ -7,7 +7,7 @@ from hongstr.config import BINANCE_API_KEY, DATA_DIR
 BASE_URL = "https://fapi.binance.com"
 LIMIT = 1500  # Max candles per request
 
-def fetch_klines(symbol: str, start_ts: int, end_ts: int) -> pd.DataFrame:
+def fetch_klines(symbol: str, start_ts: int, end_ts: int, max_consecutive_errors: int = 12) -> pd.DataFrame:
     """
     Fetch 1m klines from Binance Futures.
     start_ts, end_ts: milliseconds
@@ -15,6 +15,8 @@ def fetch_klines(symbol: str, start_ts: int, end_ts: int) -> pd.DataFrame:
     klines = []
     current_start = start_ts
     
+    consecutive_errors = 0
+
     while current_start < end_ts:
         url = f"{BASE_URL}/fapi/v1/klines"
         params = {
@@ -30,9 +32,18 @@ def fetch_klines(symbol: str, start_ts: int, end_ts: int) -> pd.DataFrame:
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
-            print(f"Error fetching {symbol} at {current_start}: {e}")
+            consecutive_errors += 1
+            print(f"Error fetching {symbol} at {current_start}: {e} (retry {consecutive_errors}/{max_consecutive_errors})")
+            if consecutive_errors >= max_consecutive_errors:
+                print(
+                    f"Abort fetch for {symbol}: reached max consecutive errors "
+                    f"at startTime={current_start}"
+                )
+                break
             time.sleep(5)
             continue
+
+        consecutive_errors = 0
             
         if not data:
             break
