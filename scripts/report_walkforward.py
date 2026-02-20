@@ -470,6 +470,12 @@ def main() -> int:
     has_terminal_fail = any(
         w["status"] in {"FAILED", "ERROR"} for w in report["windows"]
     )
+    quick_completed_windows = [
+        w for w in report["windows"] if w.get("status") == "COMPLETED"
+    ]
+    quick_all_gates_pass = bool(quick_completed_windows) and all(
+        (w.get("gate_overall") == "PASS") for w in quick_completed_windows
+    )
     run_dir_exists = run_dir.exists()
     is_latest_run = is_latest_suite_run(reports_dir, run_id)
     quick_success_ready = (
@@ -478,6 +484,7 @@ def main() -> int:
         and report["windows_failed"] == 0
         and not has_terminal_fail
         and report["windows_completed"] == report["windows_selected"]
+        and quick_all_gates_pass
     )
     success_ready = (
         (quick_success_ready or report["status"] == "COMPLETED")
@@ -515,12 +522,31 @@ def main() -> int:
             )
             report["latest_pointer_policy"] = "block_update_rerun"
         elif args.suite_mode == "QUICK":
-            report["latest_warning_reason"] = "LATEST_NOT_UPDATED_QUICK_MODE"
-            report["latest_update_reason"] = (
-                f"LATEST_NOT_UPDATED_QUICK_MODE suite_mode=QUICK "
-                f"completed={report['windows_completed']}/{report['windows_total']}"
-            )
-            report["latest_pointer_policy"] = "block_update_quick"
+            if (
+                report["windows_selected"] > 0
+                and report["windows_completed"] == report["windows_selected"]
+                and not quick_all_gates_pass
+            ):
+                failed_quick = [
+                    w.get("name")
+                    for w in quick_completed_windows
+                    if w.get("gate_overall") != "PASS"
+                ]
+                failed_quick = [name for name in failed_quick if name]
+                failed_hint = ",".join(failed_quick) if failed_quick else "unknown"
+                report["latest_warning_reason"] = "LATEST_NOT_UPDATED_QUICK_GATE_FAILED"
+                report["latest_update_reason"] = (
+                    "LATEST_NOT_UPDATED_QUICK_GATE_FAILED "
+                    f"suite_mode=QUICK failed_windows={failed_hint}"
+                )
+                report["latest_pointer_policy"] = "block_update_quick_gate_failed"
+            else:
+                report["latest_warning_reason"] = "LATEST_NOT_UPDATED_QUICK_MODE"
+                report["latest_update_reason"] = (
+                    f"LATEST_NOT_UPDATED_QUICK_MODE suite_mode=QUICK "
+                    f"completed={report['windows_completed']}/{report['windows_total']}"
+                )
+                report["latest_pointer_policy"] = "block_update_quick"
         elif report["windows_failed"] > 0 or has_terminal_fail:
             failed_windows = [
                 window["name"] for window in report["failed_windows_summary"]

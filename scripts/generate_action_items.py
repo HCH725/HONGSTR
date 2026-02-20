@@ -51,6 +51,19 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
         run_gate = load_json(run_dir / "gate.json")
         run_summary = load_json(run_dir / "summary.json")
 
+    # Prefer walkforward only when it is fresh and completed.
+    wf_is_preferred = False
+    if wf_data and wf_path.exists():
+        wf_status = str(wf_data.get("status", "")).upper()
+        latest_summary_path = run_dir / "summary.json" if run_dir else None
+        wf_mtime = wf_path.stat().st_mtime
+        latest_summary_mtime = (
+            latest_summary_path.stat().st_mtime
+            if latest_summary_path and latest_summary_path.exists()
+            else 0
+        )
+        wf_is_preferred = wf_status == "COMPLETED" and wf_mtime >= latest_summary_mtime
+
     # Deciding source: prefer Walkforward if recent?
     # Actually user said "Prefer walkforward_latest.json if exists".
     # But we might want to know if it's stale? For now, we use it if valid.
@@ -61,7 +74,7 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
 
     # Check if Walkforward is the primary context
     # We assume if wf_data exists, it's the "latest" set of runs
-    if wf_data:
+    if wf_data and wf_is_preferred:
         source_type = "WALKFORWARD"
         # Analyze failing windows
         windows = wf_data.get("windows", [])
@@ -92,7 +105,7 @@ def generate_action_items(reports_dir: Path, data_dir: Path):
                     elif "NEUTRAL" in name:
                         failing_windows[-1]["regime"] = "NEUTRAL"
 
-    # If no WF failures or no WF data, look at single run gate
+    # If no WF failures or WF is not preferred, look at single run gate
     if not failing_windows and run_gate:
         source_type = "SINGLE_RUN"
         # Check overall gate

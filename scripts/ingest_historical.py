@@ -94,9 +94,12 @@ def main():
     parser.add_argument("--end", type=str, default="now", help="End date")
     parser.add_argument(
         "--interval",
+        "--tf",
+        "--timeframe",
+        dest="interval",
         type=str,
         default="1m",
-        help="Interval (fixed to 1m for backtest source)",
+        help="Interval alias (--interval/--tf/--timeframe). Backtest source is fixed to 1m.",
     )
     parser.add_argument(
         "--data_root", type=str, default="data/derived", help="Data root directory"
@@ -110,6 +113,13 @@ def main():
         help="Overwrite existing klines.jsonl instead of merge+dedupe by timestamp",
     )
     args = parser.parse_args()
+    args.interval = (args.interval or "1m").strip().lower()
+    if args.interval != "1m":
+        print(
+            f"Warning: requested interval={args.interval} but only 1m is supported. "
+            "Using 1m."
+        )
+        args.interval = "1m"
 
     symbol = args.symbol.upper()
     start_ms = str_to_ms(args.start)

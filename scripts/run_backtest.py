@@ -133,7 +133,7 @@ def main():
                 f"Data missing for {symbol}. Expected in {args.data_root}/{symbol}/1m/"
             )
             print(
-                f"Please run: {py_exe} scripts/ingest_historical.py --symbol {symbol}"
+                f"Please run: {py_exe} scripts/ingest_historical.py --symbol {symbol} --tf 1m"
             )
             print(f"Then: {py_exe} scripts/aggregate_data.py --symbol {symbol}")
             continue

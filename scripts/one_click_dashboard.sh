@@ -12,6 +12,7 @@ PORT="8501"
 SYNC_MAIN=0
 SKIP_BENCHMARK=0
 SKIP_WALKFORWARD=0
+OPEN_SAFARI=0
 LOG_PIPE="/tmp/hongstr_dashboard_pipeline.log"
 LOG_ST="/tmp/hongstr_streamlit_8501.log"
 
@@ -28,6 +29,7 @@ Options:
   --sync-main               git checkout main && git pull --ff-only
   --skip-benchmark          Skip scripts/benchmark_suite.sh
   --skip-walkforward        Skip scripts/walkforward_suite.sh --quick
+  --open-safari             Open Safari with cache-busting URL at the end
   --log-pipe PATH           Default: /tmp/hongstr_dashboard_pipeline.log
   --log-streamlit PATH      Default: /tmp/hongstr_streamlit_8501.log
   -h, --help                Show this help
@@ -44,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     --sync-main) SYNC_MAIN=1; shift ;;
     --skip-benchmark) SKIP_BENCHMARK=1; shift ;;
     --skip-walkforward) SKIP_WALKFORWARD=1; shift ;;
+    --open-safari) OPEN_SAFARI=1; shift ;;
     --log-pipe) LOG_PIPE="$2"; shift 2 ;;
     --log-streamlit) LOG_ST="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
@@ -380,3 +383,9 @@ echo "URL=http://$HOST:$ACTIVE_PORT/"
 echo "LATEST_RUN_DIR=$LATEST_RUN_DIR"
 echo "PIPELINE_LOG=$LOG_PIPE"
 echo "STREAMLIT_LOG=$LOG_ST"
+
+if [[ "$OPEN_SAFARI" -eq 1 ]]; then
+  if command -v open >/dev/null 2>&1; then
+    open -a "Safari" "http://$HOST:$ACTIVE_PORT/?ts=$(date +%s)" || true
+  fi
+fi
