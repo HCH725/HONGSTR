@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+source "${REPO_ROOT}/scripts/load_env.sh"
+
 title=""
 body=""
 status="ok"
 link=""
 file=""
-parse_mode="${TG_PARSE_MODE:-}"
+parse_mode="${TG_PARSE_MODE:-Markdown}"
+tg_disable="${TG_DISABLE:-0}"
+tg_timeout="${TG_TIMEOUT:-8}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -15,12 +21,23 @@ while [[ $# -gt 0 ]]; do
     --status) status="${2:-ok}"; shift 2 ;;
     --link) link="${2:-}"; shift 2 ;;
     --file) file="${2:-}"; shift 2 ;;
-    *) echo "WARN: unknown arg: $1" >&2; shift ;;
+    *)
+      if [[ -z "$body" ]]; then
+        body="$1"
+      else
+        body="${body}\n$1"
+      fi
+      shift
+      ;;
   esac
 done
 
 tg_token="${TG_BOT_TOKEN:-}"
 tg_chat_id="${TG_CHAT_ID:-}"
+if [[ "$tg_disable" == "1" ]]; then
+  echo "WARN: Telegram disabled by TG_DISABLE=1; skip notify." >&2
+  exit 0
+fi
 if [[ -z "$tg_token" || -z "$tg_chat_id" || "$tg_token" == __TG_* || "$tg_chat_id" == __TG_* ]]; then
   echo "WARN: Telegram disabled (missing TG_BOT_TOKEN/TG_CHAT_ID); skip notify." >&2
   exit 0
@@ -49,7 +66,7 @@ send_doc_url="${api_base}/sendDocument"
 send_message() {
   local resp
   if [[ -n "$parse_mode" ]]; then
-    resp="$(curl -sS -X POST "$send_msg_url" \
+    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_msg_url" \
       --data-urlencode "chat_id=${tg_chat_id}" \
       --data-urlencode "text=${msg}" \
       --data-urlencode "parse_mode=${parse_mode}" \
@@ -58,7 +75,7 @@ send_message() {
       return 1
     }
   else
-    resp="$(curl -sS -X POST "$send_msg_url" \
+    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_msg_url" \
       --data-urlencode "chat_id=${tg_chat_id}" \
       --data-urlencode "text=${msg}" \
       2>&1)" || {
@@ -80,7 +97,7 @@ send_document() {
 
   local resp
   if [[ -n "$parse_mode" ]]; then
-    resp="$(curl -sS -X POST "$send_doc_url" \
+    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_doc_url" \
       -F "chat_id=${tg_chat_id}" \
       -F "caption=${prefix} ${title}" \
       -F "parse_mode=${parse_mode}" \
@@ -90,7 +107,7 @@ send_document() {
       return 1
     }
   else
-    resp="$(curl -sS -X POST "$send_doc_url" \
+    resp="$(curl -sS --max-time "$tg_timeout" -X POST "$send_doc_url" \
       -F "chat_id=${tg_chat_id}" \
       -F "caption=${prefix} ${title}" \
       -F "document=@${f}" \
