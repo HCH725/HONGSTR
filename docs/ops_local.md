@@ -58,6 +58,8 @@ We provide specialized scripts for monitoring:
 ```bash
 bash scripts/run_realtime_service.sh
 bash scripts/daily_etl.sh
+bash scripts/check_data_coverage.sh
+bash scripts/backfill_1m_from_2020.sh
 bash scripts/daily_backtest_healthcheck.sh
 bash scripts/retention_cleanup.sh
 ```
@@ -75,6 +77,7 @@ bash scripts/retention_cleanup.sh
 | `realtime_ws` | Always On | Live feed & signal generation | 14d gzip, 45d deletion |
 | `daily_etl` | 02:00 | Sync historical & derived data | N/A |
 | `daily_healthcheck` | 02:30 | Verify system integrity | N/A |
+| `weekly_backfill` | Sun 03:30 | Backfill 1m coverage from 2020 + dedupe | N/A |
 | `retention_cleanup` | 03:00 | Disk space management | Keep latest 50 runs |
 
 ## Verification & PKG-4 Commands
@@ -135,11 +138,30 @@ Monitor system health, data freshness, and strategy details (Regime/Selection) v
 
 ```bash
 ./scripts/run_dashboard.sh
+bash scripts/recover_dashboard_full.sh
+bash scripts/check_data_coverage.sh
 bash scripts/healthcheck_dashboard.sh
 ```
 
 Use `http://127.0.0.1:8501` in your browser.
 (`localhost` may resolve to IPv6 `::1` first on macOS, which can be flaky in some setups.)
+
+### Weekly Backfill LaunchAgent (Sunday 03:30)
+
+```bash
+REPO_ROOT=/Users/hong/Projects/HONGSTR
+mkdir -p ~/Library/LaunchAgents
+sed "s|__REPO_ROOT__|$REPO_ROOT|g" \
+  "$REPO_ROOT/ops/launchagents/com.hongstr.weekly_backfill.plist" \
+  > "$HOME/Library/LaunchAgents/com.hongstr.weekly_backfill.plist"
+
+launchctl bootout gui/$(id -u) "$HOME/Library/LaunchAgents/com.hongstr.weekly_backfill.plist" 2>/dev/null || true
+launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.hongstr.weekly_backfill.plist"
+launchctl kickstart -k gui/$(id -u)/com.hongstr.weekly_backfill
+
+tail -n 80 "$REPO_ROOT/logs/launchd_weekly_backfill.out.log"
+tail -n 80 "$REPO_ROOT/logs/launchd_weekly_backfill.err.log"
+```
 
 **Features**:
 
