@@ -339,19 +339,37 @@ if command -v lsof >/dev/null 2>&1; then
     kill $PIDS 2>/dev/null || true
   fi
 fi
+for pidfile in "/tmp/hongstr_streamlit_${PORT}.pid" "/tmp/hongstr_streamlit_$((PORT + 1)).pid"; do
+  if [[ -f "$pidfile" ]]; then
+    old_pid="$(cat "$pidfile" 2>/dev/null || true)"
+    if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
+      kill "$old_pid" 2>/dev/null || true
+    fi
+    rm -f "$pidfile" || true
+  fi
+done
 sleep 0.5
 
 ACTIVE_PORT="$PORT"
 start_streamlit() {
   local p="$1"
-  rm -f "$LOG_ST" || true
+  local pidfile="/tmp/hongstr_streamlit_${p}.pid"
+  rm -f "$LOG_ST" "$pidfile" || true
   nohup streamlit run scripts/dashboard.py \
     --server.address "$HOST" \
     --server.port "$p" \
     --server.headless true \
     >"$LOG_ST" 2>&1 &
+  local spid=$!
+  echo "$spid" > "$pidfile"
   sleep 1
+  if ! kill -0 "$spid" 2>/dev/null; then
+    return 1
+  fi
   for _ in $(seq 1 40); do
+    if ! kill -0 "$spid" 2>/dev/null; then
+      return 1
+    fi
     if curl -fsS "http://$HOST:$p/" >/dev/null 2>&1; then
       return 0
     fi
@@ -403,6 +421,11 @@ done
 
 echo "=== DONE ==="
 echo "URL=http://$HOST:$ACTIVE_PORT/"
+echo "URL_LOCALHOST=http://localhost:$ACTIVE_PORT/"
+if ! curl -fsS "http://localhost:$ACTIVE_PORT/" >/dev/null 2>&1; then
+  echo "WARN: localhost may resolve to IPv6 (::1) on some Macs. Prefer URL=http://$HOST:$ACTIVE_PORT/"
+fi
+echo "PIDFILE=/tmp/hongstr_streamlit_${ACTIVE_PORT}.pid"
 echo "LATEST_RUN_DIR=$LATEST_RUN_DIR"
 echo "PIPELINE_LOG=$LOG_PIPE"
 echo "STREAMLIT_LOG=$LOG_ST"
