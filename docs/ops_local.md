@@ -141,7 +141,7 @@ bash scripts/retention_cleanup.sh
 | `realtime_ws` | Always On | Live feed & signal generation | 14d gzip, 45d deletion |
 | `daily_etl` | 02:00 | Sync historical & derived data | N/A |
 | `daily_healthcheck` | 02:30 | Verify system integrity | N/A |
-| `retention_cleanup` | 03:00 | Disk space management | Keep latest 50 runs |
+| `retention_cleanup` | 03:00 | Disk space management | Keep latest 200 runs |
 
 ## Verification & PKG-4 Commands
 

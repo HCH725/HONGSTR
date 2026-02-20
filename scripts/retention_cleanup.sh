@@ -35,7 +35,7 @@ if [ -d "$REALTIME_DIR" ]; then
 fi
 
 # 2. Backtests
-# 保留 90 天；另外若 runs > 50，刪除最舊直到剩 50
+# 保留 90 天；另外若 runs > 200，刪除最舊直到剩 200
 if [ -d "$BACKTESTS_DIR" ]; then
     echo "Cleaning $BACKTESTS_DIR..."
     
@@ -45,14 +45,14 @@ if [ -d "$BACKTESTS_DIR" ]; then
         if $DRY_RUN; then echo "[DRY] rm -rf $line"; else rm -rf "$line"; fi
     done
     
-    # Keep latest 50
+    # Keep latest 200
     # Group by all runs under subfolders (YYYY-MM-DD/run_id)
     # Actually finding directories that contain summary.json or similar
     all_runs=$(find "$BACKTESTS_DIR" -mindepth 2 -maxdepth 2 -type d | xargs ls -td 2>/dev/null)
     count=$(echo "$all_runs" | wc -l)
     
-    if [ "$count" -gt 50 ]; then
-        to_del=$((count - 50))
+    if [ "$count" -gt 200 ]; then
+        to_del=$((count - 200))
         echo "Too many runs ($count), deleting oldest $to_del..."
         echo "$all_runs" | tail -n "$to_del" | while read -r line; do
             if $DRY_RUN; then echo "[DRY] rm -rf $line"; else rm -rf "$line"; fi
