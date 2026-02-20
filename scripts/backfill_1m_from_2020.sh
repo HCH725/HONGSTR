@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+source "${REPO_ROOT}/scripts/load_env.sh"
 
 RUN_LOG="/tmp/hongstr_weekly_backfill_$(date +%Y%m%d_%H%M%S).log"
 if ! exec > >(tee -a "$RUN_LOG") 2>&1; then
