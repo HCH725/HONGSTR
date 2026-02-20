@@ -67,6 +67,22 @@ extract_arg_value() {
   echo "$value"
 }
 
+normalize_symbols() {
+  local raw="${1:-}"
+  if [[ -z "$raw" ]]; then
+    echo ""
+    return
+  fi
+  # Accept either CSV or space-separated symbols and normalize to CSV.
+  local squashed
+  squashed="$(echo "$raw" | tr ',\t\r\n' '    ' | xargs 2>/dev/null || true)"
+  if [[ -z "$squashed" ]]; then
+    echo ""
+    return
+  fi
+  echo "$squashed" | tr ' ' ','
+}
+
 # Prepare Python Command
 # We explicitly pass --out_dir to enforce deterministic output
 CMD=(
@@ -137,6 +153,10 @@ echo "--- Generating Regime Gate Artifact ---"
 G_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
 G_MODE="SHORT"
 G_SYMS="$(extract_arg_value "--symbols" "$G_SYMS")"
+G_SYMS="$(normalize_symbols "$G_SYMS")"
+if [[ -z "$G_SYMS" ]]; then
+  G_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
 if (( ${#PASSTHROUGH_ARGS[@]} > 0 )); then
   for arg in "${PASSTHROUGH_ARGS[@]}"; do
     # If any passthrough arg contains 'FULL', assume FULL mode for gate.
@@ -164,6 +184,10 @@ echo "--- Verifying Results ---"
 
 VERIFY_SYMS="BTCUSDT,ETHUSDT,BNBUSDT" # Default
 VERIFY_SYMS="$(extract_arg_value "--symbols" "$VERIFY_SYMS")"
+VERIFY_SYMS="$(normalize_symbols "$VERIFY_SYMS")"
+if [[ -z "$VERIFY_SYMS" ]]; then
+  VERIFY_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
 
 ./.venv/bin/python scripts/verify_latest.py --dir "$OUT_DIR" --symbols "$VERIFY_SYMS"
 
@@ -172,6 +196,10 @@ echo "--- Checking Quality Gate ---"
 # Attempt to find symbols in passthrough args, fallback to default
 GATE_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
 GATE_SYMS="$(extract_arg_value "--symbols" "$GATE_SYMS")"
+GATE_SYMS="$(normalize_symbols "$GATE_SYMS")"
+if [[ -z "$GATE_SYMS" ]]; then
+  GATE_SYMS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
 
 GATE_FAILED=0
 if ! ./.venv/bin/python scripts/gate_summary.py --dir "$OUT_DIR" --timeframes 1h,4h --symbols "$GATE_SYMS"; then

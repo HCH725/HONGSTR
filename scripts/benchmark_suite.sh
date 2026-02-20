@@ -23,6 +23,21 @@ SIZE_USD="1000"
 
 mkdir -p logs
 
+normalize_symbols_csv() {
+  local raw="${1:-}"
+  if [[ -z "$raw" ]]; then
+    echo ""
+    return
+  fi
+  local squashed
+  squashed="$(echo "$raw" | tr ',\t\r\n' '    ' | xargs 2>/dev/null || true)"
+  if [[ -z "$squashed" ]]; then
+    echo ""
+    return
+  fi
+  echo "$squashed" | tr ' ' ','
+}
+
 # ===== helper to run backtest + verify =====
 run_bt () {
   local TAG="$1"
@@ -146,6 +161,11 @@ while [[ $# -gt 0 ]]; do
     *) shift ;;
   esac
 done
+
+SYMBOLS="$(normalize_symbols_csv "$SYMBOLS")"
+if [[ -z "$SYMBOLS" ]]; then
+  SYMBOLS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
 
 # ===== execute =====
 run_bt "FULL"  "$START_FULL_VAL"  "$NOW_UTC"

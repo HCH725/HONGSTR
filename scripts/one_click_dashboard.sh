@@ -54,6 +54,26 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+normalize_csv_symbols() {
+  local raw="${1:-}"
+  if [[ -z "$raw" ]]; then
+    echo ""
+    return
+  fi
+  local squashed
+  squashed="$(echo "$raw" | tr ',\t\r\n' '    ' | xargs 2>/dev/null || true)"
+  if [[ -z "$squashed" ]]; then
+    echo ""
+    return
+  fi
+  echo "$squashed" | tr ' ' ','
+}
+
+SYMBOLS="$(normalize_csv_symbols "$SYMBOLS")"
+if [[ -z "$SYMBOLS" ]]; then
+  SYMBOLS="BTCUSDT,ETHUSDT,BNBUSDT"
+fi
+
 echo "=== [0] SNAPSHOT ==="
 pwd
 git rev-parse --abbrev-ref HEAD
@@ -308,6 +328,9 @@ if [[ -n "${MAIN_RUN_DIR:-}" && -f "$MAIN_RUN_DIR/summary.json" ]]; then
   touch "$MAIN_RUN_DIR/summary.json" || true
   echo "PROMOTED_RUN=$MAIN_RUN_DIR"
 fi
+
+echo "=== [3.6] RESYNC ACTION ITEMS TO PROMOTED RUN ==="
+python scripts/generate_action_items.py --data_dir data || true
 
 echo "=== [4] RESTART STREAMLIT ==="
 if command -v lsof >/dev/null 2>&1; then
