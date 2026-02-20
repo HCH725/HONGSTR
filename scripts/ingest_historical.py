@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 from datetime import datetime
@@ -21,6 +22,67 @@ def str_to_ms(date_str: str) -> int:
     return int(dt.timestamp() * 1000)
 
 
+def parse_existing_record(raw: dict):
+    """Normalize existing jsonl rows to canonical {ts, open, high, low, close, volume}."""
+    if not isinstance(raw, dict):
+        return None
+
+    if "data" in raw:
+        k = (raw.get("data") or {}).get("k") or {}
+        ts_val = k.get("t")
+        o = k.get("o")
+        h = k.get("h")
+        l = k.get("l")
+        c = k.get("c")
+        v = k.get("v")
+    else:
+        ts_val = raw.get("ts")
+        o = raw.get("open", raw.get("o"))
+        h = raw.get("high", raw.get("h"))
+        l = raw.get("low", raw.get("l"))
+        c = raw.get("close", raw.get("c"))
+        v = raw.get("volume", raw.get("v"))
+
+    if ts_val is None:
+        return None
+    try:
+        if isinstance(ts_val, str):
+            ts_ms = int(pd.to_datetime(ts_val, utc=True).timestamp() * 1000)
+        else:
+            ts_ms = int(ts_val)
+        return {
+            "ts": ts_ms,
+            "open": float(o),
+            "high": float(h),
+            "low": float(l),
+            "close": float(c),
+            "volume": float(v),
+        }
+    except Exception:
+        return None
+
+
+def load_existing_rows(path: Path):
+    rows = {}
+    if not path.exists():
+        return rows
+
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            norm = parse_existing_record(rec)
+            if norm is None:
+                continue
+            rows[norm["ts"]] = norm
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Wrapper for historical data ingestion"
@@ -41,6 +103,11 @@ def main():
     )
     parser.add_argument(
         "--market", type=str, default="futures", help="Market type (futures/spot)"
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing klines.jsonl instead of merge+dedupe by timestamp",
     )
     args = parser.parse_args()
 
@@ -68,24 +135,40 @@ def main():
     # Backtest runner expects: {"ts": ..., "open": ..., "high": ..., "low": ..., "close": ..., "volume": ...}  # noqa: E501
     # fetch_klines returns df with numeric columns and ts as index.
 
-    df_out = df.copy()
+    df_out = df.copy().sort_index()
     df_out["ts"] = df_out.index.map(lambda x: int(x.timestamp() * 1000))
 
-    with open(out_file, "w") as f:
-        for _, row in df_out.iterrows():
-            record = {
-                "ts": int(row["ts"]),
-                "open": float(row["open"]),
-                "high": float(row["high"]),
-                "low": float(row["low"]),
-                "close": float(row["close"]),
-                "volume": float(row["volume"]),
-            }
-            import json
+    new_rows = {}
+    for _, row in df_out.iterrows():
+        ts = int(row["ts"])
+        new_rows[ts] = {
+            "ts": ts,
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"]),
+            "volume": float(row["volume"]),
+        }
 
-            f.write(json.dumps(record) + "\n")
+    existing_count = 0
+    if args.overwrite:
+        merged_rows = new_rows
+    else:
+        merged_rows = load_existing_rows(out_file)
+        existing_count = len(merged_rows)
+        merged_rows.update(new_rows)
 
-    print(f"Successfully saved {len(df)} rows to {out_file}")
+    ordered = [merged_rows[k] for k in sorted(merged_rows)]
+    tmp_file = out_file.with_suffix(".jsonl.tmp")
+    with open(tmp_file, "w", encoding="utf-8") as handle:
+        for rec in ordered:
+            handle.write(json.dumps(rec, separators=(",", ":")) + "\n")
+    tmp_file.replace(out_file)
+
+    print(
+        f"Saved {len(new_rows)} fetched rows; merged_total={len(ordered)} "
+        f"(existing={existing_count}, overwrite={args.overwrite}) -> {out_file}"
+    )
 
 
 if __name__ == "__main__":
