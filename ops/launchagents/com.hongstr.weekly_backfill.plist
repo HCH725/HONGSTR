@@ -3,19 +3,21 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.hongstr.daily_etl</string>
+    <string>com.hongstr.weekly_backfill</string>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>cd __REPO_ROOT__ &amp;&amp; bash scripts/daily_etl.sh</string>
+        <string>cd __REPO_ROOT__ &amp;&amp; bash scripts/backfill_1m_from_2020.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
-        <key>Hour</key>
-        <integer>2</integer>
-        <key>Minute</key>
+        <key>Weekday</key>
         <integer>0</integer>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>30</integer>
     </dict>
     <key>EnvironmentVariables</key>
     <dict>
@@ -31,8 +33,8 @@
         <string>__TG_PARSE_MODE__</string>
     </dict>
     <key>StandardOutPath</key>
-    <string>__REPO_ROOT__/logs/launchd_daily_etl.out.log</string>
+    <string>__REPO_ROOT__/logs/launchd_weekly_backfill.out.log</string>
     <key>StandardErrorPath</key>
-    <string>__REPO_ROOT__/logs/launchd_daily_etl.err.log</string>
+    <string>__REPO_ROOT__/logs/launchd_weekly_backfill.err.log</string>
 </dict>
 </plist>

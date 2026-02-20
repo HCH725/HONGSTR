@@ -37,6 +37,42 @@ HONGSTR relies on a clear distinction between realtime and historical data:
     done
     ```
 
+### Telegram 通知設定
+
+先在終端設定（僅本機 session）：
+
+```bash
+export TG_BOT_TOKEN="123456:your_bot_token"
+export TG_CHAT_ID="123456789"
+export TG_PARSE_MODE="HTML"   # optional: HTML or MarkdownV2
+```
+
+`launchd` 不會自動繼承你互動 shell 的環境變數。  
+排程要生效，需把 TG_* 寫進本機 `~/Library/LaunchAgents/*.plist` 的 `EnvironmentVariables`。
+
+範例（以模板產生本機 plist，token 不進 repo）：
+
+```bash
+REPO_ROOT=/Users/hong/Projects/HONGSTR
+mkdir -p ~/Library/LaunchAgents
+
+sed \
+  -e "s|__REPO_ROOT__|$REPO_ROOT|g" \
+  -e "s|__TG_BOT_TOKEN__|$TG_BOT_TOKEN|g" \
+  -e "s|__TG_CHAT_ID__|$TG_CHAT_ID|g" \
+  -e "s|__TG_PARSE_MODE__|${TG_PARSE_MODE:-HTML}|g" \
+  "$REPO_ROOT/ops/launchagents/com.hongstr.daily_etl.plist" \
+  > "$HOME/Library/LaunchAgents/com.hongstr.daily_etl.plist"
+
+sed \
+  -e "s|__REPO_ROOT__|$REPO_ROOT|g" \
+  -e "s|__TG_BOT_TOKEN__|$TG_BOT_TOKEN|g" \
+  -e "s|__TG_CHAT_ID__|$TG_CHAT_ID|g" \
+  -e "s|__TG_PARSE_MODE__|${TG_PARSE_MODE:-HTML}|g" \
+  "$REPO_ROOT/ops/launchagents/com.hongstr.weekly_backfill.plist" \
+  > "$HOME/Library/LaunchAgents/com.hongstr.weekly_backfill.plist"
+```
+
 ## Service Management
 
 ### Check Status
