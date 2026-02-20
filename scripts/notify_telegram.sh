@@ -10,6 +10,8 @@ body=""
 status="ok"
 link=""
 file=""
+log_tail=""
+tail_lines="60"
 parse_mode="${TG_PARSE_MODE:-Markdown}"
 tg_disable="${TG_DISABLE:-0}"
 tg_timeout="${TG_TIMEOUT:-8}"
@@ -21,6 +23,8 @@ while [[ $# -gt 0 ]]; do
     --status) status="${2:-ok}"; shift 2 ;;
     --link) link="${2:-}"; shift 2 ;;
     --file) file="${2:-}"; shift 2 ;;
+    --log-tail) log_tail="${2:-}"; shift 2 ;;
+    --tail-lines) tail_lines="${2:-60}"; shift 2 ;;
     *)
       if [[ -z "$body" ]]; then
         body="$1"
@@ -31,6 +35,18 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -n "$log_tail" && -f "$log_tail" ]]; then
+  tail_file="/tmp/hongstr_tg_tail_$(date +%Y%m%d_%H%M%S).log"
+  if [[ "$tail_lines" =~ ^[0-9]+$ ]]; then
+    tail -n "$tail_lines" "$log_tail" > "$tail_file" 2>/dev/null || true
+  else
+    tail -n 60 "$log_tail" > "$tail_file" 2>/dev/null || true
+  fi
+  if [[ -s "$tail_file" ]]; then
+    file="$tail_file"
+  fi
+fi
 
 tg_token="${TG_BOT_TOKEN:-}"
 tg_chat_id="${TG_CHAT_ID:-}"
@@ -88,6 +104,7 @@ send_message() {
     echo "WARN: Telegram sendMessage response not ok: $resp" >&2
     return 1
   fi
+  echo "INFO: Telegram sendMessage ok"
   return 0
 }
 
@@ -121,6 +138,7 @@ send_document() {
     echo "WARN: Telegram sendDocument response not ok: $resp" >&2
     return 1
   fi
+  echo "INFO: Telegram sendDocument ok"
   return 0
 }
 
