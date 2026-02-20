@@ -41,8 +41,6 @@ on_exit() {
     exit 0
   fi
 
-  local tail_file="/tmp/hongstr_daily_etl_fail_tail_$(date +%Y%m%d_%H%M%S).log"
-  tail -n 80 "$RUN_LOG" > "$tail_file" 2>/dev/null || true
   notify \
     --status fail \
     --title "ETL FAIL" \
@@ -50,8 +48,9 @@ on_exit() {
   notify \
     --status fail \
     --title "ETL FAIL LOG TAIL" \
-    --body "tail -n 80 attached" \
-    --file "$tail_file"
+    --body "tail -n 60 attached\nlog=$RUN_LOG" \
+    --log-tail "$RUN_LOG" \
+    --tail-lines 60
   exit "$rc"
 }
 trap on_exit EXIT

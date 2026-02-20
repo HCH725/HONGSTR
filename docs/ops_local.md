@@ -44,8 +44,8 @@ HONGSTR relies on a clear distinction between realtime and historical data:
 ```bash
 cp .env.example .env
 # edit .env
-# TG_BOT_TOKEN=123456:your_bot_token
-# TG_CHAT_ID=123456789
+# TG_BOT_TOKEN=
+# TG_CHAT_ID=
 # TG_PARSE_MODE=Markdown
 # TG_DISABLE=0
 # TG_TIMEOUT=8
@@ -55,6 +55,19 @@ cp .env.example .env
 `notify_telegram.sh`、`daily_etl.sh`、`backfill_1m_from_2020.sh`、`recover_dashboard_full.sh`、`check_data_coverage.sh` 都會載入它。
 
 `launchd` 也會在 command 內先 `source scripts/load_env.sh`，所以排程與手動執行使用同一份 `.env`。
+
+你也可以手動等價做法（推薦在腳本內使用）：
+
+```bash
+set -a
+[ -f .env ] && source .env
+set +a
+```
+
+Launchd 注入有兩種方式：
+
+1. 直接在 plist 的 `EnvironmentVariables` 設定 `TG_BOT_TOKEN` / `TG_CHAT_ID`。
+2. 推薦：在 command 內 `source scripts/load_env.sh`，統一讀 repo root `.env`（目前模板使用這個方式）。
 
 範例（只替換 `__REPO_ROOT__`，不把 TG secret 注入 plist）：
 

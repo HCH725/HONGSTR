@@ -32,21 +32,21 @@ on_exit() {
     exit 0
   fi
 
-  local tail_file="/tmp/hongstr_recover_fail_tail_$(date +%Y%m%d_%H%M%S).log"
-  {
-    echo "=== recover log tail ==="
-    tail -n 80 "$LOG_FILE" 2>/dev/null || true
-    echo
-    echo "=== streamlit log tail ==="
-    tail -n 120 /tmp/hongstr_streamlit_8501.log 2>/dev/null || true
-    tail -n 120 /tmp/hongstr_streamlit_8502.log 2>/dev/null || true
-  } > "$tail_file"
+  local st_log="/tmp/hongstr_streamlit_8501.log"
+  if [[ ! -f "$st_log" && -f /tmp/hongstr_streamlit_8502.log ]]; then
+    st_log="/tmp/hongstr_streamlit_8502.log"
+  fi
 
   notify \
     --status fail \
     --title "RECOVERY FAIL" \
-    --body "recover_dashboard_full failed.\nlog=$LOG_FILE" \
-    --file "$tail_file"
+    --body "recover_dashboard_full failed.\nlog=$LOG_FILE\nstreamlit_log=$st_log"
+  notify \
+    --status fail \
+    --title "RECOVERY FAIL STREAMLIT TAIL" \
+    --body "tail -n 60 attached\nstreamlit_log=$st_log" \
+    --log-tail "$st_log" \
+    --tail-lines 60
   exit "$rc"
 }
 trap on_exit EXIT
