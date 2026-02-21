@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import requests
 
@@ -23,7 +24,7 @@ class NullLLM(LLMAdapter):
             "summary": self.reason,
             "next_tasks": ["Continue pipeline execution without control-plane automation."],
             "remediation_suggestions": [
-                "Set HONGSTR_LLM_MODE=qwen and provide HONGSTR_LLM_ENDPOINT when local server is ready."
+                "Set HONGSTR_LLM_MODE=ollama (recommended) or qwen and configure endpoint/model."
             ],
             "actions": [],
             "notes": ["NullLLM fallback in use."],
@@ -74,16 +75,69 @@ class LocalQwenLLM(LLMAdapter):
         raise RuntimeError("Qwen endpoint returned unsupported response format")
 
 
+@dataclass
+class LocalOllamaLLM(LLMAdapter):
+    endpoint: str = "http://127.0.0.1:11434"
+    model: str = "qwen2.5:7b"
+    timeout: int = 8
+
+    def _chat_url(self) -> str:
+        base = self.endpoint.rstrip("/")
+        if base.endswith("/api/chat"):
+            return base
+        return f"{base}/api/chat"
+
+    @staticmethod
+    def _extract_content(data: Any) -> str:
+        if not isinstance(data, dict):
+            raise RuntimeError("Ollama endpoint returned non-object response")
+
+        message = data.get("message")
+        if isinstance(message, dict):
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                return content
+
+        response = data.get("response")
+        if isinstance(response, str) and response.strip():
+            return response
+
+        raise RuntimeError("Ollama response missing message.content/response")
+
+    def generate(self, decision_prompt: str) -> str:
+        payload = {
+            "model": self.model,
+            "stream": False,
+            "format": "json",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are HONGSTR control-plane advisor. Output strict JSON only. "
+                        "No markdown, no prose outside JSON."
+                    ),
+                },
+                {"role": "user", "content": decision_prompt},
+            ],
+        }
+        response = requests.post(self._chat_url(), json=payload, timeout=self.timeout)
+        response.raise_for_status()
+        return self._extract_content(response.json())
+
+
 def build_llm_from_env() -> tuple[LLMAdapter, str]:
     mode = os.getenv("HONGSTR_LLM_MODE", "null").strip().lower()
     endpoint = os.getenv("HONGSTR_LLM_ENDPOINT", "").strip()
-    model = os.getenv("HONGSTR_LLM_MODEL", "qwen")
+    model = os.getenv("HONGSTR_LLM_MODEL", "qwen2.5:7b")
     timeout = int(os.getenv("HONGSTR_LLM_TIMEOUT", "8"))
 
-    if mode != "qwen":
-        return NullLLM(reason="HONGSTR_LLM_MODE is not qwen"), "null"
+    if mode == "ollama":
+        endpoint = endpoint or "http://127.0.0.1:11434"
+        return LocalOllamaLLM(endpoint=endpoint, model=model, timeout=timeout), "ollama"
 
-    if not endpoint:
-        return NullLLM(reason="HONGSTR_LLM_ENDPOINT missing; fallback to null mode"), "null"
+    if mode == "qwen":
+        if not endpoint:
+            return NullLLM(reason="HONGSTR_LLM_ENDPOINT missing; fallback to null mode"), "null"
+        return LocalQwenLLM(endpoint=endpoint, model=model, timeout=timeout), "qwen"
 
-    return LocalQwenLLM(endpoint=endpoint, model=model, timeout=timeout), "qwen"
+    return NullLLM(reason="HONGSTR_LLM_MODE is not supported"), "null"
