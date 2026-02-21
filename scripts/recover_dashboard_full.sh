@@ -14,6 +14,7 @@ fi
 
 script_status="running"
 active_port="8501"
+USE_CP_REPORTS="${HONGSTR_USE_CONTROL_PLANE_REPORTS:-0}"
 
 notify() {
   bash scripts/notify_telegram.sh "$@" || true
@@ -61,7 +62,11 @@ trap on_exit EXIT
 echo "=== recover_dashboard_full start ($(date)) ==="
 bash scripts/one_click_dashboard.sh --start 2020-01-01 --end now --skip-benchmark --skip-walkforward
 bash scripts/check_data_coverage.sh
-bash scripts/healthcheck_dashboard.sh
+if [[ "$USE_CP_REPORTS" == "1" ]]; then
+  echo "INFO: skipping duplicate healthcheck in recover_dashboard_full (already enforced by one_click_dashboard.sh)"
+else
+  bash scripts/healthcheck_dashboard.sh
+fi
 
 if lsof -nP -iTCP:8501 -sTCP:LISTEN >/dev/null 2>&1; then
   active_port="8501"
