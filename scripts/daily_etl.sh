@@ -29,8 +29,15 @@ notify() {
   bash scripts/notify_telegram.sh "$@" || true
 }
 
+run_control_plane() {
+  if [[ -x "$REPO_ROOT/scripts/control_plane_run.sh" ]]; then
+    bash "$REPO_ROOT/scripts/control_plane_run.sh" || true
+  fi
+}
+
 on_exit() {
   local rc=$?
+  run_control_plane
   if [[ "$rc" -eq 0 ]]; then
     if [[ "$script_status" == "success" ]]; then
       notify \
