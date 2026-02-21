@@ -286,14 +286,17 @@ class TelegramClient:
         backoff: int,
         connect_timeout: int,
         request_timeout: int,
+        rate_limit_sec: float,
     ) -> None:
         self.token = token
         self.retries = max(1, retries)
         self.backoff = max(1, backoff)
         self.connect_timeout = max(1, connect_timeout)
         self.request_timeout = max(1, request_timeout)
+        self.rate_limit_sec = max(0.0, float(rate_limit_sec))
         self.base = f"https://api.telegram.org/bot{token}"
         self.session = requests.Session()
+        self._last_send_ts = 0.0
 
     def _request(self, endpoint: str, payload: dict[str, Any]) -> tuple[bool, dict[str, Any] | None]:
         url = f"{self.base}/{endpoint}"
@@ -366,8 +369,13 @@ class TelegramClient:
         return []
 
     def send_message(self, chat_id: str, text: str) -> bool:
+        if self.rate_limit_sec > 0 and self._last_send_ts > 0:
+            elapsed = time.monotonic() - self._last_send_ts
+            if elapsed < self.rate_limit_sec:
+                time.sleep(self.rate_limit_sec - elapsed)
         trimmed = text[:3900]
         ok, _ = self._request("sendMessage", {"chat_id": chat_id, "text": trimmed})
+        self._last_send_ts = time.monotonic()
         return ok
 
 
@@ -408,6 +416,7 @@ def run_once(
     offset = _load_offset(offset_path)
     updates = client.get_updates(offset=offset, timeout=poll_timeout)
     if not updates:
+        _save_offset(offset_path, offset)
         return 0
 
     next_offset = offset
@@ -460,12 +469,14 @@ def main() -> int:
     backoff = int(os.getenv("TG_RETRY_BACKOFF_SEC", "2"))
     connect_timeout = int(os.getenv("TG_CONNECT_TIMEOUT", "5"))
     timeout = int(os.getenv("TG_TIMEOUT", "8"))
+    rate_limit_sec = float(os.getenv("TG_RATE_LIMIT_SEC", "1"))
     client = TelegramClient(
         token=token,
         retries=retries,
         backoff=backoff,
         connect_timeout=connect_timeout,
         request_timeout=timeout,
+        rate_limit_sec=rate_limit_sec,
     )
 
     offset_path = repo_root / "data" / "state" / "tg_offset.json"
