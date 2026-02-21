@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-HOST_127="127.0.0.1"
+HOST_127="${HOST_127:-${HONGSTR_HOST:-127.0.0.1}}"
 PORT="${PORT:-8501}"
 OPEN_SAFARI=0
 LOG_FILE="${LOG_FILE:-}"
@@ -14,6 +14,7 @@ usage() {
 Usage: bash scripts/run_dashboard.sh [options]
 
 Options:
+  --host HOST            Default: 127.0.0.1
   --port PORT            Default: 8501
   --log-file PATH        Default: /tmp/hongstr_streamlit_<PORT>.log
   --open-safari          Open Safari after startup
@@ -23,6 +24,7 @@ EOF
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --host) HOST_127="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
     --log-file) LOG_FILE="$2"; shift 2 ;;
     --open-safari) OPEN_SAFARI=1; shift ;;
@@ -47,6 +49,21 @@ fi
 
 python3 -m pip -q show streamlit >/dev/null || python3 -m pip -q install streamlit >/dev/null
 python3 -m pip -q show pandas >/dev/null || python3 -m pip -q install pandas >/dev/null
+
+# If dashboard is already healthy on host:port, keep it and exit cleanly.
+existing_pid="$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $2; exit}')"
+if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null && curl -fsS "http://$HOST_127:$PORT/" >/dev/null 2>&1; then
+  echo "$existing_pid" > "$PID_FILE"
+  if [[ -f scripts/healthcheck_dashboard.sh ]]; then
+    HOST_127="$HOST_127" PORT="$PORT" PID_FILE="$PID_FILE" LOG_FILE="$LOG_FILE" bash scripts/healthcheck_dashboard.sh
+  fi
+  echo "INFO: dashboard already healthy; skip restart"
+  echo "URL_127=http://$HOST_127:$PORT/"
+  echo "URL_LOCALHOST=http://localhost:$PORT/"
+  echo "PIDFILE=$PID_FILE"
+  echo "STREAMLIT_LOG=$LOG_FILE"
+  exit 0
+fi
 
 if command -v lsof >/dev/null 2>&1; then
   old_pids="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
@@ -107,7 +124,7 @@ if ! curl -fsS "http://$HOST_127:$PORT/" >/dev/null 2>&1; then
 fi
 
 if [[ -f scripts/healthcheck_dashboard.sh ]]; then
-  PORT="$PORT" PID_FILE="$PID_FILE" LOG_FILE="$LOG_FILE" bash scripts/healthcheck_dashboard.sh
+  HOST_127="$HOST_127" PORT="$PORT" PID_FILE="$PID_FILE" LOG_FILE="$LOG_FILE" bash scripts/healthcheck_dashboard.sh
 fi
 
 echo "URL_127=http://$HOST_127:$PORT/"

@@ -6,6 +6,7 @@ This directory contains macOS `launchd` configuration files (plists) for automat
 
 | Label | Command | Schedule / Behavior |
 | :--- | :--- | :--- |
+| `com.hongstr.dashboard` | `streamlit run scripts/dashboard.py --server.address 127.0.0.1 --server.port 8501` | RunAtLoad + KeepAlive |
 | `com.hongstr.realtime_ws` | `scripts/run_realtime_service.sh` | RunAtLoad + KeepAlive |
 | `com.hongstr.daily_etl` | `scripts/daily_etl.sh` | 02:00 Daily |
 | `com.hongstr.daily_healthcheck` | `scripts/daily_backtest_healthcheck.sh` | 02:30 Daily |
