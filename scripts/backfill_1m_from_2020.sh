@@ -28,7 +28,9 @@ notify() {
 }
 
 run_control_plane() {
-  if [[ -x "$REPO_ROOT/scripts/control_plane_run.sh" ]]; then
+  if [[ -x "$REPO_ROOT/scripts/control_plane_report.sh" ]]; then
+    bash "$REPO_ROOT/scripts/control_plane_report.sh" || true
+  elif [[ -x "$REPO_ROOT/scripts/control_plane_run.sh" ]]; then
     bash "$REPO_ROOT/scripts/control_plane_run.sh" || true
   fi
 }
@@ -75,8 +77,13 @@ for sym in $SYMBOLS; do
 done
 
 coverage_out="$(bash scripts/check_data_coverage.sh)"
-echo "$coverage_out"
-LATEST_SUMMARY="$(echo "$coverage_out" | awk '/^BTCUSDT|^ETHUSDT|^BNBUSDT|^OVERALL_STATUS/' || true)"
+coverage_summary="$(echo "$coverage_out" | awk '/^BTCUSDT|^ETHUSDT|^BNBUSDT|^OVERALL_STATUS/' || true)"
+if [[ -n "$coverage_summary" ]]; then
+  echo "$coverage_summary"
+else
+  echo "$coverage_out"
+fi
+LATEST_SUMMARY="$coverage_summary"
 if [[ -z "$LATEST_SUMMARY" ]]; then
   LATEST_SUMMARY="coverage output unavailable"
 fi
