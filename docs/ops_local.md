@@ -15,7 +15,7 @@ HONGSTR relies on a clear distinction between realtime and historical data:
   - **Purpose**: **Offline Backtesting**. All resampling (5m, 1h, etc.) happens from here.
   - **Retention**: Persistent primary historical source.
 - **Backtest Runs (`data/backtests/`)**:
-  - **Retention**: Deleted after 90 days or if total runs exceed 50.
+  - **Retention**: Keep last 30 days by default (`RETENTION_DAYS=30`) and enforce a hard cap (`MAX_RUNS=1200`).
 
 ## Installation / Quickstart
 
@@ -138,6 +138,7 @@ bash scripts/retention_cleanup.sh
 
 | Job Name | Schedule | Purpose | Retention Policy |
 | :--- | :--- | :--- | :--- |
+| `dashboard` | RunAtLoad + KeepAlive | Persistent local Streamlit UI (`127.0.0.1:8501`) | N/A |
 | `realtime_ws` | Always On | Live feed & signal generation | 14d gzip, 45d deletion |
 | `daily_etl` | 02:00 | Sync historical & derived data | N/A |
 | `daily_healthcheck` | 02:30 | Verify system integrity | N/A |

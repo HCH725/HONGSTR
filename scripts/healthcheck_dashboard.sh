@@ -69,9 +69,9 @@ auto_detect_port() {
   done
 
   for p in $(seq 8501 8510); do
-    if lsof -nP -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | awk 'NR>1 && ($1 ~ /python|streamlit/) {found=1} END{exit !found}'; then
+    if lsof -nP -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | awk 'NR>1 && ($1 ~ /[Pp]ython|streamlit/) {found=1} END{exit !found}'; then
       PORT="$p"
-      PID="$(lsof -nP -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | awk 'NR>1 && ($1 ~ /python|streamlit/) {print $2; exit}')"
+      PID="$(lsof -nP -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | awk 'NR>1 && ($1 ~ /[Pp]ython|streamlit/) {print $2; exit}')"
       return 0
     fi
   done
