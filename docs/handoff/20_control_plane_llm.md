@@ -43,11 +43,12 @@ Phase 0 adds a **local control-plane advisor** for HONGSTR. It consumes event JS
 
 ## Config
 
-- `HONGSTR_LLM_MODE`: `null` (default) or `qwen`
-- `HONGSTR_LLM_ENDPOINT`: local endpoint URL (optional)
-- `HONGSTR_LLM_MODEL`: model id/name (optional)
+- `HONGSTR_LLM_MODE`: `null` (default), `ollama` (recommended), or `qwen`
+- `HONGSTR_LLM_ENDPOINT`: endpoint URL
+  - Ollama default: `http://127.0.0.1:11434`
+- `HONGSTR_LLM_MODEL`: model id/name (for example `qwen2.5:7b`)
 
-If mode is `qwen` but endpoint is missing/unreachable, it falls back to null mode.
+If mode endpoint is unreachable, runner falls back via `NullLLM` and continues non-blocking.
 
 ## Run
 
