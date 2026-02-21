@@ -9,6 +9,7 @@ dependencies = [
     "numpy",
     "pyarrow",
     "python-dotenv",
+    "pydantic>=2,<3",
 ]
 requires-python = ">=3.9"
 
