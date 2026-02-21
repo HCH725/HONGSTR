@@ -78,6 +78,36 @@ Telegram sanity 檢查（不輸出 token/chat id 原文）：
 bash scripts/tg_sanity.sh
 ```
 
+### Telegram Text Dashboard（Read-only）
+
+提供 Telegram 文字版狀態查詢（不執行任何 ETL/backfill/recover action）：
+
+- `/help`
+- `/status`
+- `/health`
+- `/coverage`
+- `/gate`
+- `/latest`
+- `/runs [n]`
+
+手動一次輪詢（建議先測這個）：
+
+```bash
+bash -lc 'cd /Users/hong/Projects/HONGSTR && source scripts/load_env.sh && .venv/bin/python scripts/tg_text_dashboard.py --once'
+```
+
+離線快照（不依賴 Telegram API）：
+
+```bash
+python3 scripts/status_snapshot.py --pretty
+```
+
+可選背景常駐（launchd 模板）：
+
+- `ops/launchagents/com.hongstr.tg_text_dashboard.plist`
+- 透過 `sed "s|__REPO_ROOT__|...|g"` 部署到 `~/Library/LaunchAgents/`
+- log: `logs/launchd_tg_text_dashboard.out.log` / `logs/launchd_tg_text_dashboard.err.log`
+
 `notify_telegram.sh` retry/backoff 可透過 `.env` 調整：
 
 - `TG_RETRIES`：重試次數（預設 `3`）

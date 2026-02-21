@@ -12,6 +12,7 @@ This directory contains macOS `launchd` configuration files (plists) for automat
 | `com.hongstr.daily_healthcheck` | `scripts/daily_backtest_healthcheck.sh` | 02:30 Daily |
 | `com.hongstr.weekly_backfill` | `scripts/backfill_1m_from_2020.sh` | Sunday 03:30 |
 | `com.hongstr.retention_cleanup` | `scripts/retention_cleanup.sh` | 03:00 Daily |
+| `com.hongstr.tg_text_dashboard` | `scripts/tg_text_dashboard.py` | RunAtLoad + KeepAlive (Telegram read-only status bot) |
 
 ## Deployment Note
 

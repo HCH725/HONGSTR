@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.hongstr.tg_text_dashboard</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+      <key>SuccessfulExit</key>
+      <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/bash</string>
+      <string>-lc</string>
+      <string>cd "__REPO_ROOT__" &amp;&amp; source scripts/load_env.sh || true; PY="${PY:-__REPO_ROOT__/.venv/bin/python}"; if [ ! -x "$PY" ]; then PY="$(command -v python3)"; fi; "$PY" scripts/tg_text_dashboard.py</string>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/logs/launchd_tg_text_dashboard.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/logs/launchd_tg_text_dashboard.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PY</key>
+      <string>__REPO_ROOT__/.venv/bin/python</string>
+    </dict>
+  </dict>
+</plist>
