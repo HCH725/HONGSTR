@@ -108,6 +108,9 @@ def main():
     parser.add_argument(
         "--params-json", type=str, default="{}", help="JSON string of strategy parameters"
     )
+    # ML Signal Hook Options (Phase 5)
+    parser.add_argument("--signal-parquet", type=str, default="", help="Path to research ML signal parquet for read-only tiebreak/reporting")
+    parser.add_argument("--signal-policy", type=str, choices=["off", "report_only", "rank_tiebreak"], default="off")
     args = parser.parse_args()
 
     try:
@@ -352,6 +355,28 @@ def main():
             "timeframes": timeframes,
         },
     }
+
+    # 4. Phase 5 ML Evidence Injection (Read-Only)
+    if args.signal_policy != "off" and args.signal_parquet:
+        sig_path = Path(args.signal_parquet)
+        if sig_path.exists():
+            try:
+                sig_df = pd.read_parquet(sig_path)
+                # Compute some basic distribution metrics over the available signals
+                sig_summary = {
+                    "policy": args.signal_policy,
+                    "artifact": str(sig_path),
+                    "coverage_rows": len(sig_df),
+                    "score_mean": float(sig_df["signal_score"].mean()) if "signal_score" in sig_df else 0.0,
+                    "p_up_mean": float(sig_df["p_up"].mean()) if "p_up" in sig_df else 0.0,
+                    "tiebreak_invoked": args.signal_policy == "rank_tiebreak"
+                }
+                summary["ml_evidence"] = sig_summary
+                print(f"  [ML Signal Hook] Loaded {len(sig_df)} signal rows. Policy: {args.signal_policy}")
+            except Exception as e:
+                print(f"  [ML Signal Hook] Failed to load {sig_path}: {e}")
+        else:
+            print(f"  [ML Signal Hook] Parquet not found: {sig_path}")
 
     # Check if GLOBAL filtering happened
     if len(all_trades) == 0:
