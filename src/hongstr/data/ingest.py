@@ -12,33 +12,11 @@ def fetch_klines(symbol: str, start_ts: int, end_ts: int) -> pd.DataFrame:
     Fetch 1m klines from Binance Futures.
     start_ts, end_ts: milliseconds
     """
-    BASE_URLS = [
-        "https://fapi.binance.com",
-        "https://data-api.binance.vision",
-        "https://api.binance.com"
-    ]
-    
     klines = []
     current_start = start_ts
     
-    # Watchdog and Backoff tracking
-    last_progress_time = time.time()
-    MAX_STALL_S = 900  # 15 minutes max without progress
-    backoff_s = 5
-    MAX_BACKOFF_S = 60
-    endpoint_idx = 0
-    
     while current_start < end_ts:
-        # Check watchdog timeout
-        if time.time() - last_progress_time > MAX_STALL_S:
-            print(f"WARN: [WATCHDOG] Ingest stalled for > 15m on {symbol}. Aborting fetch.")
-            break
-            
-        base_url = BASE_URLS[endpoint_idx % len(BASE_URLS)]
-        # For data-api.binance.vision and api.binance.com, the path might be /api/v3/klines if fapi fails,
-        # but the user requested minimal changes. We will try /fapi/v1/klines on the fallback.
-        url = f"{base_url}/fapi/v1/klines"
-        
+        url = f"{BASE_URL}/fapi/v1/klines"
         params = {
             "symbol": symbol,
             "interval": "1m",
@@ -51,19 +29,9 @@ def fetch_klines(symbol: str, start_ts: int, end_ts: int) -> pd.DataFrame:
             resp = requests.get(url, params=params, timeout=10)
             resp.raise_for_status()
             data = resp.json()
-            
-            # Reset backoff and watchdog on success
-            backoff_s = 5
-            last_progress_time = time.time()
-            endpoint_idx = 0  # Revert to primary on success
-            
         except Exception as e:
-            print(f"Error fetching {symbol} at {current_start} via {base_url}: {e}")
-            endpoint_idx += 1  # Fallback to next endpoint
-            
-            print(f"Retrying in {backoff_s}s... (endpoint_idx={endpoint_idx % len(BASE_URLS)})")
-            time.sleep(backoff_s)
-            backoff_s = min(backoff_s * 2, MAX_BACKOFF_S)  # Exponential backoff
+            print(f"Error fetching {symbol} at {current_start}: {e}")
+            time.sleep(5)
             continue
             
         if not data:
