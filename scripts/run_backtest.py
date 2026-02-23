@@ -105,7 +105,15 @@ def main():
     parser.add_argument(
         "--run_id", type=str, help="Explicit Run ID (default: timestamp)"
     )
+    parser.add_argument(
+        "--params-json", type=str, default="{}", help="JSON string of strategy parameters"
+    )
     args = parser.parse_args()
+
+    try:
+        custom_params = json.loads(args.params_json)
+    except Exception as e:
+        parser.error(f"Invalid --params-json payload: {e}")
 
     # 1. Prepare Environment
     symbols = split_arg_values(args.symbols, to_upper=True)
@@ -191,30 +199,33 @@ def main():
                 continue
 
             # Strategy Configuration per Timeframe
-            # Defaults
-            atr_period = 10
-            atr_mult = 3.0
-
-            if tf == "4h":
-                # Looser for 4h to generate more signals?
-                # Or just standard params might be too tight or too lagging.
-                # Let's try to make it more sensitive for 4h:
-                # smaller period or smaller mult?
-                # Actually default config ST_ATR_PERIOD=10, MULT=3.
-                # Maybe 4h needs shorter period to react faster? e.g. 7, 2.0?
-                atr_period = 10
-                atr_mult = 2.0  # Detect trend changes earlier
+            # We maintain old defaults unless overridden by --params-json
+            params = {}
+            if args.strategy == "vwap_supertrend":
+                params = {"atr_period": 10, "atr_mult": 3.0}
+                if tf == "4h":
+                    params["atr_mult"] = 2.0
+                    
+            # Override with dynamically injected parameters
+            params.update(custom_params)
 
             # Init Strategy for this run
             # Important: The strategy class checks env var STRATEGY_TIMEFRAME_SIGNAL.
             # We must force it to accept current TF.
             os.environ["STRATEGY_TIMEFRAME_SIGNAL"] = tf
 
-            if args.strategy == "vwap_supertrend":
-                strategy = VWAPSupertrendStrategy(
-                    atr_period=atr_period, atr_mult=atr_mult
-                )
-            else:
+            strat_map = {
+                "vwap_supertrend": VWAPSupertrendStrategy
+            }
+            if args.strategy not in strat_map:
+                print(f"Unknown strategy: {args.strategy}")
+                sys.exit(1)
+                
+            StratClass = strat_map[args.strategy]
+            try:
+                strategy = StratClass(**params)
+            except TypeError as e:
+                print(f"Invalid parameters for strategy {args.strategy}: {e}")
                 sys.exit(1)
 
             # Convert back to DataFrame for Engine
@@ -237,7 +248,7 @@ def main():
                 # For Phase 1 C15, we'll slice a window of bars
                 idx = df_tf.index.get_loc(row.name)
                 # Optimization: Strategy only needs last N+5 bars
-                lookback = atr_period + 20
+                lookback = params.get("atr_period", 10) + 20
                 start_idx = max(0, idx - lookback + 1)
                 current_bars = resampled_bars[start_idx : idx + 1]
 
