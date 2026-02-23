@@ -42,6 +42,11 @@ bash scripts/build_signals.sh --freq 1h --horizon 24
 
 # 4. 指定 --signal-policy report_only 將推論掛入回測報告
 .venv/bin/python scripts/run_backtest.py --signal-parquet reports/research/signals/signal_1h_24.parquet --signal-policy report_only --symbols BTCUSDT --timeframes 1h --start 2025-01-01 --end 2025-02-01
+
+# 5. 輸出白話文的 ML Evidence 摘要報告
+.venv/bin/python scripts/report_ml_evidence.py --freq 1h --horizon 24 --latest-backtest auto
 ```
+
+如果您執行了第五個步驟，您可以打開 `reports/research/ml/evidence_summary.md` 直接閱讀供非工程人員理解的分析總結。
 
 執行後可以在 `data/backtests/.../summary.json` 裡面找到 `ml_evidence` 的 JSON block，宣告掛載成功！
