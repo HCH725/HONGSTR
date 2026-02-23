@@ -10,6 +10,9 @@
 
 ### 詳細運作階段 (The Pipeline)
 
+> **[聲明] IBM ML 文章僅為概念參考**  
+> 本專案的設計曾參考 IBM 等外部文獻作為檢核清單與概念發想，但這**不代表**我們必須或將要導入其複雜的 production pipeline。任何新演算法的導入，都必須嚴守本專案的「四大天條」：1) Core diff = 0 2) 純 report_only 輔助 3) 隨時可拔（可回退）4) 不追蹤龐大 Parquet 檔案。
+
 整個信號的產生與應用分為三個步驟，全部在 `research/` 與 `scripts/` 完成：
 
 1. **資料特徵與標籤 (Features & Labels)**
