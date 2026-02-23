@@ -27,8 +27,8 @@ IS_END="2024-12-31"
 OOS_START="2025-01-01"
 OOS_END="now"
 
-ATR_PERIODS=(7 10 14 20)
-ATR_MULTS=(2.0 2.5 3.0 3.5)
+ATR_PERIODS=(10 14)
+ATR_MULTS=(2.5 3.0)
 
 PHASE2_DIR="reports/strategy_research/phase2"
 mkdir -p "$PHASE2_DIR"

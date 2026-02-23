@@ -61,20 +61,20 @@ try:
     md_content = f\"\"\"# Strategy Research: Phase 4 Baseline ML Validation
     
 ## Metadata
-- **Frequency**: { '$FREQ' }
-- **Horizon**: { '$HORIZON' } bars
-- **Features count**: {{results['metadata']['features_count']}}
-- **IS Rows (Train)**: {{results['metadata']['is_rows']:,}}
-- **OOS Rows (Test)**: {{results['metadata']['oos_rows']:,}}
+- **Frequency**: $FREQ
+- **Horizon**: $HORIZON bars
+- **Features count**: {results['metadata']['features_count']}
+- **IS Rows (Train)**: {results['metadata']['is_rows']:,}
+- **OOS Rows (Test)**: {results['metadata']['oos_rows']:,}
 
 ## Classification Baseline (Logistic Regression -> Direction)
-- **Accuracy**: {{results['fixed_classification']['accuracy']:.3f}}
-- **Precision**: {{results['fixed_classification']['precision']:.3f}}
+- **Accuracy**: {results['fixed_classification']['accuracy']:.3f}
+- **Precision**: {results['fixed_classification']['precision']:.3f}
 
 ## Regression Baseline (Ridge -> Return)
-- **Directional Hit Rate**: {{results['fixed_regression']['directional_hit_rate']:.3%}}
-- **Correlation to Target**: {{results['fixed_regression']['correlation']:.3f}}
-- **MAE**: {{results['fixed_regression']['mae']:.5f}}
+- **Directional Hit Rate**: {results['fixed_regression']['directional_hit_rate']:.3%}
+- **Correlation to Target**: {results['fixed_regression']['correlation']:.3f}
+- **MAE**: {results['fixed_regression']['mae']:.5f}
 
 ## Conclusion & Next Steps
 We successfully trained baseline models without look-ahead bias on the strictly aligned \`ts, symbol\` dataset. 

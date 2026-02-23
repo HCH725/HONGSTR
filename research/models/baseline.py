@@ -11,10 +11,13 @@ logger = logging.getLogger("research.models.baseline")
 def split_time_based(dataset: pd.DataFrame, is_end="2024-12-31"):
     """Splits dataset strictly on time (IS vs OOS)."""
     # Assuming MultiIndex (ts, symbol) or ts in index level 0
+    is_end_ts = pd.to_datetime(is_end, utc=True)
     if isinstance(dataset.index, pd.MultiIndex):
-        is_mask = dataset.index.get_level_values(0) <= pd.to_datetime(is_end, utc=True)
+        ts_values = dataset.index.get_level_values(0)
     else:
-        is_mask = dataset.index <= pd.to_datetime(is_end, utc=True)
+        ts_values = dataset.index
+        
+    is_mask = ts_values <= (pd.to_datetime("2024-12-31 23:59:59", utc=True))
 
     df_is = dataset[is_mask]
     df_oos = dataset[~is_mask]
