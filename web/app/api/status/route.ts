@@ -41,6 +41,34 @@ interface StatusPayload {
   services: ServiceHeartbeat[];
 }
 
+interface StrategyPoolSummary {
+  poolId: string;
+  candidatesCount: number;
+  promotedCount: number;
+  leaderboard: { id: string; score: number; sharpe: number }[];
+}
+
+interface CoverageMatrixSummary {
+  done: number;
+  inProgress: number;
+  blocked: number;
+  rebase: number;
+}
+
+interface DashboardData {
+  ok: boolean;
+  status: StatusPayload;
+  hongVsBh: HongVsBh;
+  top3: string[];
+  coverage: CoverageSummary;
+  timeline: TimelineEvent[];
+  selection: SelectionArtifact | null;
+  warnings: string[];
+  timestamp: string;
+  strategyPool: StrategyPoolSummary | null;
+  coverageMatrix: CoverageMatrixSummary | null;
+}
+
 interface WalkforwardLatest {
   windows_total?: number;
   windows_completed?: number;
@@ -288,18 +316,60 @@ async function buildTimeline(): Promise<TimelineEvent[]> {
   return items.slice(0, 12);
 }
 
+async function buildStrategyPool(): Promise<StrategyPoolSummary | null> {
+  const pool = await readJsonOptional<any>('data/state/strategy_pool.json');
+  if (!pool) return null;
+  const candidates: any[] = Array.isArray(pool.candidates) ? pool.candidates : [];
+  const promoted: any[] = Array.isArray(pool.promoted) ? pool.promoted : [];
+
+  const leaderboard = candidates
+    .filter(c => c && typeof c.strategy_id === 'string')
+    .map(c => ({
+      id: c.strategy_id,
+      score: typeof c.last_score === 'number' ? c.last_score : 0,
+      sharpe: typeof c.last_oos_metrics?.sharpe === 'number' ? c.last_oos_metrics.sharpe : 0
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  return {
+    poolId: pool.pool_id || 'unknown',
+    candidatesCount: candidates.length,
+    promotedCount: promoted.length,
+    leaderboard
+  };
+}
+
+async function buildCoverageMatrix(): Promise<CoverageMatrixSummary | null> {
+  const records = await readJsonlTail('data/state/coverage_table.jsonl', 1000);
+  if (!records || records.length === 0) return null;
+
+  let done = 0; let inProgress = 0; let blocked = 0; let rebase = 0;
+  for (const row of records) {
+    const status = (row.status || '').toString().toUpperCase();
+    if (status === 'DONE') done++;
+    else if (status === 'IN_PROGRESS') inProgress++;
+    else if (status === 'BLOCKED_DATA_QUALITY') blocked++;
+    else if (status === 'NEEDS_REBASE') rebase++;
+  }
+
+  return { done, inProgress, blocked, rebase };
+}
+
 export async function GET() {
   const root = path.resolve(process.cwd(), '..');
   const envConfig = await readEnvConfig(root);
 
   const selection = await readJsonArtifact<SelectionArtifact>('data/selection/hong_selected.json');
 
-  const [status, hongVsBh, top3, coverage, timeline] = await Promise.all([
+  const [status, hongVsBh, top3, coverage, timeline, strategyPool, coverageMatrix] = await Promise.all([
     buildStatus(envConfig),
     buildHongVsBh(),
     buildTop3(selection),
     buildCoverageSummary(),
     buildTimeline(),
+    buildStrategyPool(),
+    buildCoverageMatrix(),
   ]);
 
   const warnings: string[] = [];
@@ -307,6 +377,7 @@ export async function GET() {
   if (hongVsBh.hongReturn === null) warnings.push('benchmark missing or incomplete: reports/benchmark_latest.json');
   if (coverage.windowsTotal === null) warnings.push('coverage summary unavailable: reports/walkforward_latest.json');
   if (timeline.length === 0) warnings.push('event timeline unavailable: data/state/execution_*.jsonl');
+  if (!strategyPool) warnings.push('strategy pool missing: data/state/strategy_pool.json');
 
   return NextResponse.json({
     ok: true,
@@ -317,6 +388,8 @@ export async function GET() {
     timeline,
     selection,
     warnings,
+    strategyPool,
+    coverageMatrix,
     timestamp: new Date().toISOString(),
   });
 }

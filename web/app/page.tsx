@@ -49,6 +49,20 @@ interface SelectionArtifact {
   };
 }
 
+interface StrategyPoolSummary {
+  poolId: string;
+  candidatesCount: number;
+  promotedCount: number;
+  leaderboard: { id: string; score: number; sharpe: number }[];
+}
+
+interface CoverageMatrixSummary {
+  done: number;
+  inProgress: number;
+  blocked: number;
+  rebase: number;
+}
+
 interface DashboardData {
   ok: boolean;
   status: StatusPayload;
@@ -59,6 +73,8 @@ interface DashboardData {
   selection: SelectionArtifact | null;
   warnings: string[];
   timestamp: string;
+  strategyPool: StrategyPoolSummary | null;
+  coverageMatrix: CoverageMatrixSummary | null;
 }
 
 function formatPct(value: number | null): string {
@@ -249,9 +265,60 @@ export default function Dashboard() {
                 <p className="mt-1 text-sm font-semibold">{formatDateTime(data.coverage.latestBacktestTs)}</p>
               </div>
             </div>
+            {data.coverageMatrix && (
+              <div className="mt-4 flex gap-3 text-sm">
+                <span className="rounded bg-emerald-900/40 px-2 py-1 text-emerald-300">DONE: {data.coverageMatrix.done}</span>
+                <span className="rounded bg-blue-900/40 px-2 py-1 text-blue-300">IN_PROG: {data.coverageMatrix.inProgress}</span>
+                <span className="rounded bg-amber-900/40 px-2 py-1 text-amber-300">REBASE: {data.coverageMatrix.rebase}</span>
+              </div>
+            )}
             <p className="mt-3 text-xs text-slate-500">Source: {data.coverage.source}</p>
           </article>
         </section>
+
+        {data.strategyPool && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">策略池看板 (Strategy Pool)</h2>
+              <span className="text-sm text-slate-400 font-mono">Pool: {data.strategyPool.poolId}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4 sm:grid-cols-4">
+              <div className="rounded-lg bg-slate-800/40 p-3 text-center">
+                <p className="text-xs text-slate-400">Candidates</p>
+                <p className="mt-1 text-xl font-bold">{data.strategyPool.candidatesCount}</p>
+              </div>
+              <div className="rounded-lg bg-slate-800/40 p-3 text-center">
+                <p className="text-xs text-slate-400">Promoted</p>
+                <p className="mt-1 text-xl font-bold text-amber-400">{data.strategyPool.promotedCount}</p>
+              </div>
+            </div>
+
+            <h3 className="mb-2 text-sm font-semibold text-slate-300">Leaderboard</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-xs tracking-wide text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th className="pb-2 font-medium">Strategy ID</th>
+                    <th className="pb-2 font-medium">Score</th>
+                    <th className="pb-2 font-medium">OOS Sharpe</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {data.strategyPool.leaderboard.map((strat) => (
+                    <tr key={strat.id}>
+                      <td className="py-2 font-mono text-cyan-400">{strat.id}</td>
+                      <td className="py-2 text-slate-300">{strat.score.toFixed(3)}</td>
+                      <td className="py-2 text-slate-300">{strat.sharpe.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {data.strategyPool.leaderboard.length === 0 && (
+                    <tr><td colSpan={3} className="py-4 text-center text-slate-500">No candidates available</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
           <h2 className="mb-3 text-lg font-semibold">事件時間軸</h2>

@@ -1,0 +1,12 @@
+{
+    "promotion_thresholds": {
+        "consecutive_passes_required": 2,
+        "min_sharpe": 1.0,
+        "min_return": 0.02
+    },
+    "demotion_thresholds": {
+        "consecutive_fails_required": 3,
+        "min_sharpe": -0.05,
+        "min_return": -0.05
+    }
+}
