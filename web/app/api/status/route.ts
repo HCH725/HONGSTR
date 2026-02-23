@@ -317,6 +317,17 @@ async function buildTimeline(): Promise<TimelineEvent[]> {
 }
 
 async function buildStrategyPool(): Promise<StrategyPoolSummary | null> {
+  const summary = await readJsonOptional<any>('data/state/strategy_pool_summary.json');
+  if (summary) {
+    return {
+      poolId: summary.pool_id || 'hongstr_main_pool',
+      candidatesCount: summary.counts?.candidates || 0,
+      promotedCount: summary.counts?.promoted || 0,
+      leaderboard: summary.leaderboard || []
+    };
+  }
+
+  // Fallback to raw pool data
   const pool = await readJsonOptional<any>('data/state/strategy_pool.json');
   if (!pool) return null;
   const candidates: any[] = Array.isArray(pool.candidates) ? pool.candidates : [];

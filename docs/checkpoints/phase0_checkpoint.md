@@ -24,7 +24,14 @@
 4. **Dashboard 儀表板整合**
    現在在您本機的網頁 Dashboard 上，已能夠「唯讀 (Read-only)」的監看上方兩個全新機制的現況數量與排行榜。
 
-## 4. 下一步 (Next Steps / DoD)
+## 4. Phase 0.2 一鍵快照與儀表板優化 (Dashboard-Friendly Snapshots)
+
+- **新增了一鍵彙整腳本 `scripts/refresh_state.sh`**：手動執行，不會自動上排程。負責依序呼叫各種狀態更新腳本，最終打印出一份易讀的 TL;DR 給營運人員驗收。
+- **新增了 `scripts/state_snapshots.py` 摘要引擎**：針對巨大且肥厚的 `.jsonl` 歷史覆蓋檔進行精煉，產出了 `coverage_latest.json`, `coverage_summary.json`, 以及 `strategy_pool_summary.json` 三支經過計算的**小快取檔**。
+- **前端 Dashboard API 升級體驗 (`route.ts`)**：當需要渲染策略池與 Coverage 矩陣時，伺服器現在會優先讀取剛剛說的「輕量化快取檔」，避免隨著回測次數增加，導致首頁開啟緩慢，且保有 fallback （若檔案不存在則讀取舊數據）的高可用性。
+- **新增說明文件 `docs/ops_state_refresh.md`**：已產出「什麼是的一鍵重整」的白話合夥人說明手冊。
+
+## 5. 下一步 (Next Steps / DoD)
 
 - **HONG vs B&H 對決**：將晉升的優化策略正式派送，與單純買入持有 (Buy and Hold) 做最終的基準測試。
 - **策略池自動剔除試車**：實際讓系統連續跑一週或特定時間，觀察 Strategy Pool 是否能如預期的產生 Anti-churn（不隨機頻繁上下架）的穩定性。
