@@ -499,17 +499,45 @@ def skill_status_overview(include_sources: bool = False) -> str:
     lines = [f"目前快照時間：{now}"]
     lines.append("• Dashboard: {}".format("穩定" if snap["dashboard_ok"] else "有波動"))
     
+    # Calculate worst case freshness
+    max_age = 0.0
+    worst_sym = "?"
+    worst_tf = "?"
+    worst_status = "OK"
+    
+    for sym, tfs in snap["freshness"].items():
+        for tf, d in tfs.items():
+            age = d.get("age_hours") or 0.0
+            if age > max_age:
+                max_age = age
+                worst_sym = sym
+                worst_tf = tf
+                worst_status = d.get("status", "OK")
+    
+    status_emoji = "✅" if worst_status == "OK" else ("⚠️" if worst_status == "WARN" else "❌")
+    lines.append(f"• 資料新鮮度: {status_emoji} {worst_status}, max_age={max_age:.1f}h, 瓶頸={worst_sym} {worst_tf}")
+    
+    if include_sources:
+        lines.append("依據: logs/launchd_dashboard.out.log, logs/launchd_daily_etl.out.log")
+    return "\n".join(lines)
+
+
+def skill_freshness_detail() -> str:
+    snap = _collect_snapshot()
+    lines = ["📊 資料新鮮度完整報表 (BTC/ETH/BNB × 1m/1h/4h)"]
+    
     for sym in ["BTCUSDT", "ETHUSDT", "BNBUSDT"]:
         sym_data = snap["freshness"].get(sym, {})
-        tf_parts = []
+        tf_results = []
         for tf in ["1m", "1h", "4h"]:
             d = sym_data.get(tf, {})
             age = d.get("age_hours")
+            status = d.get("status", "WARN")
             age_str = f"{age:.1f}h" if age is not None else "缺失"
-            tf_parts.append(f"{tf}:{age_str}")
-        lines.append(f"• {sym}: {' / '.join(tf_parts)}")
-    if include_sources:
-        lines.append("依據: logs/launchd_dashboard.out.log, logs/launchd_daily_etl.out.log")
+            tf_results.append(f"{tf}: {age_str} ({status})")
+        lines.append(f"• {sym}: {' | '.join(tf_results)}")
+    
+    lines.append("\n💡 備註：此回報僅供參考資料完整性，不影響下單邏輯。系統目前為唯讀監控模式，不會主動發起交易或修改任何設定。")
     return "\n".join(lines)
 
 
@@ -529,6 +557,7 @@ def skill_logs_tail_hint(lines: int = 60) -> str:
 SKILL_IMPL = {
     "status_overview": lambda args: skill_status_overview(bool(args.get("include_sources", False))),
     "logs_tail_hint": lambda args: skill_logs_tail_hint(int(args.get("lines", 60))),
+    "freshness_detail": lambda args: skill_freshness_detail(),
 }
 
 
@@ -1160,8 +1189,12 @@ def _handle_command(chat_id: int, text: str) -> str:
     if cmd == "/status":
         return skill_status_overview(include_sources=True)
 
+    if cmd == "/freshness":
+        return skill_freshness_detail()
+
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
+        lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         return "可用 read-only 技能：\n" + "\n".join(lines)
 
     if cmd == "/run":

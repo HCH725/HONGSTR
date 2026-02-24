@@ -97,8 +97,10 @@ def test_status_command(monkeypatch, tmp_path):
     _sandbox_state(monkeypatch, tmp_path, s)
 
     resp = s._handle_command(30, "/status")
-    # should have snapshot content
-    assert "BTCUSDT" in resp or "快照" in resp
+    # should have the concise summary
+    assert "資料新鮮度" in resp
+    assert "max_age=" in resp
+    assert "瓶頸=" in resp
 
 
 def test_ping_command(monkeypatch, tmp_path):
@@ -393,3 +395,39 @@ def test_snapshot_text_freshness_logic(monkeypatch, tmp_path):
     text = s._snapshot_text()
     assert "❌ 嚴重落後 (部分超過 48h)" in text
     assert "ETHUSDT: 1m:60.0h(FAIL)" in text
+
+
+def test_freshness_command(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock snapshot with a known state
+    fake_snap = {
+        "freshness": {
+            "BTCUSDT": {
+                "1m": {"age_hours": 1.0, "status": "OK"},
+                "1h": {"age_hours": 2.0, "status": "OK"},
+                "4h": {"age_hours": 3.0, "status": "OK"},
+            },
+            "ETHUSDT": {
+                "1m": {"age_hours": 15.0, "status": "WARN"},
+                "1h": {"age_hours": 0.5, "status": "OK"},
+                "4h": {"age_hours": 0.5, "status": "OK"},
+            },
+            "BNBUSDT": {
+                "1m": {"age_hours": 50.0, "status": "FAIL"},
+                "1h": {"age_hours": 0.5, "status": "OK"},
+                "4h": {"age_hours": 0.5, "status": "OK"},
+            }
+        }
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    
+    resp = s._handle_command(12345, "/freshness")
+    assert "完整報表" in resp
+    assert "BTCUSDT: 1m: 1.0h (OK)" in resp
+    assert "ETHUSDT: 1m: 15.0h (WARN)" in resp
+    assert "BNBUSDT: 1m: 50.0h (FAIL)" in resp
+    # check disclaimer
+    assert "唯讀" in resp
+    assert "下單" in resp
