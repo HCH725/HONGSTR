@@ -526,6 +526,8 @@ def skill_freshness_detail() -> str:
     snap = _collect_snapshot()
     lines = ["📊 資料新鮮度完整報表 (BTC/ETH/BNB × 1m/1h/4h)"]
     
+    any_stale = False
+    any_fail = False
     for sym in ["BTCUSDT", "ETHUSDT", "BNBUSDT"]:
         sym_data = snap["freshness"].get(sym, {})
         tf_results = []
@@ -533,11 +535,64 @@ def skill_freshness_detail() -> str:
             d = sym_data.get(tf, {})
             age = d.get("age_hours")
             status = d.get("status", "WARN")
+            if status != "OK": any_stale = True
+            if status == "FAIL": any_fail = True
             age_str = f"{age:.1f}h" if age is not None else "缺失"
             tf_results.append(f"{tf}: {age_str} ({status})")
         lines.append(f"• {sym}: {' | '.join(tf_results)}")
     
+    if any_stale:
+        lines.append("\n⚠️ 自修引導:")
+        lines.append("• 這是資料延遲，不代表交易有問題，請保持冷靜。")
+        lines.append("• 建議執行: `bash scripts/check_data_coverage.sh` 查看缺口。")
+        lines.append("• 請檢查 `logs/launchd_daily_etl.out.log` 確認 ETL 狀態。")
+        if any_fail:
+            lines.append("• 🔴 偵測到嚴重落後 (>48h)，建議優先人工介入追資料。")
+
     lines.append("\n💡 備註：此回報僅供參考資料完整性，不影響下單邏輯。系統目前為唯讀監控模式，不會主動發起交易或修改任何設定。")
+    return "\n".join(lines)
+
+
+def skill_ml_status() -> str:
+    evidence_p = REPO / "reports/research/ml/evidence_summary.json"
+    signal_p = REPO / "reports/research/signals/signal_1h_24.parquet"
+    
+    results = []
+    ok_count = 0
+    
+    # 1. evidence summary
+    if evidence_p.exists():
+        age = _file_age_hours(evidence_p)
+        age_str = f"{age:.1f}h 前更新" if age is not None else "存在"
+        results.append(f"• Evidence Summary: ✅ {age_str}")
+        ok_count += 1
+    else:
+        results.append("• Evidence Summary: ❌ 缺失")
+        
+    # 2. signal parquet
+    if signal_p.exists():
+        try:
+            import pandas as pd
+            row_count = len(pd.read_parquet(signal_p))
+            if row_count > 0:
+                results.append(f"• ML Signals: ✅ 存在 ({row_count} rows)")
+                ok_count += 1
+            else:
+                results.append("• ML Signals: ⚠️ 檔案存在但無資料 (rowcount=0)")
+        except Exception as e:
+            results.append(f"• ML Signals: ⚠️ 讀取失敗 ({type(e).__name__})")
+    else:
+        results.append("• ML Signals: ❌ 缺失 (signal_1h_24.parquet)")
+        
+    status_header = "✅ ML Pipeline 正常" if ok_count == 2 else "⚠️ ML Pipeline 異常"
+    lines = [f"🤖 {status_header}", ""]
+    lines.extend(results)
+    
+    if ok_count < 2:
+        lines.append("\n💡 處置建議:")
+        lines.append("• 請先確認『資料新鮮度』是否正常。")
+        lines.append("• 資料正常後，可嘗試手動執行: `bash scripts/ml_daily_manual.sh` (僅提示，請手動執行)。")
+    
     return "\n".join(lines)
 
 
@@ -558,6 +613,7 @@ SKILL_IMPL = {
     "status_overview": lambda args: skill_status_overview(bool(args.get("include_sources", False))),
     "logs_tail_hint": lambda args: skill_logs_tail_hint(int(args.get("lines", 60))),
     "freshness_detail": lambda args: skill_freshness_detail(),
+    "ml_status": lambda args: skill_ml_status(),
 }
 
 
@@ -1192,9 +1248,13 @@ def _handle_command(chat_id: int, text: str) -> str:
     if cmd == "/freshness":
         return skill_freshness_detail()
 
+    if cmd == "/ml_status":
+        return skill_ml_status()
+
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
+        lines.append("• (內建) /ml_status: ML 流水線健康狀態")
         return "可用 read-only 技能：\n" + "\n".join(lines)
 
     if cmd == "/run":

@@ -10,6 +10,7 @@ These tests validate:
 """
 import json
 import importlib.util
+import sys
 from pathlib import Path
 
 
@@ -381,7 +382,7 @@ def test_snapshot_text_freshness_logic(monkeypatch, tmp_path):
     assert "良好 (皆在 12h 內)" in text
     assert "WARN" not in text
     assert "延遲" not in text
-    assert "落後" not in text  # "資料落後" was removed for overall_ok case in my implementation
+    assert "落後" not in text
     assert "BTCUSDT: 1m:5.4h(OK) / 1h:6.7h(OK) / 4h:8.2h(OK)" in text
 
     # Case B: One WARN
@@ -431,3 +432,70 @@ def test_freshness_command(monkeypatch, tmp_path):
     # check disclaimer
     assert "唯讀" in resp
     assert "下單" in resp
+
+
+def test_freshness_sop_guidance(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Case: WARN should trigger SOP guidance
+    fake_snap = {
+        "freshness": {
+            "BTCUSDT": {
+                "1m": {"age_hours": 20.0, "status": "WARN"},
+                "1h": {"age_hours": 0.0, "status": "OK"},
+                "4h": {"age_hours": 0.0, "status": "OK"},
+            }
+        }
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    resp = s._handle_command(12345, "/freshness")
+    assert "自修引導" in resp
+    assert "check_data_coverage.sh" in resp
+    assert "保持冷靜" in resp
+    assert "🔴" not in resp  # No FAIL yet
+
+    # Case: FAIL should trigger senior guidance
+    fake_snap["freshness"]["BTCUSDT"]["1m"] = {"age_hours": 50.0, "status": "FAIL"}
+    resp = s._handle_command(12345, "/freshness")
+    assert "🔴" in resp
+    assert "人工介入" in resp
+
+
+def test_ml_status_command(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock REPO
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    # Case: Missing files
+    resp = s._handle_command(12345, "/ml_status")
+    assert "異常" in resp
+    assert "Evidence Summary: ❌ 缺失" in resp
+    assert "ML Signals: ❌ 缺失" in resp
+    assert "ml_daily_manual.sh" in resp
+
+    # Case: Files exist (mocking pandas len)
+    evidence_dir = repo / "reports/research/ml"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "evidence_summary.json").write_text("{}")
+    
+    signal_dir = repo / "reports/research/signals"
+    signal_dir.mkdir(parents=True)
+    signal_file = signal_dir / "signal_1h_24.parquet"
+    signal_file.write_text("fake parquet data")
+    
+    # Mock pandas.read_parquet to avoid actual parquet parsing
+    class FakePD:
+        @staticmethod
+        def read_parquet(path):
+            return [1, 2, 3] # len=3
+    monkeypatch.setitem(sys.modules, "pandas", FakePD)
+    
+    resp = s._handle_command(12345, "/ml_status")
+    assert "正常" in resp
+    assert "Evidence Summary: ✅" in resp
+    assert "ML Signals: ✅ 存在 (3 rows)" in resp
