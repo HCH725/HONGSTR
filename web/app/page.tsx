@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface ServiceHeartbeat {
   name: string;
@@ -69,6 +69,19 @@ interface RegimeMonitorSummary {
   topReason: string | null;
 }
 
+interface FreshnessItem {
+  symbol: string;
+  tf: string;
+  age_hours: number | null;
+  status: 'OK' | 'WARN' | 'FAIL';
+}
+
+interface FreshnessTable {
+  generated_utc: string;
+  thresholds: { ok_h: number; warn_h: number };
+  matrix: FreshnessItem[];
+}
+
 interface BacktestRun {
   id: string;
   date: string;
@@ -100,6 +113,7 @@ interface DashboardData {
   allRuns: BacktestRun[];
   topFullRuns: BacktestRun[];
   currentRunId: string | null;
+  freshnessTable: FreshnessTable | null;
 }
 
 function formatPct(value: number | null): string {
@@ -240,6 +254,33 @@ export default function Dashboard() {
                   <p className="text-xs text-slate-500">No service heartbeat found.</p>
                 )}
               </div>
+
+              {data.freshnessTable && (
+                <div className="mt-4 pt-4 border-t border-slate-800">
+                  <p className="mb-2 text-sm font-semibold text-slate-300">Data Freshness (3×3)</p>
+                  <div className="grid grid-cols-4 gap-1 text-[10px] items-center">
+                    <div className="text-slate-500 font-bold uppercase">Sym</div>
+                    <div className="text-center text-slate-500 font-bold uppercase">1m</div>
+                    <div className="text-center text-slate-500 font-bold uppercase">1h</div>
+                    <div className="text-center text-slate-500 font-bold uppercase">4h</div>
+
+                    {['BTCUSDT', 'ETHUSDT', 'BNBUSDT'].map(sym => (
+                      <React.Fragment key={sym}>
+                        <div className="font-mono text-slate-400">{sym.replace('USDT', '')}</div>
+                        {['1m', '1h', '4h'].map(tf => {
+                          const item = data.freshnessTable?.matrix.find(m => m.symbol === sym && m.tf === tf);
+                          const color = item?.status === 'OK' ? 'text-emerald-400' : (item?.status === 'WARN' ? 'text-amber-400' : 'text-rose-400');
+                          return (
+                            <div key={tf} className={`text-center font-mono ${color} bg-slate-800/40 rounded py-0.5`}>
+                              {item?.age_hours !== null && item?.age_hours !== undefined ? `${item.age_hours}h` : 'N/A'}
+                            </div>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </article>
 

@@ -147,6 +147,48 @@ def main():
     else:
         write_json(STATE_DIR / "regime_monitor_summary.json", {"status": "UNKNOWN", "last_updated_utc": now_utc})
 
+    # 5. Data Freshness 3x3
+    freshness_matrix = []
+    thresholds = {"ok_h": 12.0, "warn_h": 48.0}
+    symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+    timeframes = ["1m", "1h", "4h"]
+
+    for sym in symbols:
+        for tf in timeframes:
+            # Consistent with tg_cp lookup paths
+            p1m = Path(f"data/{sym}_1m.parquet")
+            p_derived = Path(f"data/derived/{sym}/{tf}/klines.jsonl")
+            
+            p = p_derived if tf != "1m" else (p1m if p1m.exists() else p_derived)
+            
+            age = None
+            if p.exists():
+                age = (datetime.utcnow().timestamp() - p.stat().st_mtime) / 3600.0
+            
+            status = "FAIL"
+            if age is None:
+                status = "FAIL"
+            elif age <= thresholds["ok_h"]:
+                status = "OK"
+            elif age <= thresholds["warn_h"]:
+                status = "WARN"
+            else:
+                status = "FAIL"
+            
+            freshness_matrix.append({
+                "symbol": sym,
+                "tf": tf,
+                "age_hours": round(age, 1) if age is not None else None,
+                "status": status
+            })
+
+    freshness_table = {
+        "generated_utc": now_utc,
+        "thresholds": thresholds,
+        "matrix": freshness_matrix
+    }
+    write_json(STATE_DIR / "freshness_table.json", freshness_table)
+
     logging.info("Snapshots successfully written to data/state/")
 
 if __name__ == "__main__":

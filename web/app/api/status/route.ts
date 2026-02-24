@@ -61,6 +61,19 @@ interface RegimeMonitorSummary {
   topReason: string | null;
 }
 
+interface FreshnessItem {
+  symbol: string;
+  tf: string;
+  age_hours: number | null;
+  status: 'OK' | 'WARN' | 'FAIL';
+}
+
+interface FreshnessTable {
+  generated_utc: string;
+  thresholds: { ok_h: number; warn_h: number };
+  matrix: FreshnessItem[];
+}
+
 interface BacktestRun {
   id: string;
   date: string;
@@ -92,6 +105,7 @@ interface DashboardData {
   allRuns: BacktestRun[];
   topFullRuns: BacktestRun[];
   currentRunId: string | null;
+  freshnessTable: FreshnessTable | null;
 }
 
 interface WalkforwardLatest {
@@ -403,13 +417,18 @@ async function buildRegimeMonitor(): Promise<RegimeMonitorSummary | null> {
   };
 }
 
-async function listBacktestRuns(root: string, limit = 50): Promise<BacktestRun[]> {
+async function buildFreshnessTable(): Promise<FreshnessTable | null> {
+  return await readJsonOptional<FreshnessTable>('data/state/freshness_table.json');
+}
+
+async function listBacktestRuns(root: string, limit = 100): Promise<BacktestRun[]> {
   const backtestDir = path.join(root, 'data/backtests');
   const runs: BacktestRun[] = [];
 
   try {
     const dates = await fs.readdir(backtestDir);
     for (const date of dates) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
       const datePath = path.join(backtestDir, date);
       const stat = await fs.stat(datePath);
       if (!stat.isDirectory()) continue;
@@ -422,9 +441,11 @@ async function listBacktestRuns(root: string, limit = 50): Promise<BacktestRun[]
 
         const summaryPath = path.join(runDir, 'summary.json');
         let summaryExists = false;
+        let summaryMtime = runStat.mtime;
         try {
-          await fs.access(summaryPath);
+          const sStat = await fs.stat(summaryPath);
           summaryExists = true;
+          summaryMtime = sStat.mtime;
         } catch { }
 
         if (!summaryExists) continue;
@@ -439,7 +460,7 @@ async function listBacktestRuns(root: string, limit = 50): Promise<BacktestRun[]
           id: `${date}/${runId}`,
           date,
           runId,
-          mtime: runStat.mtime.toISOString(),
+          mtime: summaryMtime.toISOString(),
           isFull: hasSelection && summaryExists,
           flags: {
             selection: hasSelection,
@@ -485,7 +506,7 @@ export async function GET(request: Request) {
     selection = await readJsonArtifact<SelectionArtifact>('data/selection/hong_selected.json');
   }
 
-  const [status, hongVsBh, top3, coverage, timeline, strategyPool, coverageMatrix, regimeMonitor] = await Promise.all([
+  const [status, hongVsBh, top3, coverage, timeline, strategyPool, coverageMatrix, regimeMonitor, freshnessTable] = await Promise.all([
     buildStatus(envConfig),
     buildHongVsBh(),
     buildTop3(selection),
@@ -494,6 +515,7 @@ export async function GET(request: Request) {
     buildStrategyPool(),
     buildCoverageMatrix(),
     buildRegimeMonitor(),
+    buildFreshnessTable(),
   ]);
 
   const warnings: string[] = [];
@@ -518,6 +540,7 @@ export async function GET(request: Request) {
     allRuns,
     topFullRuns,
     currentRunId,
+    freshnessTable,
     timestamp: new Date().toISOString(),
   });
 }
