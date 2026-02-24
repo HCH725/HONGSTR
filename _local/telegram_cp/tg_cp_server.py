@@ -1272,7 +1272,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "嗨 👋 我是 HONGSTR 中樞管家。\n"
             "直接跟我聊就好，問什麼我都會盡量用白話回答你。\n"
             "我是 read-only 助手 — 只查看、判讀，不直接動系統。\n\n"
-            "快捷指令：/status /help /skills /remember"
+            "快捷指令：/status /freshness /regime /ml_status /help /skills"
         )
 
     if cmd == "/ping":
@@ -1280,8 +1280,15 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/help":
         return (
-            "直接打字問我就好，不需要特別格式 😊\n"
-            "常用快捷：/status /skills /run /remember /memories /ping"
+            "直接打字問我就好，不需要特別格式 😊\n\n"
+            "📊 監控指令（read-only）：\n"
+            "• /status — 系統瓶頸摘要\n"
+            "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
+            "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
+            "• /regime_status — 同 /regime\n"
+            "• /ml_status — ML 流水線健康狀態\n\n"
+            "🔧 其他指令：\n"
+            "• /skills /run /remember /memories /ping"
         )
 
     if cmd == "/status":

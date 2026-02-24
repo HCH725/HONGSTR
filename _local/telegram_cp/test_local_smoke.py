@@ -91,6 +91,54 @@ def test_help_command(monkeypatch, tmp_path):
     resp = s._handle_command(20, "/help")
     assert "/status" in resp
     assert "/skills" in resp
+    # Must list all monitoring commands so users can discover them
+    assert "/freshness" in resp
+    assert "/regime" in resp
+    assert "/ml_status" in resp
+
+
+# ── command routing: /freshness, /regime, /ml_status must NOT return 不認識 ──
+
+def test_freshness_routing(monkeypatch, tmp_path):
+    """Regression: /freshness must never return the 不認識 fallback."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    fake_snap = {"freshness": {
+        "BTCUSDT": {"1m": {"age_hours": 1.0, "status": "OK"}, "1h": {"age_hours": 1.0, "status": "OK"}, "4h": {"age_hours": 1.0, "status": "OK"}},
+        "ETHUSDT": {"1m": {"age_hours": 1.0, "status": "OK"}, "1h": {"age_hours": 1.0, "status": "OK"}, "4h": {"age_hours": 1.0, "status": "OK"}},
+        "BNBUSDT": {"1m": {"age_hours": 1.0, "status": "OK"}, "1h": {"age_hours": 1.0, "status": "OK"}, "4h": {"age_hours": 1.0, "status": "OK"}},
+    }}
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    resp = s._handle_command(20, "/freshness")
+    assert "不認識" not in resp
+    assert "新鮮度" in resp
+
+
+def test_regime_routing(monkeypatch, tmp_path):
+    """Regression: /regime and /regime_status must never return the 不認識 fallback."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    # No summary file → should return UNKNOWN guidance, not 不認識
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    for cmd in ["/regime", "/regime_status"]:
+        resp = s._handle_command(20, cmd)
+        assert "不認識" not in resp, f"{cmd} returned 不認識 — routing is broken"
+        assert "Regime" in resp or "機制" in resp or "UNKNOWN" in resp
+
+
+def test_ml_status_routing(monkeypatch, tmp_path):
+    """Regression: /ml_status must never return the 不認識 fallback."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    resp = s._handle_command(20, "/ml_status")
+    assert "不認識" not in resp, "/ml_status returned 不認識 — routing is broken"
+    assert "ML" in resp or "Pipeline" in resp
+
 
 
 def test_status_command(monkeypatch, tmp_path):
