@@ -61,6 +61,21 @@ interface RegimeMonitorSummary {
   topReason: string | null;
 }
 
+interface BacktestRun {
+  id: string;
+  date: string;
+  runId: string;
+  mtime: string;
+  isFull: boolean;
+  flags: {
+    selection: boolean;
+    summary: boolean;
+    gate: boolean;
+    regime: boolean;
+    optimizer: boolean;
+  };
+}
+
 interface DashboardData {
   ok: boolean;
   status: StatusPayload;
@@ -74,6 +89,9 @@ interface DashboardData {
   strategyPool: StrategyPoolSummary | null;
   coverageMatrix: CoverageMatrixSummary | null;
   regimeMonitor: RegimeMonitorSummary | null;
+  allRuns: BacktestRun[];
+  topFullRuns: BacktestRun[];
+  currentRunId: string | null;
 }
 
 interface WalkforwardLatest {
@@ -385,11 +403,87 @@ async function buildRegimeMonitor(): Promise<RegimeMonitorSummary | null> {
   };
 }
 
-export async function GET() {
+async function listBacktestRuns(root: string, limit = 50): Promise<BacktestRun[]> {
+  const backtestDir = path.join(root, 'data/backtests');
+  const runs: BacktestRun[] = [];
+
+  try {
+    const dates = await fs.readdir(backtestDir);
+    for (const date of dates) {
+      const datePath = path.join(backtestDir, date);
+      const stat = await fs.stat(datePath);
+      if (!stat.isDirectory()) continue;
+
+      const runIds = await fs.readdir(datePath);
+      for (const runId of runIds) {
+        const runDir = path.join(datePath, runId);
+        const runStat = await fs.stat(runDir);
+        if (!runStat.isDirectory()) continue;
+
+        const summaryPath = path.join(runDir, 'summary.json');
+        let summaryExists = false;
+        try {
+          await fs.access(summaryPath);
+          summaryExists = true;
+        } catch { }
+
+        if (!summaryExists) continue;
+
+        const hasSelection = await fs.access(path.join(runDir, 'selection.json')).then(() => true).catch(() => false);
+        const hasGate = await fs.access(path.join(runDir, 'gate.json')).then(() => true).catch(() => false);
+        const hasRegime = await fs.access(path.join(runDir, 'regime_report.json')).then(() => true).catch(() => false);
+        const hasOptimizer = (await fs.access(path.join(runDir, 'optimizer_regime.json')).then(() => true).catch(() => false)) ||
+          (await fs.access(path.join(runDir, 'optimizer.json')).then(() => true).catch(() => false));
+
+        runs.push({
+          id: `${date}/${runId}`,
+          date,
+          runId,
+          mtime: runStat.mtime.toISOString(),
+          isFull: hasSelection && summaryExists,
+          flags: {
+            selection: hasSelection,
+            summary: summaryExists,
+            gate: hasGate,
+            regime: hasRegime,
+            optimizer: hasOptimizer,
+          },
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error listing backtest runs:', e);
+  }
+
+  // Sort by mtime DESC
+  return runs.sort((a, b) => new Date(b.mtime).getTime() - new Date(a.mtime).getTime()).slice(0, limit);
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const requestedRun = searchParams.get('run');
+
   const root = path.resolve(process.cwd(), '..');
   const envConfig = await readEnvConfig(root);
 
-  const selection = await readJsonArtifact<SelectionArtifact>('data/selection/hong_selected.json');
+  const allRuns = await listBacktestRuns(root);
+  const topFullRuns = allRuns.filter(r => r.isFull).slice(0, 3);
+
+  // Determine which run to use for selection
+  let currentRunId = requestedRun;
+  if (!currentRunId && topFullRuns.length > 0) {
+    currentRunId = topFullRuns[0].id;
+  }
+
+  let selection: SelectionArtifact | null = null;
+  if (currentRunId) {
+    selection = await readJsonArtifact<SelectionArtifact>(path.join('data/backtests', currentRunId, 'selection.json'));
+  }
+
+  // Fallback to global selection if still null and no specific run was requested
+  if (!selection && !requestedRun) {
+    selection = await readJsonArtifact<SelectionArtifact>('data/selection/hong_selected.json');
+  }
 
   const [status, hongVsBh, top3, coverage, timeline, strategyPool, coverageMatrix, regimeMonitor] = await Promise.all([
     buildStatus(envConfig),
@@ -421,6 +515,9 @@ export async function GET() {
     strategyPool,
     coverageMatrix,
     regimeMonitor,
+    allRuns,
+    topFullRuns,
+    currentRunId,
     timestamp: new Date().toISOString(),
   });
 }

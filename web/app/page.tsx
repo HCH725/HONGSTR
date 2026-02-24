@@ -69,6 +69,21 @@ interface RegimeMonitorSummary {
   topReason: string | null;
 }
 
+interface BacktestRun {
+  id: string;
+  date: string;
+  runId: string;
+  mtime: string;
+  isFull: boolean;
+  flags: {
+    selection: boolean;
+    summary: boolean;
+    gate: boolean;
+    regime: boolean;
+    optimizer: boolean;
+  };
+}
+
 interface DashboardData {
   ok: boolean;
   status: StatusPayload;
@@ -82,6 +97,9 @@ interface DashboardData {
   strategyPool: StrategyPoolSummary | null;
   coverageMatrix: CoverageMatrixSummary | null;
   regimeMonitor: RegimeMonitorSummary | null;
+  allRuns: BacktestRun[];
+  topFullRuns: BacktestRun[];
+  currentRunId: string | null;
 }
 
 function formatPct(value: number | null): string {
@@ -112,7 +130,11 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/status', { cache: 'no-store' });
+        const url = new URL('/api/status', window.location.origin);
+        const savedRun = localStorage.getItem('selectedBacktestRun');
+        if (savedRun) url.searchParams.set('run', savedRun);
+
+        const res = await fetch(url.toString(), { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as DashboardData;
         if (!mounted) return;
@@ -134,6 +156,12 @@ export default function Dashboard() {
       clearInterval(timer);
     };
   }, []);
+
+  const handleSelectRun = (runId: string) => {
+    localStorage.setItem('selectedBacktestRun', runId);
+    setLoading(true);
+    window.location.reload(); // Simple way to re-trigger fetch and sync UI
+  };
 
   if (loading && !data) {
     return <main className="min-h-screen bg-slate-950 p-6 text-slate-100">Loading dashboard...</main>;
@@ -237,7 +265,31 @@ export default function Dashboard() {
 
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="mb-3 text-lg font-semibold">Top3</h2>
+            <h2 className="mb-3 text-lg font-semibold">Top3 Selected</h2>
+            {!data.selection && (
+              <div className="mb-4 rounded-lg border border-amber-600/40 bg-amber-950/40 p-4">
+                <p className="text-sm font-bold text-amber-200">⚠️ Fragment Run Detected</p>
+                <p className="mt-1 text-xs text-amber-300/80">
+                  你選到的是 Fragment Run (walkforward 片段)，因此沒有 selection.json。
+                </p>
+                {data.topFullRuns.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] uppercase tracking-wider text-amber-400/60 font-bold mb-2">切換至最近的完整 Run:</p>
+                    <div className="flex flex-col gap-2">
+                      {data.topFullRuns.map(run => (
+                        <button
+                          key={run.id}
+                          onClick={() => handleSelectRun(run.id)}
+                          className="text-left px-3 py-2 text-xs rounded bg-amber-900/30 border border-amber-800/50 hover:bg-amber-800/40 transition-colors text-amber-100 font-mono"
+                        >
+                          {run.id}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {data.top3.length > 0 ? (
               <ol className="space-y-2">
                 {data.top3.map((name, idx) => (
@@ -250,7 +302,24 @@ export default function Dashboard() {
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-slate-500">No strategy selection available.</p>
+              <p className="text-sm text-slate-500">No strategy selection available for run: <span className="font-mono text-xs">{data.currentRunId || 'GLOBAL'}</span></p>
+            )}
+            {data.allRuns.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-slate-800">
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">變更 Backtest Run:</label>
+                <select
+                  className="w-full bg-slate-800 text-sm py-2 px-3 rounded border border-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  value={data.currentRunId || ''}
+                  onChange={(e) => handleSelectRun(e.target.value)}
+                >
+                  {data.allRuns.map(run => (
+                    <option key={run.id} value={run.id}>
+                      {run.isFull ? '✅' : '📄'} {run.id}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-[10px] text-slate-500 italic">標記 ✅ 代表具備完整 artifacts (selection.json)。</p>
+              </div>
             )}
           </article>
 
@@ -287,9 +356,9 @@ export default function Dashboard() {
               <h2 className="mb-3 text-lg font-semibold">Regime Monitor</h2>
               <div className="flex items-center gap-4">
                 <div className={`rounded-xl px-4 py-3 text-2xl font-bold ${data.regimeMonitor.status === 'OK' ? 'bg-emerald-600/20 text-emerald-400' :
-                    data.regimeMonitor.status === 'WARN' ? 'bg-amber-600/20 text-amber-400' :
-                      data.regimeMonitor.status === 'FAIL' ? 'bg-rose-600/20 text-rose-400' :
-                        'bg-slate-800 text-slate-400'
+                  data.regimeMonitor.status === 'WARN' ? 'bg-amber-600/20 text-amber-400' :
+                    data.regimeMonitor.status === 'FAIL' ? 'bg-rose-600/20 text-rose-400' :
+                      'bg-slate-800 text-slate-400'
                   }`}>
                   {data.regimeMonitor.status}
                 </div>
