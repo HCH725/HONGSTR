@@ -64,14 +64,16 @@ interface RegimeMonitorSummary {
 interface FreshnessItem {
   symbol: string;
   tf: string;
-  age_hours: number | null;
+  age_h: number | null;
   status: 'OK' | 'WARN' | 'FAIL';
+  reason?: string | null;
+  source?: string | null;
 }
 
 interface FreshnessTable {
   generated_utc: string;
   thresholds: { ok_h: number; warn_h: number };
-  matrix: FreshnessItem[];
+  rows: FreshnessItem[];
 }
 
 interface BacktestRun {

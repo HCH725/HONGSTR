@@ -72,14 +72,16 @@ interface RegimeMonitorSummary {
 interface FreshnessItem {
   symbol: string;
   tf: string;
-  age_hours: number | null;
+  age_h: number | null;
   status: 'OK' | 'WARN' | 'FAIL';
+  reason?: string | null;
+  source?: string | null;
 }
 
 interface FreshnessTable {
   generated_utc: string;
   thresholds: { ok_h: number; warn_h: number };
-  matrix: FreshnessItem[];
+  rows: FreshnessItem[];
 }
 
 interface BacktestRun {
@@ -268,11 +270,12 @@ export default function Dashboard() {
                       <React.Fragment key={sym}>
                         <div className="font-mono text-slate-400">{sym.replace('USDT', '')}</div>
                         {['1m', '1h', '4h'].map(tf => {
-                          const item = data.freshnessTable?.matrix.find(m => m.symbol === sym && m.tf === tf);
+                          const item = data.freshnessTable?.rows.find(m => m.symbol === sym && m.tf === tf);
                           const color = item?.status === 'OK' ? 'text-emerald-400' : (item?.status === 'WARN' ? 'text-amber-400' : 'text-rose-400');
+                          const title = item?.reason || item?.source || '';
                           return (
-                            <div key={tf} className={`text-center font-mono ${color} bg-slate-800/40 rounded py-0.5`}>
-                              {item?.age_hours !== null && item?.age_hours !== undefined ? `${item.age_hours}h` : 'N/A'}
+                            <div key={tf} className={`text-center font-mono ${color} bg-slate-800/40 rounded py-0.5`} title={title}>
+                              {item?.age_h !== null && item?.age_h !== undefined ? `${item.age_h}h` : 'N/A'}
                             </div>
                           );
                         })}

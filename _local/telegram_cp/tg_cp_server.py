@@ -21,6 +21,11 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+# Ensure project root is in sys.path for _local imports
+REPO_ROOT = str(Path(__file__).resolve().parent.parent.parent)
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 try:
     from _local.telegram_cp.args_schema import parse_args, validate  # type: ignore
 except Exception:
@@ -361,13 +366,27 @@ def _collect_snapshot() -> dict:
 
     # data freshness
     freshness = {}
-    for sym in ["BTCUSDT", "ETHUSDT", "BNBUSDT"]:
-        freshness[sym] = {}
-        for tf in ["1m", "1h", "4h"]:
-            p = REPO / f"data/derived/{sym}/{tf}/klines.jsonl"
-            age = _file_age_hours(p)
-            status, reason = _evaluate_freshness(age)
-            freshness[sym][tf] = {"age_hours": age, "status": status, "reason": reason}
+    freshness_snap = _load_json(REPO / "data/state/freshness_table.json", {})
+    if freshness_snap and "rows" in freshness_snap:
+        # Prioritize unified snapshot
+        for row in freshness_snap["rows"]:
+            sym = row.get("symbol")
+            tf = row.get("tf")
+            if sym not in freshness: freshness[sym] = {}
+            freshness[sym][tf] = {
+                "age_hours": row.get("age_h"),
+                "status": row.get("status", "FAIL"),
+                "reason": row.get("reason")
+            }
+    else:
+        # Fallback to manual scan if snapshot missing
+        for sym in ["BTCUSDT", "ETHUSDT", "BNBUSDT"]:
+            freshness[sym] = {}
+            for tf in ["1m", "1h", "4h"]:
+                p = REPO / f"data/derived/{sym}/{tf}/klines.jsonl"
+                age = _file_age_hours(p)
+                status, reason = _evaluate_freshness(age)
+                freshness[sym][tf] = {"age_hours": age, "status": status, "reason": reason}
 
     # Log freshness evaluation
     max_age = 0.0

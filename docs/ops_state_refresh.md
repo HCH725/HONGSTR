@@ -10,13 +10,15 @@ Dashboard 與 `tg_cp` 使用一致的新鮮度門檻：
 
 ## 監控矩陣 (3×3 Matrix)
 
-系統監控以下幣別與時框的資料完整性：
+系統定期產出 `data/state/freshness_table.json` 作為單一事實來源 (Single Source of Truth)：
 
+- **來源**: 統一代入 `data/derived/{sym}/{tf}/klines.jsonl`。
+- **欄位**: 包含 `age_h`, `status`, `source`, `reason`。
 - **Symbols**: BTCUSDT, ETHUSDT, BNBUSDT
 - **Timeframes**: 1m, 1h, 4h
 
 ## 運作機制
 
-1. **快照產出**：由 `scripts/state_snapshots.py` 掃描 `data/derived/{sym}/{tf}/klines.jsonl` 並計算 `age_hours`。
-2. **觸發方式**：`bash scripts/refresh_state.sh` 會呼叫上述腳本並將結果寫入 `data/state/freshness_table.json`。
-3. **前端顯示**：Dashboard API 讀取該快照並在 A.Environment Control 區塊以 3×3 表格顯示。
+1. **快照產出**：由 `scripts/state_snapshots.py` 掃描並計算時間差。若檔案缺失，會標註 `reason="missing_source"`。
+2. **觸發方式**：`bash scripts/refresh_state.sh`。
+3. **前端/TG 顯示**：Dashboard API 與 Telegram `/freshness` 指令均優先讀取此 JSON 快照，確保兩端顯示完全同步。

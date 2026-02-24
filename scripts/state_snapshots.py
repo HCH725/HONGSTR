@@ -155,37 +155,49 @@ def main():
 
     for sym in symbols:
         for tf in timeframes:
-            # Consistent with tg_cp lookup paths
-            p1m = Path(f"data/{sym}_1m.parquet")
-            p_derived = Path(f"data/derived/{sym}/{tf}/klines.jsonl")
+            # Consistent with tg_cp: read only from derived
+            p = Path(".") / f"data/derived/{sym}/{tf}/klines.jsonl"
             
-            p = p_derived if tf != "1m" else (p1m if p1m.exists() else p_derived)
+            age_h = None
+            reason = None
+            source = str(p.relative_to(Path("."))) if p.exists() else None
             
-            age = None
             if p.exists():
-                age = (datetime.utcnow().timestamp() - p.stat().st_mtime) / 3600.0
+                try:
+                    age_h = (datetime.utcnow().timestamp() - p.stat().st_mtime) / 3600.0
+                except Exception as e:
+                    reason = f"stat_error: {str(e)}"
+            else:
+                reason = "missing_source"
             
             status = "FAIL"
-            if age is None:
+            if reason:
                 status = "FAIL"
-            elif age <= thresholds["ok_h"]:
+            elif age_h is None:
+                status = "FAIL"
+                reason = "unknown_age"
+            elif age_h <= thresholds["ok_h"]:
                 status = "OK"
-            elif age <= thresholds["warn_h"]:
+            elif age_h <= thresholds["warn_h"]:
                 status = "WARN"
+                reason = f"exceeds 12h ({age_h:.1f}h)"
             else:
                 status = "FAIL"
+                reason = f"exceeds 48h ({age_h:.1f}h)"
             
             freshness_matrix.append({
                 "symbol": sym,
                 "tf": tf,
-                "age_hours": round(age, 1) if age is not None else None,
-                "status": status
+                "age_h": round(age_h, 1) if age_h is not None else None,
+                "status": status,
+                "source": source,
+                "reason": reason
             })
 
     freshness_table = {
         "generated_utc": now_utc,
         "thresholds": thresholds,
-        "matrix": freshness_matrix
+        "rows": freshness_matrix # User requested 'rows' in schema suggestion
     }
     write_json(STATE_DIR / "freshness_table.json", freshness_table)
 
