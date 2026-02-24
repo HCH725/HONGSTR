@@ -124,6 +124,29 @@ def main():
     }
 
     write_json(STATE_DIR / "strategy_pool_summary.json", pool_summary)
+
+    # 4. Regime Monitor Summary
+    regime_data = read_json(STATE_DIR / "regime_monitor_latest.json")
+    if regime_data:
+        regime_summary = {
+            "status": regime_data.get("overall", "UNKNOWN"),
+            "updated_utc": regime_data.get("ts_utc"),
+            "key_metrics": {
+                "sharpe": regime_data.get("current", {}).get("sharpe"),
+                "mdd": regime_data.get("current", {}).get("mdd"),
+                "trades": regime_data.get("current", {}).get("trades"),
+            },
+            "thresholds": {
+                "sharpe_warn": regime_data.get("phase3_baseline", {}).get("p40"), # approximation
+                "sharpe_fail": regime_data.get("phase3_baseline", {}).get("p20"),
+            },
+            "reasons": regime_data.get("reason", []),
+            "sources": [regime_data.get("current", {}).get("summary_source")]
+        }
+        write_json(STATE_DIR / "regime_monitor_summary.json", regime_summary)
+    else:
+        write_json(STATE_DIR / "regime_monitor_summary.json", {"status": "UNKNOWN", "last_updated_utc": now_utc})
+
     logging.info("Snapshots successfully written to data/state/")
 
 if __name__ == "__main__":

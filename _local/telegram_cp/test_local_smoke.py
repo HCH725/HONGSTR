@@ -499,3 +499,46 @@ def test_ml_status_command(monkeypatch, tmp_path):
     assert "正常" in resp
     assert "Evidence Summary: ✅" in resp
     assert "ML Signals: ✅ 存在 (3 rows)" in resp
+
+
+def test_regime_command(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock REPO
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True)
+    summary_p = state_dir / "regime_monitor_summary.json"
+    
+    # Case: Missing file
+    resp = s._handle_command(12345, "/regime")
+    assert "UNKNOWN" in resp
+    assert "尚未產生快照" in resp
+
+    # Case: OK
+    summary_p.write_text(json.dumps({
+        "status": "OK",
+        "updated_utc": "2026-02-24T00:00:00Z",
+        "key_metrics": {"sharpe": 1.5, "mdd": -0.02, "trades": 100},
+        "reasons": ["All metrics within comfort zone"]
+    }))
+    resp = s._handle_command(12345, "/regime")
+    assert "OK" in resp
+    assert "Sharpe: 1.500" in resp
+    assert "自修引導" not in resp
+
+    # Case: WARN
+    summary_p.write_text(json.dumps({
+        "status": "WARN",
+        "updated_utc": "2026-02-24T00:01:00Z",
+        "key_metrics": {"sharpe": 0.3, "mdd": -0.04, "trades": 80},
+        "reasons": ["Sharpe dropped below median"]
+    }))
+    resp = s._handle_command(12345, "/regime")
+    assert "WARN" in resp
+    assert "自修引導 (SOP)" in resp
+    assert "check_data_coverage.sh" in resp

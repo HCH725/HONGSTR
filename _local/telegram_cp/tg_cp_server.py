@@ -596,6 +596,47 @@ def skill_ml_status() -> str:
     return "\n".join(lines)
 
 
+def skill_regime_status() -> str:
+    p = REPO / "data/state/regime_monitor_summary.json"
+    data = {}
+    if p.exists():
+        try:
+            with open(p, "r") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+    
+    status = data.get("status", "UNKNOWN")
+    lines = [f"🌐 市場機制監控 (Regime Monitor): {status}"]
+    
+    if status == "UNKNOWN":
+        lines.append("❌ 尚未產生快照。")
+        lines.append("💡 建議執行: `PYTHONPATH=. .venv/bin/python scripts/phase4_regime_monitor.py` 重新產生。")
+    else:
+        updated = data.get("updated_utc", "UNKNOWN")
+        lines.append(f"• 更新時間: {updated}")
+        metrics = data.get("key_metrics", {})
+        s = metrics.get("sharpe")
+        m = metrics.get("mdd")
+        t = metrics.get("trades")
+        lines.append(f"• Sharpe: {s:.3f} | MDD: {m:.2%} | Trades: {t}")
+        
+        reasons = data.get("reasons", [])
+        if reasons:
+            lines.append("\n📝 判定原因:")
+            for r in reasons[:3]:
+                lines.append(f"  - {r}")
+        
+        if status != "OK":
+            lines.append("\n⚠️ 自修引導 (SOP):")
+            lines.append("• 建議執行: `bash scripts/check_data_coverage.sh` 排除資料缺口。")
+            lines.append("• 重新分析: `PYTHONPATH=. .venv/bin/python scripts/phase4_regime_monitor.py`。")
+            lines.append("• 最後檢查: 確認 `logs/` 下有無異常重啟。")
+            
+    lines.append("\n💡 備註：此回報屬監控性質，不代表交易有問題。系統為唯讀模式，不會自動下單或修改任何設定。")
+    return "\n".join(lines)
+
+
 def skill_logs_tail_hint(lines: int = 60) -> str:
     n = max(20, min(120, int(lines)))
     return "\n".join([
@@ -614,6 +655,7 @@ SKILL_IMPL = {
     "logs_tail_hint": lambda args: skill_logs_tail_hint(int(args.get("lines", 60))),
     "freshness_detail": lambda args: skill_freshness_detail(),
     "ml_status": lambda args: skill_ml_status(),
+    "regime_status": lambda args: skill_regime_status(),
 }
 
 
@@ -1251,10 +1293,14 @@ def _handle_command(chat_id: int, text: str) -> str:
     if cmd == "/ml_status":
         return skill_ml_status()
 
+    if cmd == "/regime" or cmd == "/regime_status":
+        return skill_regime_status()
+
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         lines.append("• (內建) /ml_status: ML 流水線健康狀態")
+        lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
         return "可用 read-only 技能：\n" + "\n".join(lines)
 
     if cmd == "/run":

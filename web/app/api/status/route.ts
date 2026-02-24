@@ -55,6 +55,12 @@ interface CoverageMatrixSummary {
   rebase: number;
 }
 
+interface RegimeMonitorSummary {
+  status: 'OK' | 'WARN' | 'FAIL' | 'UNKNOWN';
+  updatedAtUtc: string | null;
+  topReason: string | null;
+}
+
 interface DashboardData {
   ok: boolean;
   status: StatusPayload;
@@ -67,6 +73,7 @@ interface DashboardData {
   timestamp: string;
   strategyPool: StrategyPoolSummary | null;
   coverageMatrix: CoverageMatrixSummary | null;
+  regimeMonitor: RegimeMonitorSummary | null;
 }
 
 interface WalkforwardLatest {
@@ -367,13 +374,24 @@ async function buildCoverageMatrix(): Promise<CoverageMatrixSummary | null> {
   return { done, inProgress, blocked, rebase };
 }
 
+async function buildRegimeMonitor(): Promise<RegimeMonitorSummary | null> {
+  const data = await readJsonOptional<any>('data/state/regime_monitor_summary.json');
+  if (!data) return null;
+
+  return {
+    status: data.status || 'UNKNOWN',
+    updatedAtUtc: data.updated_utc || null,
+    topReason: Array.isArray(data.reasons) && data.reasons.length > 0 ? data.reasons[0] : null,
+  };
+}
+
 export async function GET() {
   const root = path.resolve(process.cwd(), '..');
   const envConfig = await readEnvConfig(root);
 
   const selection = await readJsonArtifact<SelectionArtifact>('data/selection/hong_selected.json');
 
-  const [status, hongVsBh, top3, coverage, timeline, strategyPool, coverageMatrix] = await Promise.all([
+  const [status, hongVsBh, top3, coverage, timeline, strategyPool, coverageMatrix, regimeMonitor] = await Promise.all([
     buildStatus(envConfig),
     buildHongVsBh(),
     buildTop3(selection),
@@ -381,6 +399,7 @@ export async function GET() {
     buildTimeline(),
     buildStrategyPool(),
     buildCoverageMatrix(),
+    buildRegimeMonitor(),
   ]);
 
   const warnings: string[] = [];
@@ -401,6 +420,7 @@ export async function GET() {
     warnings,
     strategyPool,
     coverageMatrix,
+    regimeMonitor,
     timestamp: new Date().toISOString(),
   });
 }

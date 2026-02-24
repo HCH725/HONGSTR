@@ -63,6 +63,12 @@ interface CoverageMatrixSummary {
   rebase: number;
 }
 
+interface RegimeMonitorSummary {
+  status: 'OK' | 'WARN' | 'FAIL' | 'UNKNOWN';
+  updatedAtUtc: string | null;
+  topReason: string | null;
+}
+
 interface DashboardData {
   ok: boolean;
   status: StatusPayload;
@@ -75,6 +81,7 @@ interface DashboardData {
   timestamp: string;
   strategyPool: StrategyPoolSummary | null;
   coverageMatrix: CoverageMatrixSummary | null;
+  regimeMonitor: RegimeMonitorSummary | null;
 }
 
 function formatPct(value: number | null): string {
@@ -228,7 +235,7 @@ export default function Dashboard() {
           </article>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
             <h2 className="mb-3 text-lg font-semibold">Top3</h2>
             {data.top3.length > 0 ? (
@@ -274,6 +281,26 @@ export default function Dashboard() {
             )}
             <p className="mt-3 text-xs text-slate-500">Source: {data.coverage.source}</p>
           </article>
+
+          {data.regimeMonitor && (
+            <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+              <h2 className="mb-3 text-lg font-semibold">Regime Monitor</h2>
+              <div className="flex items-center gap-4">
+                <div className={`rounded-xl px-4 py-3 text-2xl font-bold ${data.regimeMonitor.status === 'OK' ? 'bg-emerald-600/20 text-emerald-400' :
+                    data.regimeMonitor.status === 'WARN' ? 'bg-amber-600/20 text-amber-400' :
+                      data.regimeMonitor.status === 'FAIL' ? 'bg-rose-600/20 text-rose-400' :
+                        'bg-slate-800 text-slate-400'
+                  }`}>
+                  {data.regimeMonitor.status}
+                </div>
+                <div className="flex-1 text-sm">
+                  <p className="text-slate-400">Latest Observation:</p>
+                  <p className="font-medium">{data.regimeMonitor.topReason || 'No issues detected'}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-slate-500">Updated: {formatDateTime(data.regimeMonitor.updatedAtUtc)}</p>
+            </article>
+          )}
         </section>
 
         {data.strategyPool && (
