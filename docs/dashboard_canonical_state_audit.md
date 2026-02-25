@@ -27,21 +27,21 @@ The following files are verified as canonical state sources:
 ## 4) Findings per dashboard section
 
 | Section | Data Source(s) | Producer Script | Consumer Component | Nature | Status |
-|---|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- | :--- |
 | **Freshness** | `data/state/freshness_table.json` | `scripts/state_snapshots.py` | `FreshnessGrid` | Canonical | **FOUND** |
 | **Brake Health** | `data/state/brake_health_latest.json` | `scripts/brake_healthcheck.py` | `BrakeStatusCard` | Canonical | **FOUND** |
 | **Regime Monitor** | `data/state/regime_monitor_summary.json` | `scripts/state_snapshots.py` | `RegimeCard` | Canonical | **FOUND** |
 | **Coverage Summary** | `reports/walkforward_latest.json` | `scripts/report_walkforward.py` | `CoverageSummary` | Canonical | **FOUND** |
-| **Coverage Matrix** | `data/state/coverage_table.jsonl` | `scripts/coverage_update.py` | `CoverageMatrix` | **Dynamic** | **FOUND** |
+| **Coverage Matrix** | `data/state/coverage_matrix_latest.json` | `scripts/state_snapshots.py` | `CoverageMatrix` | Canonical | **FOUND** |
 | **Timeline** | `data/state/execution_*.jsonl` | `scripts/run_all_paper.py` | `EventTimeline` | Canonical | **FOUND** |
 | **Strategy Pool** | `data/state/strategy_pool_summary.json` | `scripts/state_snapshots.py` | `Leaderboard` | Canonical | **FOUND** |
-| **Execution Mode** | `data/state/execution_mode.json` | **MISSING** | `StatusHeader` | Canonical | **AMBIGUOUS** |
-| **Services Heartbeat** | `data/state/services_heartbeat.json` | **MISSING** | `ServicesList` | Canonical | **AMBIGUOUS** |
+| **Execution Mode** | `data/state/execution_mode.json` | `scripts/state_snapshots.py` | `StatusHeader` | Canonical | **FOUND** |
+| **Services Heartbeat** | `data/state/services_heartbeat.json` | `scripts/state_snapshots.py` | `ServicesList` | Canonical | **FOUND** |
 
 ### Notes
 
-- **Coverage Matrix**: Currently reads the large `.jsonl` file and computes stats on the fly. This should be moved to `state_snapshots.py` for performance.
-- **Ambiguous Producers**: `execution_mode.json` and `services_heartbeat.json` are consumed by the API but no primary writing script exists in the repo. They are likely handled by a legacy process or external orchestration currently not under version control.
+- **Coverage Matrix**: Moved to `state_snapshots.py` (R7-B). Performance improved, no longer parsing raw `.jsonl` at request time.
+- **Heartbeat & Execution Mode**: Implemented in `state_snapshots.py` (R7-A). Heartbeat derived from launchd log mtime and environment variables.
 
 ## 5) Recommendation (next minimal PR)
 

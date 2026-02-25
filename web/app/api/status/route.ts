@@ -53,6 +53,8 @@ interface CoverageMatrixSummary {
   inProgress: number;
   blocked: number;
   rebase: number;
+  rows?: any[];
+  ts_utc?: string;
 }
 
 interface RegimeMonitorSummary {
@@ -393,6 +395,16 @@ async function buildStrategyPool(): Promise<StrategyPoolSummary | null> {
 }
 
 async function buildCoverageMatrix(): Promise<CoverageMatrixSummary | null> {
+  const snapshot = await readJsonOptional<any>('data/state/coverage_matrix_latest.json');
+  if (snapshot && snapshot.totals) {
+    return {
+      ...snapshot.totals,
+      rows: snapshot.rows,
+      ts_utc: snapshot.ts_utc
+    };
+  }
+
+  // Fallback to dynamic computation
   const records = await readJsonlTail('data/state/coverage_table.jsonl', 1000);
   if (!records || records.length === 0) return null;
 
