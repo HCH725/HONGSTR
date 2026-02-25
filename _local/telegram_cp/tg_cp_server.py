@@ -452,38 +452,6 @@ def _fmt_num(v: float | int | None) -> str:
         return "N/A"
 
 
-def _read_coverage_table_rebase(path: Path) -> tuple[int | None, str | None]:
-    if not path.exists():
-        return None, "missing"
-    try:
-        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
-    except Exception:
-        return None, "unreadable"
-
-    latest_by_key: dict[str, dict] = {}
-    for ln in lines:
-        if not ln.strip():
-            continue
-        try:
-            row = json.loads(ln)
-        except Exception:
-            return None, "unreadable"
-        if not isinstance(row, dict):
-            return None, "unreadable"
-        key_obj = row.get("coverage_key")
-        if isinstance(key_obj, dict):
-            key = json.dumps(key_obj, ensure_ascii=False, sort_keys=True)
-        else:
-            key = str(key_obj)
-        latest_by_key[key] = row
-
-    rebase = 0
-    for row in latest_by_key.values():
-        if str(row.get("status", "")).upper() == "NEEDS_REBASE":
-            rebase += 1
-    return rebase, None
-
-
 def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
     if not isinstance(health_pack, dict) or not health_pack:
         return None
