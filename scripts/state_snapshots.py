@@ -202,6 +202,10 @@ def main():
         "thresholds": thresholds,
         "rows": freshness_matrix 
     }
+    
+    # SSOT schema compatibility: keep generated_utc and also expose ts_utc
+    freshness_table.setdefault("ts_utc", freshness_table.get("generated_utc"))
+
     write_json(STATE_DIR / "freshness_table.json", freshness_table)
 
     # 6. Execution Mode Snapshot
