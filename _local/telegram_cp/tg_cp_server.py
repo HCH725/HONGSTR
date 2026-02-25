@@ -403,6 +403,42 @@ def _normalize_regime_signal_status(status_raw: object) -> str:
     return status
 
 
+def _normalize_coverage_status(status_raw: object) -> str:
+    status = str(status_raw or "UNKNOWN").upper().strip()
+    if status in {"PASS", "OK", "DONE"}:
+        return "PASS"
+    if status in {"WARN", "IN_PROGRESS"}:
+        return "WARN"
+    if status in {"FAIL", "BLOCKED", "BLOCKED_DATA_QUALITY"}:
+        return "FAIL"
+    if status == "NEEDS_REBASE":
+        return "NEEDS_REBASE"
+    return "UNKNOWN"
+
+
+def _coverage_health_status(
+    row_statuses: list[object],
+    *,
+    blocked_count: int = 0,
+    rebase_count: int = 0,
+    total_count: int | None = None,
+) -> str:
+    normalized = [_normalize_coverage_status(s) for s in row_statuses]
+    total = len(normalized) if total_count is None else int(total_count)
+
+    if total <= 0 and blocked_count <= 0 and rebase_count <= 0:
+        return "UNKNOWN"
+    if blocked_count > 0 or "FAIL" in normalized:
+        return "FAIL"
+    if rebase_count > 0 or "NEEDS_REBASE" in normalized:
+        return "WARN"
+    if "WARN" in normalized:
+        return "WARN"
+    if "PASS" in normalized:
+        return "PASS"
+    return "UNKNOWN"
+
+
 def _fmt_num(v: float | int | None) -> str:
     if v is None:
         return "N/A"
@@ -522,15 +558,22 @@ def _status_short_report() -> str:
 
     matrix_rebase = int(cov_totals.get("rebase", 0) or 0)
     max_lag = None
-    cov_status_raw = [str(r.get("status", "UNKNOWN")).upper() for r in cov_rows if isinstance(r, dict)]
+    cov_status_raw = [_normalize_coverage_status(r.get("status")) for r in cov_rows if isinstance(r, dict)]
     done_count = cov_totals.get("done")
     blocked_count = cov_totals.get("blocked", 0)
-    total_count = None
+    total_count = 0
     if "done" in cov_totals and "inProgress" in cov_totals and "blocked" in cov_totals:
-        total_count = cov_totals["done"] + cov_totals["inProgress"] + cov_totals["blocked"]
+        done_count = int(cov_totals.get("done", 0) or 0)
+        blocked_count = int(cov_totals.get("blocked", 0) or 0)
+        total_count = (
+            int(cov_totals.get("done", 0) or 0)
+            + int(cov_totals.get("inProgress", 0) or 0)
+            + int(cov_totals.get("blocked", 0) or 0)
+        )
     else:
         total_count = len(cov_rows)
         done_count = sum(1 for s in cov_status_raw if s == "PASS")
+        blocked_count = sum(1 for s in cov_status_raw if s == "FAIL")
 
     for r in cov_rows:
         if not isinstance(r, dict):
@@ -542,15 +585,12 @@ def _status_short_report() -> str:
             continue
         max_lag = lag_v if max_lag is None else max(max_lag, lag_v)
 
-    max_lag_val = max_lag if max_lag is not None else 0.0
-    if total_count == 0:
-        cov_status = "UNKNOWN"
-    elif blocked_count > 0 or max_lag_val > 48:
-        cov_status = "FAIL"
-    elif max_lag_val > 12:
-        cov_status = "WARN"
-    else:
-        cov_status = "PASS"
+    cov_status = _coverage_health_status(
+        cov_status_raw,
+        blocked_count=int(blocked_count or 0),
+        rebase_count=matrix_rebase,
+        total_count=total_count,
+    )
 
     brake_overall_fail = bool((parsed.get("brake_health_latest.json") or {}).get("overall_fail")) if isinstance(parsed.get("brake_health_latest.json"), dict) else False
     brake_status = "FAIL" if brake_overall_fail else "OK"
@@ -577,9 +617,8 @@ def _status_short_report() -> str:
     else:
         regime_monitor_status = "WARN"
 
-    rebase_status = "WARN" if matrix_rebase > 0 else "OK"
     # SSOT_STATUS is system-health only; market risk signal is reported separately.
-    overall = _status_max(fresh_status, cov_status, brake_status, regime_monitor_status, rebase_status)
+    overall = _status_max(fresh_status, cov_status, brake_status, regime_monitor_status)
     regime_signal_line = f"RegimeSignal: {regime_signal_status}"
     if regime_top_reason:
         regime_signal_line += f" ({regime_top_reason})"
@@ -642,26 +681,22 @@ def _collect_snapshot() -> dict:
     # data freshness
     freshness = {}
     freshness_snap = _load_json(REPO / "data/state/freshness_table.json", {})
-    if freshness_snap and "rows" in freshness_snap:
-        # Prioritize unified snapshot
-        for row in freshness_snap["rows"]:
+    freshness_rows = freshness_snap.get("rows", []) if isinstance(freshness_snap, dict) else []
+    if isinstance(freshness_rows, list):
+        for row in freshness_rows:
+            if not isinstance(row, dict):
+                continue
             sym = row.get("symbol")
             tf = row.get("tf")
-            if sym not in freshness: freshness[sym] = {}
+            if not sym or not tf:
+                continue
+            if sym not in freshness:
+                freshness[sym] = {}
             freshness[sym][tf] = {
                 "age_hours": row.get("age_h"),
-                "status": row.get("status", "FAIL"),
-                "reason": row.get("reason")
+                "status": row.get("status", "UNKNOWN"),
+                "reason": row.get("reason"),
             }
-    else:
-        # Fallback to manual scan if snapshot missing
-        for sym in ["BTCUSDT", "ETHUSDT", "BNBUSDT"]:
-            freshness[sym] = {}
-            for tf in ["1m", "1h", "4h"]:
-                p = REPO / f"data/derived/{sym}/{tf}/klines.jsonl"
-                age = _file_age_hours(p)
-                status, reason = _evaluate_freshness(age)
-                freshness[sym][tf] = {"age_hours": age, "status": status, "reason": reason}
 
     # Log freshness evaluation
     max_age = 0.0
@@ -716,26 +751,53 @@ def _collect_snapshot() -> dict:
     cov_found = False
     cov_done = 0
     cov_blocked = 0
+    cov_status = "UNKNOWN"
     
     matrix = _load_json(REPO / "data/state/coverage_matrix_latest.json", {})
-    if matrix and "rows" in matrix:
+    matrix_rows = matrix.get("rows", []) if isinstance(matrix, dict) else []
+    if isinstance(matrix, dict) and "rows" in matrix and isinstance(matrix_rows, list):
         cov_found = True
         cov_totals = matrix.get("totals", {})
-        rebase_count = cov_totals.get("rebase", 0)
+        rebase_count = int(cov_totals.get("rebase", 0) or 0)
+        cov_row_statuses = []
         
         if "done" in cov_totals and "inProgress" in cov_totals and "blocked" in cov_totals:
-            total_coverage = cov_totals.get("done", 0) + cov_totals.get("inProgress", 0) + cov_totals.get("blocked", 0)
-            cov_done = cov_totals.get("done", 0)
-            cov_blocked = cov_totals.get("blocked", 0)
+            cov_done = int(cov_totals.get("done", 0) or 0)
+            cov_blocked = int(cov_totals.get("blocked", 0) or 0)
+            total_coverage = (
+                int(cov_totals.get("done", 0) or 0)
+                + int(cov_totals.get("inProgress", 0) or 0)
+                + int(cov_totals.get("blocked", 0) or 0)
+            )
         else:
-            total_coverage = len(matrix["rows"])
-            cov_done = sum(1 for r in matrix["rows"] if str(r.get("status", "")).upper() == "PASS")
-            cov_blocked = sum(1 for r in matrix["rows"] if str(r.get("status", "")).upper() == "FAIL")
+            total_coverage = len(matrix_rows)
+            cov_done = 0
+            cov_blocked = 0
         
-        for row in matrix["rows"]:
+        for row in matrix_rows:
+            if not isinstance(row, dict):
+                continue
+            row_status = _normalize_coverage_status(row.get("status"))
+            cov_row_statuses.append(row_status)
+            if "done" not in cov_totals:
+                if row_status == "PASS":
+                    cov_done += 1
+                elif row_status == "FAIL":
+                    cov_blocked += 1
             lag = row.get("lag_hours")
-            if lag is not None and lag > cov_lag_max:
-                cov_lag_max = lag
+            try:
+                lag_v = float(lag)
+            except Exception:
+                continue
+            if lag_v > cov_lag_max:
+                cov_lag_max = lag_v
+
+        cov_status = _coverage_health_status(
+            cov_row_statuses,
+            blocked_count=cov_blocked,
+            rebase_count=rebase_count,
+            total_count=total_coverage,
+        )
 
     pending_alerts = _count_pending_alerts()
 
@@ -759,6 +821,7 @@ def _collect_snapshot() -> dict:
         "cov_found": cov_found,
         "cov_done": cov_done,
         "cov_blocked": cov_blocked,
+        "cov_status": cov_status,
     }
 
 
@@ -878,16 +941,9 @@ def skill_status_overview(include_sources: bool = False) -> str:
         max_lag = snap.get("cov_lag_max", 0.0)
         cov_done = snap.get("cov_done", 0)
         total_cov = snap.get("total_coverage", 0)
-        cov_blocked = snap.get("cov_blocked", 0)
-
-        if total_cov == 0:
+        status = str(snap.get("cov_status", "UNKNOWN")).upper()
+        if status not in {"PASS", "WARN", "FAIL", "UNKNOWN"}:
             status = "UNKNOWN"
-        elif cov_blocked > 0 or max_lag > 48:
-            status = "FAIL"
-        elif max_lag > 12:
-            status = "WARN"
-        else:
-            status = "PASS"
 
         lines.append(f"• CoverageMatrix: {status} {cov_done}/{total_cov} done | max_lag_h={max_lag:.1f} | rebase={cnt}")
 
