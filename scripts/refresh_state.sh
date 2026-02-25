@@ -9,6 +9,9 @@ echo "=========================================="
 echo "    Read-Only State & Dashboard Refresh   "
 echo "=========================================="
 
+# Enforce canonical state writer boundary before refresh flow.
+.venv/bin/python scripts/check_state_writer_boundary.py --strict
+
 # Helpers to prevent hard crashes
 run_step() {
     local title="$1"
