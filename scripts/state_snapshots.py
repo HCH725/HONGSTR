@@ -123,10 +123,8 @@ def main():
     now_utc = now_utc_obj.strftime("%Y-%m-%dT%H:%M:%SZ")
     now_ts = time.time()
 
-    # 1. Coverage input (atomic first, fallback to legacy state file)
+    # 1. Coverage input (atomic only; state_snapshots is canonical writer)
     cov_recs = read_jsonl(ATOMIC_COVERAGE_TABLE)
-    if not cov_recs:
-        cov_recs = read_jsonl(STATE_DIR / "coverage_table.jsonl")
     write_jsonl(STATE_DIR / "coverage_table.jsonl", cov_recs)
 
     # 2. Coverage Latest
@@ -202,7 +200,7 @@ def main():
     write_json(STATE_DIR / "strategy_pool_summary.json", pool_summary)
 
     # 5. Canonicalize Regime Monitor (state_snapshots is the final writer to data/state)
-    regime_data = read_json(ATOMIC_REGIME_MONITOR) or read_json(STATE_DIR / "regime_monitor_latest.json")
+    regime_data = read_json(ATOMIC_REGIME_MONITOR)
     if isinstance(regime_data, dict) and regime_data:
         write_json(STATE_DIR / "regime_monitor_latest.json", regime_data)
     else:
@@ -413,7 +411,7 @@ def main():
     write_json(STATE_DIR / "coverage_matrix_latest.json", matrix_snapshot)
 
     # 11. Canonicalize Brake Health (state_snapshots is the final writer to data/state)
-    brake_data = read_json(ATOMIC_BRAKE_HEALTH) or read_json(STATE_DIR / "brake_health_latest.json")
+    brake_data = read_json(ATOMIC_BRAKE_HEALTH)
     if isinstance(brake_data, dict) and brake_data:
         write_json(STATE_DIR / "brake_health_latest.json", brake_data)
     else:

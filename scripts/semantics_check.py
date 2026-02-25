@@ -11,7 +11,6 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 ATOMIC_COVERAGE_FILE = Path("reports/state_atomic/coverage_table.jsonl")
-LEGACY_STATE_FILE = Path("data/state/coverage_table.jsonl")
 SEMANTICS_FILE = Path("configs/semantics_version.json")
 
 def main():
@@ -26,15 +25,14 @@ def main():
         logging.error(f"Failed to read semantics file: {e}")
         return
 
-    source_file = ATOMIC_COVERAGE_FILE if ATOMIC_COVERAGE_FILE.exists() else LEGACY_STATE_FILE
-    if not source_file.exists():
-        logging.warning("No coverage table found.")
+    if not ATOMIC_COVERAGE_FILE.exists():
+        logging.warning("No atomic coverage table found.")
         return
 
     table = []
     needs_update = False
     
-    with open(source_file, "r") as f:
+    with open(ATOMIC_COVERAGE_FILE, "r") as f:
         for line in f:
             line = line.strip()
             if not line:
