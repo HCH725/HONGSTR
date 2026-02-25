@@ -396,28 +396,13 @@ async function buildStrategyPool(): Promise<StrategyPoolSummary | null> {
 
 async function buildCoverageMatrix(): Promise<CoverageMatrixSummary | null> {
   const snapshot = await readJsonOptional<any>('data/state/coverage_matrix_latest.json');
-  if (snapshot && snapshot.totals) {
-    return {
-      ...snapshot.totals,
-      rows: snapshot.rows,
-      ts_utc: snapshot.ts_utc
-    };
-  }
+  if (!snapshot || !snapshot.totals) return null;
 
-  // Fallback to dynamic computation
-  const records = await readJsonlTail('data/state/coverage_table.jsonl', 1000);
-  if (!records || records.length === 0) return null;
-
-  let done = 0; let inProgress = 0; let blocked = 0; let rebase = 0;
-  for (const row of records) {
-    const status = (row.status || '').toString().toUpperCase();
-    if (status === 'DONE') done++;
-    else if (status === 'IN_PROGRESS') inProgress++;
-    else if (status === 'BLOCKED_DATA_QUALITY') blocked++;
-    else if (status === 'NEEDS_REBASE') rebase++;
-  }
-
-  return { done, inProgress, blocked, rebase };
+  return {
+    ...snapshot.totals,
+    rows: snapshot.rows,
+    ts_utc: snapshot.ts_utc
+  };
 }
 
 async function buildRegimeMonitor(): Promise<RegimeMonitorSummary | null> {
