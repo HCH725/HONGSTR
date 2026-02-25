@@ -38,7 +38,14 @@ Formal backtest/research split ranges defined in `scripts/phase3_walkforward.sh`
   bash scripts/backfill_1m_from_2020.sh
   ```
 
-- **Logs**: `logs/check_data_coverage.log`
+- **Logs**:
+  - `launchd` logs: `logs/launchd_daily_etl.out.log`, `logs/launchd_daily_etl.err.log`
+  - `launchd` logs (backfill): `logs/launchd_weekly_backfill.out.log`, `logs/launchd_weekly_backfill.err.log`
+  - Runtime logs: `/tmp/hongstr_coverage_*.txt`, `/tmp/hongstr_daily_etl_*.log`, `/tmp/hongstr_weekly_backfill_*.log`
+- **Helpers (find latest)**:
+  - `ls -1t /tmp/hongstr_coverage_*.txt 2>/dev/null | head -n 1 || echo "NO_COV_LOG_FOUND"`
+  - `ls -1t /tmp/hongstr_daily_etl_*.log 2>/dev/null | head -n 1 || echo "NO_ETL_LOG_FOUND"`
+  - `ls -1t logs/launchd_daily_etl.*.log 2>/dev/null | head -n 1 || echo "NO_LAUNCHD_LOG_FOUND"`
 - **Expected**: "Coverage PASS" or no missing intervals in report.
 
 ### 2. Gate FAIL
