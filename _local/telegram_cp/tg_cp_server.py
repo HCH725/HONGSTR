@@ -461,6 +461,9 @@ def _collect_snapshot() -> dict:
     # regime monitor
     regime = _load_json(REPO / "data/state/regime_monitor_latest.json", {})
 
+    # brake health
+    brake_health = _load_json(REPO / "data/state/brake_health_latest.json", {})
+
     # pending alerts count
     pending_alerts = _count_pending_alerts()
 
@@ -477,6 +480,7 @@ def _collect_snapshot() -> dict:
         "etl_fail": etl_fail,
         "regime_monitor": regime,
         "pending_alerts": pending_alerts,
+        "brake_health": brake_health,
     }
 
 
@@ -570,6 +574,23 @@ def skill_status_overview(include_sources: bool = False) -> str:
     status_emoji = "✅" if worst_status == "OK" else ("⚠️" if worst_status == "WARN" else "❌")
     lines.append(f"• 資料新鮮度: {status_emoji} {worst_status}, max_age={max_age:.1f}h, 瓶頸={worst_sym} {worst_tf}")
     
+    # Brake summary (R3-D+)
+    brake = snap.get("brake_health", {})
+    if not brake:
+        lines.append("• Brake: NOT FOUND (run ./.venv/bin/python scripts/brake_healthcheck.py)")
+    else:
+        results = brake.get("results", [])
+        any_fail = brake.get("overall_fail", False)
+        any_warn = any(r.get("status") == "WARN" for r in results)
+        
+        status = "FAIL" if any_fail else ("WARN" if any_warn else "OK")
+        icon = "❌" if status == "FAIL" else ("⚠️" if status == "WARN" else "✅")
+        
+        # Build concise reason
+        issues = [f"{r['item']} {r['status']}" for r in results if r.get("status") in ["WARN", "FAIL"]]
+        reason = ", ".join(issues) if issues else "All OK"
+        lines.append(f"• Brake: {icon} {status} - {reason}")
+
     if include_sources:
         lines.append("依據: logs/launchd_dashboard.out.log, logs/launchd_daily_etl.out.log")
     return "\n".join(lines)
