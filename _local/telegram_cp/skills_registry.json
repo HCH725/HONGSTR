@@ -1,0 +1,47 @@
+{
+  "skills": [
+    {
+      "name": "status_overview",
+      "type": "read_only",
+      "description": "Summarize dashboard/etl/backfill/data freshness in plain language.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "include_sources",
+            "type": "bool",
+            "required": false,
+            "default": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "logs_tail_hint",
+      "type": "read_only",
+      "description": "Show where to inspect latest logs and provide safe tail hints.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "lines",
+            "type": "int",
+            "required": false,
+            "default": 60,
+            "min": 20,
+            "max": 120
+          }
+        ]
+      }
+    },
+    {
+      "name": "brake_status",
+      "type": "read_only",
+      "description": "Check existence and recency of system brakes (IS/OOS artifacts, freshness, regime).",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": []
+      }
+    }
+  ]
+}
