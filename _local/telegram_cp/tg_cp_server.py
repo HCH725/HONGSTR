@@ -467,25 +467,19 @@ def _collect_snapshot() -> dict:
     # coverage / rebase summary
     rebase_count = 0
     total_coverage = 0
-    cov_table = REPO / "data/state/coverage_table.jsonl"
+    cov_lag_max = 0.0
     cov_found = False
-    if cov_table.exists():
+    
+    matrix = _load_json(REPO / "data/state/coverage_matrix_latest.json", {})
+    if matrix and "rows" in matrix:
         cov_found = True
-        try:
-            # Read-only scan
-            lines = cov_table.read_text(encoding="utf-8", errors="ignore").splitlines()
-            for ln in lines:
-                if not ln.strip():
-                    continue
-                total_coverage += 1
-                try:
-                    obj = json.loads(ln)
-                    if obj.get("status") == "NEEDS_REBASE":
-                        rebase_count += 1
-                except:
-                    continue
-        except:
-            pass
+        total_coverage = len(matrix["rows"])
+        rebase_count = matrix.get("totals", {}).get("rebase", 0)
+        
+        for row in matrix["rows"]:
+            lag = row.get("lag_hours")
+            if lag is not None and lag > cov_lag_max:
+                cov_lag_max = lag
 
     return {
         "dashboard_ok": dash_ok,
@@ -503,6 +497,7 @@ def _collect_snapshot() -> dict:
         "brake_health": brake_health,
         "rebase_count": rebase_count,
         "total_coverage": total_coverage,
+        "cov_lag_max": cov_lag_max,
         "cov_found": cov_found,
     }
 
@@ -595,7 +590,8 @@ def skill_status_overview(include_sources: bool = False) -> str:
                 worst_status = d.get("status", "OK")
     
     status_emoji = "✅" if worst_status == "OK" else ("⚠️" if worst_status == "WARN" else "❌")
-    lines.append(f"• 資料新鮮度: {status_emoji} {worst_status}, max_age={max_age:.1f}h, 瓶頸={worst_sym} {worst_tf}")
+    thresh_info = "<=12h" if worst_status == "OK" else (">12h, <=48h" if worst_status == "WARN" else ">48h")
+    lines.append(f"• Freshness: {status_emoji} {worst_status} (max_age={max_age:.1f}h {thresh_info}, {worst_sym} {worst_tf})")
     
     # Brake summary (R3-D+)
     brake = snap.get("brake_health", {})
@@ -614,18 +610,17 @@ def skill_status_overview(include_sources: bool = False) -> str:
         reason = ", ".join(issues) if issues else "All OK"
         lines.append(f"• Brake: {icon} {status} - {reason}")
     
-    # Rebase Summary (R5-F)
+    # Coverage / Rebase Summary
     if not snap.get("cov_found"):
-        lines.append("• Rebase: NOT FOUND (run coverage snapshot/refresh_state)")
+        lines.append("• Coverage: NOT FOUND (run coverage snapshot/refresh_state)")
     else:
         cnt = snap.get("rebase_count", 0)
-        if cnt == 0:
-            lines.append("• Rebase: ✅ OK (0)")
-        else:
-            lines.append(f"• Rebase: ⚠️ NEEDS_REBASE ({cnt})")
+        max_lag = snap.get("cov_lag_max", 0.0)
+        rebase_str = "✅ OK (0)" if cnt == 0 else f"⚠️ NEEDS_REBASE ({cnt})"
+        lines.append(f"• Coverage: {rebase_str}, max_lag={max_lag:.1f}h")
 
     if include_sources:
-        lines.append("依據: logs/launchd_dashboard.out.log, logs/launchd_daily_etl.out.log")
+        lines.append("\n來源快照: freshness_table.json, coverage_matrix_latest.json")
     return "\n".join(lines)
 
 
