@@ -351,33 +351,214 @@ def _cmd_base(text: str) -> str:
     token = raw.split()[0].strip() if raw else ""
     if not token.startswith("/"):
         return ""
-    # Normalize Telegram supergroup command suffix:
+    # Normalize Telegram command suffix:
     # "/status@HONGSTR_bot" -> "/status"
     token = token.split("@", 1)[0].strip()
     return token.lower()
 
 
-def _status_ssot_issues() -> list[str]:
-    """Return missing/unreadable SSOT inputs required by /status."""
-    issues: list[str] = []
-    required = [
-        ("freshness_table", REPO / "data/state/freshness_table.json"),
-        ("coverage_matrix", REPO / "data/state/coverage_matrix_latest.json"),
+def _status_ssot_sources() -> list[tuple[str, Path]]:
+    return [
+        ("freshness_table.json", REPO / "data/state/freshness_table.json"),
+        ("coverage_matrix_latest.json", REPO / "data/state/coverage_matrix_latest.json"),
+        ("brake_health_latest.json", REPO / "data/state/brake_health_latest.json"),
+        ("regime_monitor_latest.json", REPO / "data/state/regime_monitor_latest.json"),
+        ("coverage_table.jsonl", REPO / "data/state/coverage_table.jsonl"),
     ]
-    for name, path in required:
+
+
+def _status_ssot_sources_line() -> str:
+    names = [name for name, _ in _status_ssot_sources()]
+    return "Sources: " + ", ".join(names)
+
+
+def _status_rank(status: str) -> int:
+    s = (status or "").upper()
+    if s in {"FAIL", "ERROR"}:
+        return 2
+    if s in {"WARN", "NEEDS_REBASE", "UNKNOWN"}:
+        return 1
+    return 0
+
+
+def _status_max(*statuses: str) -> str:
+    best = "OK"
+    best_rank = -1
+    for s in statuses:
+        r = _status_rank(s)
+        if r > best_rank:
+            best_rank = r
+            best = s.upper() if s else "OK"
+    if best not in {"OK", "WARN", "FAIL", "UNKNOWN", "NEEDS_REBASE"}:
+        return "UNKNOWN"
+    if best == "NEEDS_REBASE":
+        return "WARN"
+    return best
+
+
+def _fmt_num(v: float | int | None) -> str:
+    if v is None:
+        return "N/A"
+    try:
+        return f"{float(v):.1f}"
+    except Exception:
+        return "N/A"
+
+
+def _read_coverage_table_rebase(path: Path) -> tuple[int | None, str | None]:
+    if not path.exists():
+        return None, "missing"
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception:
+        return None, "unreadable"
+
+    latest_by_key: dict[str, dict] = {}
+    for ln in lines:
+        if not ln.strip():
+            continue
+        try:
+            row = json.loads(ln)
+        except Exception:
+            return None, "unreadable"
+        if not isinstance(row, dict):
+            return None, "unreadable"
+        key_obj = row.get("coverage_key")
+        if isinstance(key_obj, dict):
+            key = json.dumps(key_obj, ensure_ascii=False, sort_keys=True)
+        else:
+            key = str(key_obj)
+        latest_by_key[key] = row
+
+    rebase = 0
+    for row in latest_by_key.values():
+        if str(row.get("status", "")).upper() == "NEEDS_REBASE":
+            rebase += 1
+    return rebase, None
+
+
+def _status_short_report() -> str:
+    parsed: dict[str, object] = {}
+    missing: list[str] = []
+    unreadable: list[str] = []
+
+    source_map = {name: path for name, path in _status_ssot_sources()}
+    for name, path in source_map.items():
+        if name.endswith(".jsonl"):
+            continue
         if not path.exists():
-            issues.append(f"{name}:missing")
+            missing.append(name)
             continue
         try:
             data = _load_json(path, {})
-            if not isinstance(data, dict):
-                issues.append(f"{name}:unreadable")
+            if not isinstance(data, dict) or not data:
+                unreadable.append(name)
                 continue
-            if "rows" not in data:
-                issues.append(f"{name}:invalid_schema")
+            parsed[name] = data
         except Exception:
-            issues.append(f"{name}:unreadable")
-    return issues
+            unreadable.append(name)
+
+    rebase_count, rebase_err = _read_coverage_table_rebase(source_map["coverage_table.jsonl"])
+    if rebase_err == "missing":
+        missing.append("coverage_table.jsonl")
+    elif rebase_err is not None:
+        unreadable.append("coverage_table.jsonl")
+
+    freshness_rows = (parsed.get("freshness_table.json") or {}).get("rows", []) if isinstance(parsed.get("freshness_table.json"), dict) else []
+    cov_rows = (parsed.get("coverage_matrix_latest.json") or {}).get("rows", []) if isinstance(parsed.get("coverage_matrix_latest.json"), dict) else []
+    cov_totals = (parsed.get("coverage_matrix_latest.json") or {}).get("totals", {}) if isinstance(parsed.get("coverage_matrix_latest.json"), dict) else {}
+    brake_results = (parsed.get("brake_health_latest.json") or {}).get("results", []) if isinstance(parsed.get("brake_health_latest.json"), dict) else []
+    regime = parsed.get("regime_monitor_latest.json") if isinstance(parsed.get("regime_monitor_latest.json"), dict) else {}
+
+    if not isinstance(freshness_rows, list):
+        unreadable.append("freshness_table.json")
+        freshness_rows = []
+    if not isinstance(cov_rows, list):
+        unreadable.append("coverage_matrix_latest.json")
+        cov_rows = []
+    if not isinstance(cov_totals, dict):
+        cov_totals = {}
+    if not isinstance(brake_results, list):
+        unreadable.append("brake_health_latest.json")
+        brake_results = []
+    if not isinstance(regime, dict):
+        unreadable.append("regime_monitor_latest.json")
+        regime = {}
+
+    if missing or unreadable:
+        miss = ", ".join(sorted(set(missing))) if missing else "none"
+        bad = ", ".join(sorted(set(unreadable))) if unreadable else "none"
+        return "\n".join(
+            [
+                "SSOT_STATUS: WARN",
+                f"Issues: missing=[{miss}] unreadable=[{bad}]",
+                "Freshness: N/A",
+                "CoverageMatrix: N/A",
+                "Brake: N/A",
+                "Regime: N/A",
+                "Rebase(coverage_table): N/A",
+                _status_ssot_sources_line(),
+            ]
+        )
+
+    fresh_statuses = [str(r.get("status", "UNKNOWN")).upper() for r in freshness_rows if isinstance(r, dict)]
+    fresh_status = "OK"
+    if fresh_statuses:
+        fresh_status = _status_max(*fresh_statuses)
+    max_age = None
+    for r in freshness_rows:
+        if not isinstance(r, dict):
+            continue
+        age = r.get("age_h")
+        try:
+            age_v = float(age)
+        except Exception:
+            continue
+        max_age = age_v if max_age is None else max(max_age, age_v)
+
+    cov_statuses = [str(r.get("status", "UNKNOWN")).upper() for r in cov_rows if isinstance(r, dict)]
+    cov_status = "OK"
+    if cov_statuses:
+        cov_status = _status_max(*cov_statuses)
+    matrix_rebase = int(cov_totals.get("rebase", 0) or 0)
+    if matrix_rebase > 0:
+        cov_status = _status_max(cov_status, "WARN")
+    max_lag = None
+    for r in cov_rows:
+        if not isinstance(r, dict):
+            continue
+        lag = r.get("lag_hours")
+        try:
+            lag_v = float(lag)
+        except Exception:
+            continue
+        max_lag = lag_v if max_lag is None else max(max_lag, lag_v)
+
+    brake_overall_fail = bool((parsed.get("brake_health_latest.json") or {}).get("overall_fail")) if isinstance(parsed.get("brake_health_latest.json"), dict) else False
+    brake_status = "FAIL" if brake_overall_fail else "OK"
+    for r in brake_results:
+        if not isinstance(r, dict):
+            continue
+        brake_status = _status_max(brake_status, str(r.get("status", "UNKNOWN")))
+
+    regime_status = str(regime.get("overall", "UNKNOWN")).upper()
+    if regime_status not in {"OK", "WARN", "FAIL"}:
+        regime_status = "UNKNOWN"
+
+    rebase_status = "WARN" if (rebase_count or 0) > 0 else "OK"
+    overall = _status_max(fresh_status, cov_status, brake_status, regime_status, rebase_status)
+
+    return "\n".join(
+        [
+            f"SSOT_STATUS: {overall}",
+            f"Freshness: {fresh_status} max_age_h={_fmt_num(max_age)}",
+            f"CoverageMatrix: {cov_status} rebase={matrix_rebase} max_lag_h={_fmt_num(max_lag)}",
+            f"Brake: {brake_status}",
+            f"Regime: {regime_status}",
+            f"Rebase(coverage_table): {int(rebase_count or 0)}",
+            _status_ssot_sources_line(),
+        ]
+    )
 
 
 def _chat_allowed(msg: dict) -> bool:
@@ -1601,15 +1782,7 @@ def _handle_command(chat_id: int, text: str) -> str:
         )
 
     if cmd == "/status":
-        issues = _status_ssot_issues()
-        if issues:
-            return (
-                "⚠️ WARN: /status SSOT 檔案缺失或不可讀，已停用 fallback。\n"
-                f"issues={', '.join(issues)}\n"
-                "請先確認 data/state/freshness_table.json 與 "
-                "data/state/coverage_matrix_latest.json。"
-            )
-        return skill_status_overview(include_sources=True)
+        return _status_short_report()
 
     if cmd == "/freshness":
         return skill_freshness_detail()
