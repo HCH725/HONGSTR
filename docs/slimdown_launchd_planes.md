@@ -1,6 +1,6 @@
 # HONGSTR Launchd 3-Plane Responsibility Map
 
-Last updated (UTC): 2026-02-25T17:56:44Z  
+Last updated (UTC): 2026-02-25T18:13:36Z  
 Evidence:
 - `reports/slimdown_full_scan_2026-02-25T175644Z.log`
 - `~/Library/LaunchAgents/com.hongstr.*.plist` (`plutil -p`)
@@ -15,6 +15,12 @@ No launchd plist/runtime behavior change is included here.
 - Data Plane: ETL/backfill/retention/realtime_ws (+ daily backtest artifact generation).
 - State Plane: `refresh_state` as the canonical SSOT writer entrypoint for `data/state/*`.
 - Control Plane: `tg_cp` + dashboard as SSOT-only consumers (no status recompute).
+
+## State Plane: Single Owner Of SSOT Write Boundary
+
+- Canonical writer boundary: only `scripts/state_snapshots.py` writes canonical `data/state/*` snapshots.
+- Canonical orchestrator: `scripts/refresh_state.sh` is the only State Plane entrypoint that calls atomic producers and then `state_snapshots.py`.
+- Non-State jobs (Data/Control/Research) must not directly publish canonical SSOT snapshots to `data/state/*`.
 
 ## Job Responsibility Map (Current)
 
@@ -48,7 +54,7 @@ No launchd plist/runtime behavior change is included here.
 
 2. `research_poller` vs `research_loop`
 - Concern: two independent trigger paths can both produce report-only outputs.
-- Direction: choose one primary trigger owner and document fallback behavior.
+- Direction: choose one primary trigger owner; the other should be off-by-default or strictly read-only backup trigger.
 
 3. State-plane scheduling gap
 - Concern: canonical `refresh_state` does not yet have a clearly documented dedicated launchd owner.
@@ -56,7 +62,7 @@ No launchd plist/runtime behavior change is included here.
 
 ## Success Criteria
 
-- The system has one canonical state publication boundary: `scripts/refresh_state.sh` + `scripts/state_snapshots.py` writing `data/state/*`.
+- Only `scripts/state_snapshots.py` writes canonical `data/state/*` (invoked by `scripts/refresh_state.sh` orchestrator).
 - Consumers (dashboard/tg_cp and related status APIs) only read SSOT state and do not recompute top-level status.
 - Each launchd job has one explicit responsibility with no overlap in ownership.
 
