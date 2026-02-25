@@ -1,62 +1,79 @@
-# HONGSTR Brake System Inventory (v1)
+# HONGSTR Brake System Inventory (v1.1)
 
 > Purpose: Make all "brakes" explicit and auditable: gates, OOS/WF splits, needs_rebase, anti-churn, and SOP.
 
 ## 1) Artifact Contract (Brake-related state files)
 
-| Artifact | Path Pattern | Producer (script/job) | Consumer (tg_cp/dashboard/cli) | Status (Found/Not Found) |
+| Artifact | Path Pattern | Producer | Consumer | Status |
 |---|---|---|---|---|
-| gate.json | `data/backtests/*/*/gate.json` | `scripts/generate_gate_artifact.py` | `scripts/generate_selection_artifact.py` | Found |
-| selection.json | `data/backtests/*/*/selection.json` | `scripts/generate_selection_artifact.py` | Dashboard, Paper Trader | Found |
-| summary.json | `data/backtests/*/*/summary.json` | Backtest Engine | `gate_all.sh`, `generate_gate_artifact.py` | Found |
-| freshness_table.json | `data/state/freshness_table.json` | `scripts/coverage_update.py` | TG Summary, Dashboard | Found |
-| regime_monitor_latest.json | `data/state/regime_monitor_latest.json` | `scripts/phase4_regime_monitor.py` | Research Loop, Dashboard | Found |
-| coverage_table.jsonl | `data/state/coverage_table.jsonl` | `scripts/check_data_coverage.sh` | `scripts/semantics_check.py` | Found |
+| gate.json | `data/backtests/*/*/gate.json` | `scripts/generate_gate_artifact.py` | Selection | Found |
+| selection.json | `data/backtests/*/*/selection.json` | `scripts/generate_selection_artifact.py` | Dashboard/Paper | Found |
+| summary.json | `data/backtests/*/*/summary.json` | Backtest Engine | Gate Scripts | Found |
+| freshness_table.json | `data/state/freshness_table.json` | `scripts/coverage_update.py` | Dashboard | Found |
+| regime_monitor_latest.json | `data/state/regime_monitor_latest.json` | `scripts/phase4_regime_monitor.py` | Loop | Found |
 
-## 2) OOS/WF Rules (Fixed splits)
+## 2) OOS/WF Rules (Exact Split)
 
-- **Where encoded**: `scripts/phase3_walkforward.sh`
-- **Exact split ranges**:
-  - **FIXED**: IS: 2020-01-01 -> 2023-12-31 | OOS: 2024-01-01 -> now
-  - **WF1**: IS: 2020-01-01 -> 2022-12-31 | OOS: 2023-01-01 -> 2023-12-31
-  - **WF2**: IS: 2020-01-01 -> 2023-12-31 | OOS: 2024-01-01 -> 2024-12-31
-  - **WF3**: IS: 2020-01-01 -> 2024-12-31 | OOS: 2025-01-01 -> now
-- **How to verify**: Run `bash scripts/phase3_walkforward.sh` and inspect `run_index.tsv`.
+Formal backtest/research split ranges defined in `scripts/phase3_walkforward.sh`:
 
-## 3) Gates & Thresholds
+- **FIXED**: IS: `2020-01-01` -> `2023-12-31` | OOS: `2024-01-01` -> `now`
+- **WF1**: IS: `2020-01-01` -> `2022-12-31` | OOS: `2023-01-01` -> `2023-12-31`
+- **WF2**: IS: `2020-01-01` -> `2023-12-31` | OOS: `2024-01-01` -> `2024-12-31`
+- **WF3**: IS: `2020-01-01` -> `2024-12-31` | OOS: `2025-01-01` -> `now`
 
-- **Gate types**: OOS Sharpe Floor, OOS MDD Ceiling, Overfit Detection (IS/OOS Ratio), Trade Count Floor.
-- **Thresholds**:
-  - `min_oos_sharpe`: 0.5 (Base) / 0.1 - 0.3 (Regime-specific)
-  - `max_oos_mdd`: -15% (Base) / -25% - -30% (Regime-specific)
-  - `overfit_ratio`: 2.0 (IS Sharpe / OOS Sharpe)
-  - `trade_count`: `max(30, int(window_days * 0.5))` (Adaptive)
-- **Where encoded**: `research/loop/gates.py`, `scripts/generate_gate_artifact.py`.
+## 3) SOP (One-click)
 
-## 4) NEEDS_REBASE / Drift Detection
+### 1. Coverage/Freshness FAIL
 
-- **Signal**: Semantics version mismatch.
-- **Where encoded**: `scripts/semantics_check.py` compares `configs/semantics_version.json` vs `data/state/coverage_table.jsonl`.
-- **SOP**: Update `coverage_table.jsonl` status to `NEEDS_REBASE`, halting downstream pipelines until backfill is re-run.
+**Signal**: Dashboard/TG alert shows data gaps or stale timestamp.
 
-## 5) Anti-churn / Promotion Policy
+- **Commands**:
 
-- **Policy**: **NOT FOUND** as explicit script.
-- **Implicit Mechanism**: `scripts/generate_selection_artifact.py` enforces `decision=HOLD` if `gate.json` status is not `PASS`. This prevents unstable strategies from promotion to selection.
+  ```bash
+  # 1. Check current coverage
+  bash scripts/check_data_coverage.sh
+  # 2. Trigger daily ETL (if missing today)
+  bash scripts/daily_etl.sh
+  # 3. Backfill from source if gaps persist
+  bash scripts/backfill_1m_from_2020.sh
+  ```
 
-## 6) SOP: What to do on WARN/FAIL
+- **Logs**: `logs/check_data_coverage.log`
+- **Expected**: "Coverage PASS" or no missing intervals in report.
 
-### Coverage/Freshness FAIL
+### 2. Gate FAIL
 
-- **Commands**: `bash scripts/check_data_coverage.sh`, `bash scripts/backfill_1m_from_2020.sh`
-- **Logs**: `logs/coverage_check.log`
+**Signal**: `gate.json` shows `overall: FAIL`.
 
-### Gate FAIL
+- **Commands**:
 
-- **Commands**: `python3 scripts/generate_gate_artifact.py --dir <run_dir> --mode FULL --symbols BTCUSDT` (to re-evaluate)
-- **Logs**: `logs/gate_all_*.log`
+  ```bash
+  # Re-evaluate gate for a specific run
+  python3 scripts/generate_gate_artifact.py --dir <run_dir> --mode FULL --symbols BTCUSDT
+  # Re-generate selection (respecting gate)
+  python3 scripts/generate_selection_artifact.py --run_dir <run_dir>
+  ```
 
-### Regime Monitor WARN/FAIL
+- **Logs**: `logs/gate_all_*.log` (Generated on suite run)
+- **Expected**: `gate.json` updated with latest thresholds and pass/fail reason.
 
-- **Commands**: `python3 scripts/phase4_regime_monitor.py`
-- **Logs**: `data/state/regime_monitor_latest.json` (inspect `overall_reason`)
+### 3. Regime Monitor WARN/FAIL
+
+**Signal**: `regime_monitor_latest.json` shows drift or anomaly.
+
+- **Commands**:
+
+  ```bash
+  # Force update regime state
+  python3 scripts/phase4_regime_monitor.py
+  ```
+
+- **State File**: `data/state/regime_monitor_latest.json`
+- **Logs**: **NOT FOUND** (Search paths: `logs/`, `data/state/_research/`. Logic is direct state write.)
+- **Expected**: `overall` status in JSON returns to `OK`.
+
+## 4) Needs Rebase (Semantics Drift)
+
+**Where encoded**: `scripts/semantics_check.py`
+
+- **SOP**: If coverage table status is `NEEDS_REBASE`, backfill must be re-run with current `semantics_version.json`.
