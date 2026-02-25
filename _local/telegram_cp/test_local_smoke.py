@@ -230,7 +230,7 @@ def test_status_command_with_bot_suffix(monkeypatch, tmp_path):
     assert "CoverageMatrix: PASS" in resp_suffix
 
 
-def test_status_command_warns_when_ssot_missing(monkeypatch, tmp_path):
+def test_status_command_unknown_when_ssot_missing(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
@@ -238,13 +238,47 @@ def test_status_command_warns_when_ssot_missing(monkeypatch, tmp_path):
     monkeypatch.setattr(s, "REPO", repo)
 
     resp = s._handle_command(32, "/status@HONGSTR_bot")
-    assert "SSOT_STATUS: WARN" in resp
+    assert "SSOT_STATUS: UNKNOWN" in resp
     assert "missing=[" in resp
     assert "freshness_table.json" in resp
     assert "coverage_matrix_latest.json" in resp
-    assert "RegimeMonitor: N/A" in resp
-    assert "RegimeSignal: N/A" in resp
+    assert "RegimeMonitor: UNKNOWN" in resp
+    assert "RegimeSignal: UNKNOWN" in resp
+    assert "RefreshHint: Run: `bash scripts/refresh_state.sh`" in resp
     assert "Sources:" in resp
+
+
+def test_status_command_unknown_when_partial_ssot_missing(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_status_ssot_sources(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+
+    state_dir = repo / "data/state"
+    (state_dir / "brake_health_latest.json").unlink()
+
+    resp = s._handle_command(32, "/status")
+    assert "SSOT_STATUS: UNKNOWN" in resp
+    assert "missing=[brake_health_latest.json]" in resp
+    assert "RefreshHint: Run: `bash scripts/refresh_state.sh`" in resp
+    assert "Dashboard lag" not in resp
+
+
+def test_status_command_unknown_when_ssot_unreadable(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_status_ssot_sources(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+
+    state_dir = repo / "data/state"
+    (state_dir / "coverage_matrix_latest.json").write_text("{", encoding="utf-8")
+
+    resp = s._handle_command(32, "/status")
+    assert "SSOT_STATUS: UNKNOWN" in resp
+    assert "unreadable=[coverage_matrix_latest.json]" in resp
+    assert "RefreshHint: Run: `bash scripts/refresh_state.sh`" in resp
 
 
 def test_status_regime_signal_fail_does_not_flip_ssot(monkeypatch, tmp_path):

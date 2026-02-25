@@ -376,6 +376,29 @@ def _status_ssot_sources_line() -> str:
     return "Sources: " + ", ".join(names)
 
 
+def _status_refresh_hint() -> str:
+    return "bash scripts/refresh_state.sh"
+
+
+def _status_unknown_report(missing: list[str], unreadable: list[str]) -> str:
+    miss = ", ".join(sorted(set(missing))) if missing else "none"
+    bad = ", ".join(sorted(set(unreadable))) if unreadable else "none"
+    return "\n".join(
+        [
+            "SSOT_STATUS: UNKNOWN",
+            "SSOT_SEMANTICS: SystemHealth only (RegimeSignal is separate trade-risk alert)",
+            f"Issues: missing=[{miss}] unreadable=[{bad}]",
+            "Freshness: UNKNOWN",
+            "CoverageMatrix: UNKNOWN",
+            "Brake: UNKNOWN",
+            "RegimeMonitor: UNKNOWN",
+            "RegimeSignal: UNKNOWN",
+            f"RefreshHint: Run: `{_status_refresh_hint()}`",
+            _status_ssot_sources_line(),
+        ]
+    )
+
+
 def _status_rank(status: str) -> int:
     s = (status or "").upper()
     if s in {"FAIL", "ERROR"}:
@@ -519,7 +542,7 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
     if regime_top_reason:
         regime_signal_line += f" ({regime_top_reason})"
 
-    refresh_hint = str(health_pack.get("refresh_hint") or "bash scripts/refresh_state.sh")
+    refresh_hint = str(health_pack.get("refresh_hint") or _status_refresh_hint())
     sources_line = "Sources: system_health_latest.json (preferred), " + ", ".join(
         name for name, _ in _status_ssot_sources()
     )
@@ -591,22 +614,7 @@ def _status_short_report() -> str:
         regime = {}
 
     if missing or unreadable:
-        miss = ", ".join(sorted(set(missing))) if missing else "none"
-        bad = ", ".join(sorted(set(unreadable))) if unreadable else "none"
-        return "\n".join(
-            [
-                "SSOT_STATUS: WARN",
-                "SSOT_SEMANTICS: SystemHealth only (RegimeSignal is separate trade-risk alert)",
-                f"Issues: missing=[{miss}] unreadable=[{bad}]",
-                "Freshness: N/A",
-                "CoverageMatrix: N/A",
-                "Brake: N/A",
-                "RegimeMonitor: N/A",
-                "RegimeSignal: N/A",
-                "Action: run `bash scripts/refresh_state.sh` then retry /status",
-                _status_ssot_sources_line(),
-            ]
-        )
+        return _status_unknown_report(missing, unreadable)
 
     fresh_statuses = [str(r.get("status", "UNKNOWN")).upper() for r in freshness_rows if isinstance(r, dict)]
     fresh_status = "OK"
