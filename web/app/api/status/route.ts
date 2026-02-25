@@ -255,6 +255,13 @@ async function buildStatus(envConfig: Record<string, string>): Promise<StatusPay
       const status = typeof service.status === 'string' ? service.status : 'unknown';
       services.push({ name, status });
     }
+  } else if (rawServices && typeof rawServices === 'object') {
+    // SSOT producer format in state_snapshots.py: {"services": {"name": {"status": ...}}}
+    for (const [name, value] of Object.entries(rawServices as Record<string, unknown>)) {
+      const service = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+      const status = typeof service.status === 'string' ? service.status : 'unknown';
+      services.push({ name, status });
+    }
   }
 
   return {
@@ -504,7 +511,7 @@ export async function GET(request: Request) {
   if (hongVsBh.hongReturn === null) warnings.push('benchmark missing or incomplete: reports/benchmark_latest.json');
   if (coverage.windowsTotal === null) warnings.push('coverage summary unavailable: reports/walkforward_latest.json');
   if (timeline.length === 0) warnings.push('event timeline unavailable: data/state/execution_*.jsonl');
-  if (!strategyPool) warnings.push('strategy pool missing: data/state/strategy_pool.json');
+  if (!strategyPool) warnings.push('strategy pool missing: data/state/strategy_pool_summary.json');
 
   return NextResponse.json({
     ok: true,

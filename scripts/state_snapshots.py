@@ -201,7 +201,10 @@ def main():
         }
         write_json(STATE_DIR / "regime_monitor_summary.json", regime_summary)
     else:
-        write_json(STATE_DIR / "regime_monitor_summary.json", {"status": "UNKNOWN", "last_updated_utc": now_utc})
+        write_json(
+            STATE_DIR / "regime_monitor_summary.json",
+            {"status": "UNKNOWN", "updated_utc": now_utc, "last_updated_utc": now_utc},
+        )
 
     # 5. Data Freshness 3x3
     freshness_matrix = []
