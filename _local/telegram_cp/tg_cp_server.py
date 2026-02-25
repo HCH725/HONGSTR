@@ -684,12 +684,23 @@ def _collect_snapshot() -> dict:
     total_coverage = 0
     cov_lag_max = 0.0
     cov_found = False
+    cov_done = 0
+    cov_blocked = 0
     
     matrix = _load_json(REPO / "data/state/coverage_matrix_latest.json", {})
     if matrix and "rows" in matrix:
         cov_found = True
-        total_coverage = len(matrix["rows"])
-        rebase_count = matrix.get("totals", {}).get("rebase", 0)
+        cov_totals = matrix.get("totals", {})
+        rebase_count = cov_totals.get("rebase", 0)
+        
+        if "done" in cov_totals and "inProgress" in cov_totals and "blocked" in cov_totals:
+            total_coverage = cov_totals.get("done", 0) + cov_totals.get("inProgress", 0) + cov_totals.get("blocked", 0)
+            cov_done = cov_totals.get("done", 0)
+            cov_blocked = cov_totals.get("blocked", 0)
+        else:
+            total_coverage = len(matrix["rows"])
+            cov_done = sum(1 for r in matrix["rows"] if str(r.get("status", "")).upper() == "PASS")
+            cov_blocked = sum(1 for r in matrix["rows"] if str(r.get("status", "")).upper() == "FAIL")
         
         for row in matrix["rows"]:
             lag = row.get("lag_hours")
@@ -716,6 +727,8 @@ def _collect_snapshot() -> dict:
         "total_coverage": total_coverage,
         "cov_lag_max": cov_lag_max,
         "cov_found": cov_found,
+        "cov_done": cov_done,
+        "cov_blocked": cov_blocked,
     }
 
 
@@ -829,12 +842,24 @@ def skill_status_overview(include_sources: bool = False) -> str:
     
     # Coverage / Rebase Summary
     if not snap.get("cov_found"):
-        lines.append("• Coverage: NOT FOUND (run coverage snapshot/refresh_state)")
+        lines.append("• CoverageMatrix: UNKNOWN (run coverage snapshot/refresh_state)")
     else:
         cnt = snap.get("rebase_count", 0)
         max_lag = snap.get("cov_lag_max", 0.0)
-        rebase_str = "✅ OK (0)" if cnt == 0 else f"⚠️ NEEDS_REBASE ({cnt})"
-        lines.append(f"• Coverage: {rebase_str}, max_lag={max_lag:.1f}h")
+        cov_done = snap.get("cov_done", 0)
+        total_cov = snap.get("total_coverage", 0)
+        cov_blocked = snap.get("cov_blocked", 0)
+
+        if total_cov == 0:
+            status = "UNKNOWN"
+        elif cov_blocked > 0 or max_lag > 48:
+            status = "FAIL"
+        elif max_lag > 12:
+            status = "WARN"
+        else:
+            status = "PASS"
+
+        lines.append(f"• CoverageMatrix: {status} {cov_done}/{total_cov} done | max_lag_h={max_lag:.1f} | rebase={cnt}")
 
     if include_sources:
         lines.append("\n來源快照: freshness_table.json, coverage_matrix_latest.json")
