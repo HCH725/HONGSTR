@@ -417,6 +417,29 @@ def test_ping_command(monkeypatch, tmp_path):
     assert resp == "pong ✅"
 
 
+def test_skill_status_overview_reuses_status_report(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+
+    monkeypatch.setattr(
+        s,
+        "_status_short_report",
+        lambda: "SSOT_STATUS: OK\nFreshness: OK\nSources: a.json, b.json",
+    )
+
+    def _unexpected_snapshot():
+        raise AssertionError("status_overview should not call _collect_snapshot")
+
+    monkeypatch.setattr(s, "_collect_snapshot", _unexpected_snapshot)
+
+    without_sources = s.skill_status_overview(include_sources=False)
+    with_sources = s.skill_status_overview(include_sources=True)
+
+    assert "SSOT_STATUS: OK" in without_sources
+    assert "Sources:" not in without_sources
+    assert "Sources: a.json, b.json" in with_sources
+
+
 def test_skills_command(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)

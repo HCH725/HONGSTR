@@ -967,64 +967,13 @@ def _snapshot_text() -> str:
 
 # ────────────────────── skills (read-only) ──────────────────────
 def skill_status_overview(include_sources: bool = False) -> str:
-    snap = _collect_snapshot()
-    now = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
-    lines = [f"目前快照時間：{now}"]
-    lines.append("• Dashboard: {}".format("穩定" if snap["dashboard_ok"] else "有波動"))
-    
-    # Calculate worst case freshness
-    max_age = 0.0
-    worst_sym = "?"
-    worst_tf = "?"
-    worst_status = "OK"
-    
-    for sym, tfs in snap["freshness"].items():
-        for tf, d in tfs.items():
-            age = d.get("age_hours") or 0.0
-            if age > max_age:
-                max_age = age
-                worst_sym = sym
-                worst_tf = tf
-                worst_status = d.get("status", "OK")
-    
-    status_emoji = "✅" if worst_status == "OK" else ("⚠️" if worst_status == "WARN" else "❌")
-    thresh_info = "<=12h" if worst_status == "OK" else (">12h, <=48h" if worst_status == "WARN" else ">48h")
-    lines.append(f"• Freshness: {status_emoji} {worst_status} (max_age={max_age:.1f}h {thresh_info}, {worst_sym} {worst_tf})")
-    
-    # Brake summary (R3-D+)
-    brake = snap.get("brake_health", {})
-    if not brake:
-        lines.append("• Brake: NOT FOUND (run ./.venv/bin/python scripts/brake_healthcheck.py)")
-    else:
-        results = brake.get("results", [])
-        any_fail = brake.get("overall_fail", False)
-        any_warn = any(r.get("status") == "WARN" for r in results)
-        
-        status = "FAIL" if any_fail else ("WARN" if any_warn else "OK")
-        icon = "❌" if status == "FAIL" else ("⚠️" if status == "WARN" else "✅")
-        
-        # Build concise reason
-        issues = [f"{r['item']} {r['status']}" for r in results if r.get("status") in ["WARN", "FAIL"]]
-        reason = ", ".join(issues) if issues else "All OK"
-        lines.append(f"• Brake: {icon} {status} - {reason}")
-    
-    # Coverage / Rebase Summary
-    if not snap.get("cov_found"):
-        lines.append("• CoverageMatrix: UNKNOWN (run coverage snapshot/refresh_state)")
-    else:
-        cnt = snap.get("rebase_count", 0)
-        max_lag = snap.get("cov_lag_max", 0.0)
-        cov_done = snap.get("cov_done", 0)
-        total_cov = snap.get("total_coverage", 0)
-        status = str(snap.get("cov_status", "UNKNOWN")).upper()
-        if status not in {"PASS", "WARN", "FAIL", "UNKNOWN"}:
-            status = "UNKNOWN"
-
-        lines.append(f"• CoverageMatrix: {status} {cov_done}/{total_cov} done | max_lag_h={max_lag:.1f} | rebase={cnt}")
-
+    # Status-class output must stay SSOT-only; reuse the /status formatter.
+    report = _status_short_report()
     if include_sources:
-        lines.append("\n來源快照: freshness_table.json, coverage_matrix_latest.json")
-    return "\n".join(lines)
+        return report
+    return "\n".join(
+        line for line in report.splitlines() if not line.startswith("Sources:")
+    )
 
 
 def skill_freshness_detail() -> str:
