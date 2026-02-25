@@ -7,7 +7,8 @@ Strictly Read-Only on core. Stability-first (exit 0).
 import json
 import logging
 import os
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -50,7 +51,9 @@ def write_json(path: Path, data: dict):
         logging.error(f"Failed to write snapshot {path}: {e}")
 
 def main():
-    now_utc = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now_utc_obj = datetime.now(timezone.utc)
+    now_utc = now_utc_obj.strftime("%Y-%m-%dT%H:%M:%SZ")
+    now_ts = time.time()
 
     # 1. Coverage Latest
     cov_recs = read_jsonl(STATE_DIR / "coverage_table.jsonl")
@@ -164,7 +167,7 @@ def main():
             
             if p.exists():
                 try:
-                    age_h = (datetime.utcnow().timestamp() - p.stat().st_mtime) / 3600.0
+                    age_h = (now_ts - p.stat().st_mtime) / 3600.0
                 except Exception as e:
                     reason = f"stat_error: {str(e)}"
             else:
@@ -197,9 +200,54 @@ def main():
     freshness_table = {
         "generated_utc": now_utc,
         "thresholds": thresholds,
-        "rows": freshness_matrix # User requested 'rows' in schema suggestion
+        "rows": freshness_matrix 
     }
     write_json(STATE_DIR / "freshness_table.json", freshness_table)
+
+    # 6. Execution Mode Snapshot
+    execution_mode = {
+        "mode": os.getenv("EXECUTION_MODE", "unknown"),
+        "last_updated_utc": now_utc
+    }
+    write_json(STATE_DIR / "execution_mode.json", execution_mode)
+
+    # 7. Services Heartbeat Snapshot
+    services = {
+        "dashboard": "logs/launchd_dashboard.out.log",
+        "realtime": "logs/realtime_ws.log",
+        "tg_cp": "logs/launchd_tg_cp.out.log",
+        "etl": "logs/launchd_daily_etl.out.log",
+        "backtest": "logs/launchd_daily_backtest.out.log",
+        "poller": "logs/launchd_research_poller.out.log"
+    }
+    heartbeat = {
+        "generated_utc": now_utc,
+        "services": {}
+    }
+    for svc_name, log_path_str in services.items():
+        lp = Path(log_path_str)
+        status = "UNKNOWN"
+        age_h = None
+        last_ts = None
+        if lp.exists():
+            last_ts = lp.stat().st_mtime
+            age_h = (now_ts - last_ts) / 3600.0
+            # Heuristic: < 1h is ALIVE, < 24h is IDLE, else DEAD (for continuous services)
+            if age_h < 1.0:
+                status = "ALIVE"
+            elif age_h < 24.0:
+                status = "IDLE"
+            else:
+                status = "DEAD"
+        
+        heartbeat["services"][svc_name] = {
+            "status": status,
+            "log_path": log_path_str,
+            "age_h": round(age_h, 2) if age_h is not None else None,
+            "last_heartbeat_utc": datetime.fromtimestamp(last_ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if last_ts else None
+        }
+    
+    write_json(STATE_DIR / "services_heartbeat.json", heartbeat)
 
     logging.info("Snapshots successfully written to data/state/")
 
