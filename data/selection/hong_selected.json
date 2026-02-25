@@ -1,0 +1,12 @@
+{
+  "schema_version": "selection_artifact_v1",
+  "portfolio_id": "HONG",
+  "timestamp_gmt8": "2026-02-17T00:00:00+08:00",
+  "selection": {
+     "BULL": ["test_strategy", "vwap_supertrend"],
+     "BEAR": [],
+     "NEUTRAL": []
+  },
+  "policy": {},
+  "metadata": {"git_commit": "smoke"}
+}

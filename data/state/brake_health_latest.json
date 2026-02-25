@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-02-25T03:52:14.408140Z",
+  "overall_fail": false,
+  "results": [
+    {
+      "item": "Freshness Table",
+      "status": "OK",
+      "note": "15.0h ago",
+      "path": "data/state/freshness_table.json"
+    },
+    {
+      "item": "Regime Monitor",
+      "status": "WARN",
+      "note": "STALE (15.0h ago)",
+      "path": "data/state/regime_monitor_latest.json"
+    },
+    {
+      "item": "Backtest summary.json",
+      "status": "OK",
+      "note": "6.8h ago",
+      "path": "data/backtests/2026-02-24/20260225_050011_af7b/summary.json"
+    },
+    {
+      "item": "Backtest selection.json",
+      "status": "OK",
+      "note": "6.8h ago",
+      "path": "data/backtests/2026-02-24/20260225_050011_af7b/selection.json"
+    },
+    {
+      "item": "Backtest gate.json",
+      "status": "OK",
+      "note": "6.8h ago",
+      "path": "data/backtests/2026-02-24/20260225_050011_af7b/gate.json"
+    }
+  ],
+  "strict_mode": false
+}

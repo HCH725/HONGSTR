@@ -1,0 +1,7 @@
+{"id": "fq_20260223T031659_33c65b", "chat_id": 100, "created_at": 1771816619, "due_at": 1, "topic": "ETL 狀態", "original_user_msg": "ETL 好了嗎", "done": true}
+{"id": "fq_20260223T031659_eea6ce", "chat_id": 200, "created_at": 1771816619, "due_at": 1771816679, "topic": "測試主題", "original_user_msg": "msg", "done": true}
+{"id": "fq_20260223T031659_16f03e", "chat_id": 600, "created_at": 1771816619, "due_at": 1771816799, "topic": "ETL 資料新鮮度", "original_user_msg": "ETL 好了嗎", "done": true}
+{"id": "fq_20260223T033601_dc015e", "chat_id": -1003625687477, "created_at": 1771817761, "due_at": 1771817881, "topic": "ETL 狀態", "original_user_msg": "你的回覆為何未用 followup?", "done": true}
+{"id": "fq_20260223T033639_d4b27d", "chat_id": -1003625687477, "created_at": 1771817799, "due_at": 1771817919, "topic": "ETL 狀態和資料新鮮度", "original_user_msg": "我在測試你的followup 功能", "done": true}
+{"id": "fq_20260223T034730_c742de", "chat_id": -1003625687477, "created_at": 1771818450, "due_at": 1771818570, "topic": "回測狀態", "original_user_msg": "幫我查一下回測狀態，這兩分鐘幫我盯著，等下告訴我結果", "done": true}
+{"id": "fq_20260223T043114_1bc2bf", "chat_id": -1003625687477, "created_at": 1771821074, "due_at": 1771821194, "topic": "ETL 狀態", "original_user_msg": "幫我查一下 ETL 狀態，這兩分鐘幫我盯著，等下告訴我結果", "done": true}

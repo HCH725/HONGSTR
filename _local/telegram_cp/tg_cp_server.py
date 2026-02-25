@@ -464,6 +464,9 @@ def _collect_snapshot() -> dict:
     # pending alerts count
     pending_alerts = _count_pending_alerts()
 
+    # brake health (R3-D)
+    brake_health = _load_json(REPO / "data/state/brake_health_latest.json", {})
+
     return {
         "dashboard_ok": dash_ok,
         "freshness": freshness,
@@ -477,6 +480,7 @@ def _collect_snapshot() -> dict:
         "etl_fail": etl_fail,
         "regime_monitor": regime,
         "pending_alerts": pending_alerts,
+        "brake_health": brake_health,
     }
 
 
@@ -773,6 +777,47 @@ def skill_regime_status() -> str:
     return "\n".join(lines)
 
 
+def skill_brake_status() -> str:
+    path = REPO / "data/state/brake_health_latest.json"
+    if not path.exists():
+        return (
+            "❌ NOT FOUND: Brake health report missing.\n"
+            "💡 Suggest running: `./.venv/bin/python scripts/brake_healthcheck.py`"
+        )
+    
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        return f"⚠️ WARN: Failed to parse brake health report: {str(e)[:50]}"
+    
+    results = data.get("results", [])
+    
+    # Map results for specific display requirements
+    res_map = {r["item"]: r for r in results}
+    
+    def get_line(item_name, label):
+        r = res_map.get(item_name)
+        if not r: return f"- {label}: MISSING (not in report)"
+        icon = "✅ OK" if r["status"] == "OK" else ("⚠️ WARN" if r["status"] == "WARN" else "❌ FAIL")
+        return f"- {label}: {icon} ({r['note']})"
+
+    lines = ["🛑 **Brake Health (latest)**"]
+    lines.append(get_line("Freshness Table", "Freshness"))
+    lines.append(get_line("Regime Monitor", "Regime monitor"))
+    
+    # Run artifacts check (scan summary/selection/gate)
+    arts = [r for r in results if r["item"].startswith("Backtest")]
+    if not arts:
+        lines.append("- Latest run artifacts: MISSING (no backtest data)")
+    else:
+        fails = [r["item"].split()[-1] for r in arts if r["status"] == "FAIL"]
+        status = "❌ FAIL" if fails else "✅ OK"
+        note = f"missing: {', '.join(fails)}" if fails else "all present"
+        lines.append(f"- Latest run artifacts: {status} ({note})")
+        
+    return "\n".join(lines)
+
+
 def skill_logs_tail_hint(lines: int = 60) -> str:
     n = max(20, min(120, int(lines)))
     return "\n".join([
@@ -792,6 +837,7 @@ SKILL_IMPL = {
     "freshness_detail": lambda args: skill_freshness_detail(),
     "ml_status": lambda args: skill_ml_status(),
     "regime_status": lambda args: skill_regime_status(),
+    "brake_status": lambda args: skill_brake_status(),
 }
 
 
@@ -951,7 +997,6 @@ def _execute_followup(task: dict) -> None:
         + "\n\n" + _snapshot_text()
         + "\n\n[硬圍欄 — 絕對不可違反]"
         + "\n- 你是 read-only，不能執行任何指令、不能修改檔案、不能重啟服務、不能下單交易。"
-        + "\n- 不可宣稱自己已執行任何動作。"
     )
     user_msg = (
         f"約 {wait_min} 分鐘前，洪老爺問過：「{original_msg}」，"
@@ -1456,7 +1501,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "嗨 👋 我是 HONGSTR 中樞管家。\n"
             "直接跟我聊就好，問什麼我都會盡量用白話回答你。\n"
             "我是 read-only 助手 — 只查看、判讀，不直接動系統。\n\n"
-            "快捷指令：/status /freshness /regime /ml_status /help /skills"
+            "快捷指令：/status /brake /freshness /regime /ml_status /help /skills"
         )
 
     if cmd == "/ping":
@@ -1467,6 +1512,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "直接打字問我就好，不需要特別格式 😊\n\n"
             "📊 監控指令（read-only）：\n"
             "• /status — 系統瓶頸摘要\n"
+            "• /brake — 煞車健康檢查 (Artifacts & Freshness)\n"
             "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
             "• /regime_status — 同 /regime\n"
@@ -1490,6 +1536,9 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/research_status" or cmd == "/research":
         return skill_research_status()
+
+    if cmd == "/brake" or cmd == "/brake_status":
+        return skill_brake_status()
 
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
