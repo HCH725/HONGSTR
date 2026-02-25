@@ -347,10 +347,37 @@ def _strip_mention(text: str) -> str:
 
 
 def _cmd_base(text: str) -> str:
-    token = (text or "").strip().split()[0] if (text or "").strip() else ""
+    raw = (text or "").strip()
+    token = raw.split()[0].strip() if raw else ""
     if not token.startswith("/"):
         return ""
-    return token.split("@")[0].lower()
+    # Normalize Telegram supergroup command suffix:
+    # "/status@HONGSTR_bot" -> "/status"
+    token = token.split("@", 1)[0].strip()
+    return token.lower()
+
+
+def _status_ssot_issues() -> list[str]:
+    """Return missing/unreadable SSOT inputs required by /status."""
+    issues: list[str] = []
+    required = [
+        ("freshness_table", REPO / "data/state/freshness_table.json"),
+        ("coverage_matrix", REPO / "data/state/coverage_matrix_latest.json"),
+    ]
+    for name, path in required:
+        if not path.exists():
+            issues.append(f"{name}:missing")
+            continue
+        try:
+            data = _load_json(path, {})
+            if not isinstance(data, dict):
+                issues.append(f"{name}:unreadable")
+                continue
+            if "rows" not in data:
+                issues.append(f"{name}:invalid_schema")
+        except Exception:
+            issues.append(f"{name}:unreadable")
+    return issues
 
 
 def _chat_allowed(msg: dict) -> bool:
@@ -480,6 +507,8 @@ def _collect_snapshot() -> dict:
             lag = row.get("lag_hours")
             if lag is not None and lag > cov_lag_max:
                 cov_lag_max = lag
+
+    pending_alerts = _count_pending_alerts()
 
     return {
         "dashboard_ok": dash_ok,
@@ -1572,6 +1601,14 @@ def _handle_command(chat_id: int, text: str) -> str:
         )
 
     if cmd == "/status":
+        issues = _status_ssot_issues()
+        if issues:
+            return (
+                "⚠️ WARN: /status SSOT 檔案缺失或不可讀，已停用 fallback。\n"
+                f"issues={', '.join(issues)}\n"
+                "請先確認 data/state/freshness_table.json 與 "
+                "data/state/coverage_matrix_latest.json。"
+            )
         return skill_status_overview(include_sources=True)
 
     if cmd == "/freshness":
