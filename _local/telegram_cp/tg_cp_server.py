@@ -363,7 +363,6 @@ def _status_ssot_sources() -> list[tuple[str, Path]]:
         ("coverage_matrix_latest.json", REPO / "data/state/coverage_matrix_latest.json"),
         ("brake_health_latest.json", REPO / "data/state/brake_health_latest.json"),
         ("regime_monitor_latest.json", REPO / "data/state/regime_monitor_latest.json"),
-        ("coverage_table.jsonl", REPO / "data/state/coverage_table.jsonl"),
     ]
 
 
@@ -458,11 +457,7 @@ def _status_short_report() -> str:
         except Exception:
             unreadable.append(name)
 
-    rebase_count, rebase_err = _read_coverage_table_rebase(source_map["coverage_table.jsonl"])
-    if rebase_err == "missing":
-        missing.append("coverage_table.jsonl")
-    elif rebase_err is not None:
-        unreadable.append("coverage_table.jsonl")
+    rebase_count = 0
 
     freshness_rows = (parsed.get("freshness_table.json") or {}).get("rows", []) if isinstance(parsed.get("freshness_table.json"), dict) else []
     cov_rows = (parsed.get("coverage_matrix_latest.json") or {}).get("rows", []) if isinstance(parsed.get("coverage_matrix_latest.json"), dict) else []
@@ -496,7 +491,6 @@ def _status_short_report() -> str:
                 "CoverageMatrix: N/A",
                 "Brake: N/A",
                 "Regime: N/A",
-                "Rebase(coverage_table): N/A",
                 _status_ssot_sources_line(),
             ]
         )
@@ -516,14 +510,18 @@ def _status_short_report() -> str:
             continue
         max_age = age_v if max_age is None else max(max_age, age_v)
 
-    cov_statuses = [str(r.get("status", "UNKNOWN")).upper() for r in cov_rows if isinstance(r, dict)]
-    cov_status = "OK"
-    if cov_statuses:
-        cov_status = _status_max(*cov_statuses)
     matrix_rebase = int(cov_totals.get("rebase", 0) or 0)
-    if matrix_rebase > 0:
-        cov_status = _status_max(cov_status, "WARN")
     max_lag = None
+    cov_status_raw = [str(r.get("status", "UNKNOWN")).upper() for r in cov_rows if isinstance(r, dict)]
+    done_count = cov_totals.get("done")
+    blocked_count = cov_totals.get("blocked", 0)
+    total_count = None
+    if "done" in cov_totals and "inProgress" in cov_totals and "blocked" in cov_totals:
+        total_count = cov_totals["done"] + cov_totals["inProgress"] + cov_totals["blocked"]
+    else:
+        total_count = len(cov_rows)
+        done_count = sum(1 for s in cov_status_raw if s == "PASS")
+
     for r in cov_rows:
         if not isinstance(r, dict):
             continue
@@ -533,6 +531,16 @@ def _status_short_report() -> str:
         except Exception:
             continue
         max_lag = lag_v if max_lag is None else max(max_lag, lag_v)
+
+    max_lag_val = max_lag if max_lag is not None else 0.0
+    if total_count == 0:
+        cov_status = "UNKNOWN"
+    elif blocked_count > 0 or max_lag_val > 48:
+        cov_status = "FAIL"
+    elif max_lag_val > 12:
+        cov_status = "WARN"
+    else:
+        cov_status = "PASS"
 
     brake_overall_fail = bool((parsed.get("brake_health_latest.json") or {}).get("overall_fail")) if isinstance(parsed.get("brake_health_latest.json"), dict) else False
     brake_status = "FAIL" if brake_overall_fail else "OK"
@@ -545,17 +553,16 @@ def _status_short_report() -> str:
     if regime_status not in {"OK", "WARN", "FAIL"}:
         regime_status = "UNKNOWN"
 
-    rebase_status = "WARN" if (rebase_count or 0) > 0 else "OK"
+    rebase_status = "WARN" if matrix_rebase > 0 else "OK"
     overall = _status_max(fresh_status, cov_status, brake_status, regime_status, rebase_status)
 
     return "\n".join(
         [
             f"SSOT_STATUS: {overall}",
             f"Freshness: {fresh_status} max_age_h={_fmt_num(max_age)}",
-            f"CoverageMatrix: {cov_status} rebase={matrix_rebase} max_lag_h={_fmt_num(max_lag)}",
+            f"CoverageMatrix: {cov_status} {done_count}/{total_count} done | max_lag_h={_fmt_num(max_lag)} | rebase={matrix_rebase}",
             f"Brake: {brake_status}",
             f"Regime: {regime_status}",
-            f"Rebase(coverage_table): {int(rebase_count or 0)}",
             _status_ssot_sources_line(),
         ]
     )
