@@ -343,3 +343,13 @@ The system persists the best parameters for each market regime (BULL, BEAR, NEUT
    ```bash
    ls -1 data/backtests/*/*/optimizer_regime.json | tail -n 3
    ```
+
+## Plan B: Auto PR + Auto Merge (No Team plan required)
+
+If GitHub "Allow auto-merge" is locked, you can use GitHub CLI on your Mac to create PRs and request auto-merge:
+
+```bash
+brew install gh
+gh auth login
+bash scripts/gh_pr_merge.sh "chore: <title>" "<body>"
+```
