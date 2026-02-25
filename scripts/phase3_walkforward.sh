@@ -86,11 +86,14 @@ run_experiment() {
 # WF3:
 # IS: 2020-01-01 -> 2024-12-31 | OOS: 2025-01-01 -> now
 
+IS_END=$(python3 -c "from scripts.splits import IS_END_DATE; print(IS_END_DATE)")
+OOS_START=$(python3 -c "from scripts.splits import OOS_START_DATE; print(OOS_START_DATE)")
+
 SPLITS=(
     "FIXED|2020-01-01|2023-12-31|2024-01-01|now"
     "WF1|2020-01-01|2022-12-31|2023-01-01|2023-12-31"
     "WF2|2020-01-01|2023-12-31|2024-01-01|2024-12-31"
-    "WF3|2020-01-01|2024-12-31|2025-01-01|now"
+    "WF3|2020-01-01|${IS_END}|${OOS_START}|now"
 )
 
 for cand in $CANDIDATES; do

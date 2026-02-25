@@ -5,7 +5,7 @@
 ## 1) Artifact Contract (Brake-related state files)
 
 | Artifact | Path Pattern | Producer | Consumer | Status |
-|---|---|---|---|---|
+| :--- | :--- | :--- | :--- | :--- |
 | gate.json | `data/backtests/*/*/gate.json` | `scripts/generate_gate_artifact.py` | Selection | Found |
 | selection.json | `data/backtests/*/*/selection.json` | `scripts/generate_selection_artifact.py` | Dashboard/Paper | Found |
 | summary.json | `data/backtests/*/*/summary.json` | Backtest Engine | Gate Scripts | Found |
@@ -20,6 +20,7 @@ Formal backtest/research split ranges defined in `scripts/phase3_walkforward.sh`
 - **WF1**: IS: `2020-01-01` -> `2022-12-31` | OOS: `2023-01-01` -> `2023-12-31`
 - **WF2**: IS: `2020-01-01` -> `2023-12-31` | OOS: `2024-01-01` -> `2024-12-31`
 - **WF3**: IS: `2020-01-01` -> `2024-12-31` | OOS: `2025-01-01` -> `now`
+  - **SSOT**: [scripts/splits.py](file:///Users/hong/Projects/HONGSTR/scripts/splits.py)
 
 ## 3) SOP (One-click)
 

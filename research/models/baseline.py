@@ -8,7 +8,14 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, mean_
 
 logger = logging.getLogger("research.models.baseline")
 
-def split_time_based(dataset: pd.DataFrame, is_end="2024-12-31"):
+import sys
+from pathlib import Path
+root = Path(__file__).resolve().parent.parent.parent
+if str(root) not in sys.path:
+    sys.path.append(str(root))
+from scripts.splits import IS_END_DATE
+
+def split_time_based(dataset: pd.DataFrame, is_end=IS_END_DATE):
     """Splits dataset strictly on time (IS vs OOS)."""
     # Assuming MultiIndex (ts, symbol) or ts in index level 0
     is_end_ts = pd.to_datetime(is_end, utc=True)
@@ -17,7 +24,8 @@ def split_time_based(dataset: pd.DataFrame, is_end="2024-12-31"):
     else:
         ts_values = dataset.index
         
-    is_mask = ts_values <= (pd.to_datetime("2024-12-31 23:59:59", utc=True))
+    # Use 23:59:59 of the canonical end date
+    is_mask = ts_values <= (pd.to_datetime(f"{IS_END_DATE} 23:59:59", utc=True))
 
     df_is = dataset[is_mask]
     df_oos = dataset[~is_mask]
