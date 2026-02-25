@@ -93,6 +93,14 @@ data/realtime/**
 data/derived/**
 data/backtests/**
 data/reports/**
+data/state/**
+data/signals/**
+data/artifacts/**
+data/selection/**
+data/events/**
+data/*.jsonl
+data/*.log
+data/*.json
 
 # logs/state/tmp
 logs/**
