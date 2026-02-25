@@ -238,7 +238,12 @@ async function buildStatus(envConfig: Record<string, string>): Promise<StatusPay
 
   const modeFromArtifact = executionMode && typeof executionMode.mode === 'string' ? executionMode.mode : null;
   const detailFromArtifact = executionMode && typeof executionMode.detail === 'string' ? executionMode.detail : null;
-  const updatedAtUtc = executionMode && typeof executionMode.updated_at_utc === 'string' ? executionMode.updated_at_utc : null;
+  const updatedAtUtc =
+    executionMode && typeof executionMode.updated_at_utc === 'string'
+      ? executionMode.updated_at_utc
+      : executionMode && typeof executionMode.last_updated_utc === 'string'
+        ? executionMode.last_updated_utc
+        : null;
 
   const services: ServiceHeartbeat[] = [];
   const rawServices = heartbeat?.services;
@@ -361,36 +366,13 @@ async function buildTimeline(): Promise<TimelineEvent[]> {
 
 async function buildStrategyPool(): Promise<StrategyPoolSummary | null> {
   const summary = await readJsonOptional<any>('data/state/strategy_pool_summary.json');
-  if (summary) {
-    return {
-      poolId: summary.pool_id || 'hongstr_main_pool',
-      candidatesCount: summary.counts?.candidates || 0,
-      promotedCount: summary.counts?.promoted || 0,
-      leaderboard: summary.leaderboard || []
-    };
-  }
-
-  // Fallback to raw pool data
-  const pool = await readJsonOptional<any>('data/state/strategy_pool.json');
-  if (!pool) return null;
-  const candidates: any[] = Array.isArray(pool.candidates) ? pool.candidates : [];
-  const promoted: any[] = Array.isArray(pool.promoted) ? pool.promoted : [];
-
-  const leaderboard = candidates
-    .filter(c => c && typeof c.strategy_id === 'string')
-    .map(c => ({
-      id: c.strategy_id,
-      score: typeof c.last_score === 'number' ? c.last_score : 0,
-      sharpe: typeof c.last_oos_metrics?.sharpe === 'number' ? c.last_oos_metrics.sharpe : 0
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+  if (!summary) return null;
 
   return {
-    poolId: pool.pool_id || 'unknown',
-    candidatesCount: candidates.length,
-    promotedCount: promoted.length,
-    leaderboard
+    poolId: summary.pool_id || 'hongstr_main_pool',
+    candidatesCount: summary.counts?.candidates || 0,
+    promotedCount: summary.counts?.promoted || 0,
+    leaderboard: summary.leaderboard || []
   };
 }
 

@@ -295,6 +295,39 @@ def test_status_regime_monitor_stale_affects_health(monkeypatch, tmp_path):
     assert "RegimeSignal: OK" in resp
 
 
+def test_status_prefers_system_health_pack_when_present(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_status_ssot_sources(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+
+    state_dir = repo / "data/state"
+    (state_dir / "system_health_latest.json").write_text(
+        json.dumps(
+            {
+                "ssot_status": "WARN",
+                "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
+                "refresh_hint": "bash scripts/refresh_state.sh",
+                "components": {
+                    "freshness": {"status": "OK", "max_age_h": 1.0},
+                    "coverage_matrix": {"status": "WARN", "done": 0, "total": 1, "max_lag_h": 2.5, "rebase": 1},
+                    "brake": {"status": "OK"},
+                    "regime_monitor": {"status": "OK", "age_h": 0.2, "ok_within_h": 12},
+                    "regime_signal": {"status": "FAIL", "top_reason": "MDD breach"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    resp = s._handle_command(35, "/status")
+    assert "SSOT_STATUS: WARN" in resp
+    assert "CoverageMatrix: WARN 0/1 done | max_lag_h=2.5 | rebase=1" in resp
+    assert "RegimeSignal: FAIL (MDD breach)" in resp
+    assert "Sources: system_health_latest.json (preferred)" in resp
+
+
 def test_ping_command(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)

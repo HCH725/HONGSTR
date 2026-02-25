@@ -15,6 +15,59 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 STATE_DIR = Path("data/state")
 
+
+def _normalize_simple_status(status_raw):
+    status = str(status_raw or "").upper().strip()
+    if status in {"OK", "PASS", "WARN", "FAIL", "UNKNOWN"}:
+        return status
+    return "UNKNOWN"
+
+
+def _normalize_coverage_status(status_raw):
+    status = str(status_raw or "").upper().strip()
+    if status in {"PASS", "OK", "DONE"}:
+        return "PASS"
+    if status in {"WARN", "IN_PROGRESS"}:
+        return "WARN"
+    if status in {"FAIL", "BLOCKED", "BLOCKED_DATA_QUALITY"}:
+        return "FAIL"
+    if status == "NEEDS_REBASE":
+        return "NEEDS_REBASE"
+    return "UNKNOWN"
+
+
+def _collapse_system_status(statuses):
+    normalized = [_normalize_simple_status(s) for s in statuses]
+    if any(s == "FAIL" for s in normalized):
+        return "FAIL"
+    if any(s in {"WARN", "UNKNOWN"} for s in normalized):
+        return "WARN"
+    return "OK"
+
+
+def _source_meta(path: Path, now_ts: float, ts_field_candidates=None):
+    meta = {
+        "path": str(path),
+        "exists": path.exists(),
+        "age_h": None,
+        "ts_utc": None,
+    }
+    if not path.exists():
+        return meta
+    try:
+        age_h = (now_ts - path.stat().st_mtime) / 3600.0
+        meta["age_h"] = round(max(0.0, age_h), 2)
+    except Exception:
+        pass
+    payload = read_json(path) or {}
+    if isinstance(payload, dict):
+        for key in (ts_field_candidates or ["ts_utc", "generated_utc", "timestamp"]):
+            ts_val = payload.get(key)
+            if isinstance(ts_val, str) and ts_val.strip():
+                meta["ts_utc"] = ts_val
+                break
+    return meta
+
 def read_jsonl(path: Path):
     records = []
     if not path.exists():
@@ -323,6 +376,162 @@ def main():
         "totals": totals
     }
     write_json(STATE_DIR / "coverage_matrix_latest.json", matrix_snapshot)
+
+    # 9. Optional Health Pack Aggregator (SSOT summary only)
+    fresh_rows = freshness_table.get("rows", [])
+    freshness_statuses = []
+    freshness_non_ok = 0
+    freshness_max_age = None
+    if isinstance(fresh_rows, list):
+        for row in fresh_rows:
+            if not isinstance(row, dict):
+                continue
+            st = _normalize_simple_status(row.get("status"))
+            freshness_statuses.append(st)
+            if st != "OK":
+                freshness_non_ok += 1
+            age_v = row.get("age_h")
+            try:
+                age_f = float(age_v)
+                freshness_max_age = age_f if freshness_max_age is None else max(freshness_max_age, age_f)
+            except Exception:
+                pass
+    if not freshness_statuses:
+        freshness_status = "UNKNOWN"
+    elif "FAIL" in freshness_statuses:
+        freshness_status = "FAIL"
+    elif "WARN" in freshness_statuses:
+        freshness_status = "WARN"
+    elif "OK" in freshness_statuses:
+        freshness_status = "OK"
+    else:
+        freshness_status = "UNKNOWN"
+
+    cov_rows_status = []
+    if isinstance(matrix_snapshot.get("rows"), list):
+        for row in matrix_snapshot["rows"]:
+            if not isinstance(row, dict):
+                continue
+            cov_rows_status.append(_normalize_coverage_status(row.get("status")))
+    cov_totals = matrix_snapshot.get("totals", {}) if isinstance(matrix_snapshot, dict) else {}
+    cov_done = int(cov_totals.get("done", 0) or 0)
+    cov_in_progress = int(cov_totals.get("inProgress", 0) or 0)
+    cov_blocked = int(cov_totals.get("blocked", 0) or 0)
+    cov_rebase = int(cov_totals.get("rebase", 0) or 0)
+    cov_total = cov_done + cov_in_progress + cov_blocked
+    if cov_total <= 0 and not cov_rows_status and cov_rebase <= 0:
+        coverage_status = "UNKNOWN"
+    elif cov_blocked > 0 or "FAIL" in cov_rows_status:
+        coverage_status = "FAIL"
+    elif cov_rebase > 0 or "NEEDS_REBASE" in cov_rows_status or "WARN" in cov_rows_status:
+        coverage_status = "WARN"
+    elif cov_done > 0 or "PASS" in cov_rows_status:
+        coverage_status = "PASS"
+    else:
+        coverage_status = "UNKNOWN"
+
+    coverage_max_lag = None
+    if isinstance(matrix_snapshot.get("rows"), list):
+        for row in matrix_snapshot["rows"]:
+            if not isinstance(row, dict):
+                continue
+            lag = row.get("lag_hours")
+            try:
+                lag_f = float(lag)
+                coverage_max_lag = lag_f if coverage_max_lag is None else max(coverage_max_lag, lag_f)
+            except Exception:
+                pass
+
+    brake_data = read_json(STATE_DIR / "brake_health_latest.json") or {}
+    brake_results = brake_data.get("results", []) if isinstance(brake_data, dict) else []
+    if not isinstance(brake_results, list):
+        brake_results = []
+    brake_status = "UNKNOWN"
+    if brake_results or bool(brake_data.get("overall_fail")):
+        brake_status = "FAIL" if bool(brake_data.get("overall_fail")) else "OK"
+        for row in brake_results:
+            if not isinstance(row, dict):
+                continue
+            st = _normalize_simple_status(row.get("status"))
+            if st == "FAIL":
+                brake_status = "FAIL"
+                break
+            if st == "WARN" and brake_status != "FAIL":
+                brake_status = "WARN"
+
+    regime_path = STATE_DIR / "regime_monitor_latest.json"
+    regime_data = read_json(regime_path) or {}
+    regime_signal = _normalize_simple_status(regime_data.get("overall"))
+    if regime_signal == "PASS":
+        regime_signal = "OK"
+    if regime_signal not in {"OK", "WARN", "FAIL"}:
+        regime_signal = "UNKNOWN"
+    regime_reasons = regime_data.get("reason")
+    regime_top_reason = None
+    if isinstance(regime_reasons, list) and regime_reasons:
+        top_reason = regime_reasons[0]
+        if isinstance(top_reason, str) and top_reason.strip():
+            regime_top_reason = top_reason.strip()
+    if regime_top_reason and len(regime_top_reason) > 120:
+        regime_top_reason = regime_top_reason[:117] + "..."
+
+    regime_age_h = None
+    if regime_path.exists():
+        try:
+            regime_age_h = max(0.0, (now_ts - regime_path.stat().st_mtime) / 3600.0)
+        except Exception:
+            regime_age_h = None
+    regime_monitor_status = "UNKNOWN"
+    regime_ok_h = 12.0
+    if regime_age_h is not None:
+        regime_monitor_status = "OK" if regime_age_h <= regime_ok_h else "WARN"
+
+    coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
+    ssot_status = _collapse_system_status(
+        [freshness_status, coverage_as_health, brake_status, regime_monitor_status]
+    )
+
+    system_health = {
+        "generated_utc": now_utc,
+        "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
+        "ssot_status": ssot_status,
+        "refresh_hint": "bash scripts/refresh_state.sh",
+        "components": {
+            "freshness": {
+                "status": freshness_status,
+                "max_age_h": round(freshness_max_age, 1) if freshness_max_age is not None else None,
+                "non_ok_rows": freshness_non_ok,
+                "rows_total": len(fresh_rows) if isinstance(fresh_rows, list) else 0,
+            },
+            "coverage_matrix": {
+                "status": coverage_status,
+                "done": cov_done,
+                "total": cov_total,
+                "blocked": cov_blocked,
+                "rebase": cov_rebase,
+                "max_lag_h": round(coverage_max_lag, 1) if coverage_max_lag is not None else None,
+            },
+            "brake": {
+                "status": brake_status,
+            },
+            "regime_monitor": {
+                "status": regime_monitor_status,
+                "age_h": round(regime_age_h, 1) if regime_age_h is not None else None,
+                "ok_within_h": regime_ok_h,
+            },
+            "regime_signal": {
+                "status": regime_signal,
+                "top_reason": regime_top_reason,
+            },
+        },
+        "sources": {
+            "freshness_table.json": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
+            "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
+            "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
+            "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
+        },
+    }
+    write_json(STATE_DIR / "system_health_latest.json", system_health)
 
     logging.info("Snapshots successfully written to data/state/")
 
