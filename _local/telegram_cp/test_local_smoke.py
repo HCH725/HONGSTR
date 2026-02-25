@@ -681,49 +681,22 @@ def test_snapshot_text_freshness_logic(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
 
-    # Case A: All OK
     fake_snap = {
-        "dashboard_ok": True,
-        "freshness": {
-            "BTCUSDT": {
-                "1m": {"age_hours": 5.4, "status": "OK"},
-                "1h": {"age_hours": 6.7, "status": "OK"},
-                "4h": {"age_hours": 8.2, "status": "OK"},
-            },
-            "ETHUSDT": {
-                "1m": {"age_hours": 5.9, "status": "OK"},
-                "1h": {"age_hours": 6.5, "status": "OK"},
-                "4h": {"age_hours": 8.0, "status": "OK"},
-            },
-            "BNBUSDT": {
-                "1m": {"age_hours": 5.7, "status": "OK"},
-                "1h": {"age_hours": 6.3, "status": "OK"},
-                "4h": {"age_hours": 7.8, "status": "OK"},
-            }
-        },
-        "log_ages": {}, "cp_status": "OK", "cp_summary": "", "cp_age_hours": 0.1,
-        "overall_gate": "PASS", "top_action": "", "etl_fail": False, "etl_ok": True, "pending_alerts": 0
+        "status_report": "SSOT_STATUS: OK\nFreshness: OK max_age_h=1.0\nRegimeSignal: FAIL (MDD breach)",
+        "refresh_hint": "bash scripts/refresh_state.sh",
+        "pending_alerts": 2,
     }
     monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
-    
-    text = s._snapshot_text()
-    assert "良好 (皆在 12h 內)" in text
-    assert "WARN" not in text
-    assert "延遲" not in text
-    assert "落後" not in text
-    assert "BTCUSDT: 1m:5.4h(OK) / 1h:6.7h(OK) / 4h:8.2h(OK)" in text
 
-    # Case B: One WARN
-    fake_snap["freshness"]["BTCUSDT"]["4h"] = {"age_hours": 20.0, "status": "WARN"}
     text = s._snapshot_text()
-    assert "⚠️ 延遲 (部分超過 12h)" in text
-    assert "BTCUSDT: 1m:5.4h(OK) / 1h:6.7h(OK) / 4h:20.0h(WARN)" in text
-
-    # Case C: One FAIL
-    fake_snap["freshness"]["ETHUSDT"]["1m"] = {"age_hours": 60.0, "status": "FAIL"}
-    text = s._snapshot_text()
-    assert "❌ 嚴重落後 (部分超過 48h)" in text
-    assert "ETHUSDT: 1m:60.0h(FAIL)" in text
+    assert "[系統快照 " in text
+    assert "SSOT_STATUS: OK" in text
+    assert "RegimeSignal: FAIL (MDD breach)" in text
+    assert "RefreshHint: Run `bash scripts/refresh_state.sh` when SSOT snapshots are missing or stale." in text
+    assert "待處理排程告警: 2 筆" in text
+    # Legacy dynamic/log-derived summary should not appear in the SSOT-only snapshot text.
+    assert "Dashboard:" not in text
+    assert "Backtest Gate:" not in text
 
 
 def test_freshness_command(monkeypatch, tmp_path):
