@@ -464,8 +464,28 @@ def _collect_snapshot() -> dict:
     # brake health
     brake_health = _load_json(REPO / "data/state/brake_health_latest.json", {})
 
-    # pending alerts count
-    pending_alerts = _count_pending_alerts()
+    # coverage / rebase summary
+    rebase_count = 0
+    total_coverage = 0
+    cov_table = REPO / "data/state/coverage_table.jsonl"
+    cov_found = False
+    if cov_table.exists():
+        cov_found = True
+        try:
+            # Read-only scan
+            lines = cov_table.read_text(encoding="utf-8", errors="ignore").splitlines()
+            for ln in lines:
+                if not ln.strip():
+                    continue
+                total_coverage += 1
+                try:
+                    obj = json.loads(ln)
+                    if obj.get("status") == "NEEDS_REBASE":
+                        rebase_count += 1
+                except:
+                    continue
+        except:
+            pass
 
     return {
         "dashboard_ok": dash_ok,
@@ -481,6 +501,9 @@ def _collect_snapshot() -> dict:
         "regime_monitor": regime,
         "pending_alerts": pending_alerts,
         "brake_health": brake_health,
+        "rebase_count": rebase_count,
+        "total_coverage": total_coverage,
+        "cov_found": cov_found,
     }
 
 
@@ -590,6 +613,16 @@ def skill_status_overview(include_sources: bool = False) -> str:
         issues = [f"{r['item']} {r['status']}" for r in results if r.get("status") in ["WARN", "FAIL"]]
         reason = ", ".join(issues) if issues else "All OK"
         lines.append(f"• Brake: {icon} {status} - {reason}")
+    
+    # Rebase Summary (R5-F)
+    if not snap.get("cov_found"):
+        lines.append("• Rebase: NOT FOUND (run coverage snapshot/refresh_state)")
+    else:
+        cnt = snap.get("rebase_count", 0)
+        if cnt == 0:
+            lines.append("• Rebase: ✅ OK (0)")
+        else:
+            lines.append(f"• Rebase: ⚠️ NEEDS_REBASE ({cnt})")
 
     if include_sources:
         lines.append("依據: logs/launchd_dashboard.out.log, logs/launchd_daily_etl.out.log")
