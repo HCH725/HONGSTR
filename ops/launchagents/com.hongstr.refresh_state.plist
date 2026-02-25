@@ -3,20 +3,17 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.hongstr.daily_healthcheck</string>
+    <string>com.hongstr.refresh_state</string>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
         <string>cd __REPO_ROOT__ &amp;&amp; bash scripts/refresh_state.sh</string>
     </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>2</integer>
-        <key>Minute</key>
-        <integer>30</integer>
-    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>3600</integer>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
@@ -25,8 +22,8 @@
         <string>__REPO_ROOT__/.venv/bin/python</string>
     </dict>
     <key>StandardOutPath</key>
-    <string>__REPO_ROOT__/logs/launchd_daily_healthcheck.out.log</string>
+    <string>__REPO_ROOT__/logs/launchd_refresh_state.out.log</string>
     <key>StandardErrorPath</key>
-    <string>__REPO_ROOT__/logs/launchd_daily_healthcheck.err.log</string>
+    <string>__REPO_ROOT__/logs/launchd_refresh_state.err.log</string>
 </dict>
 </plist>
