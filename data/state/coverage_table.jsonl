@@ -1,1 +1,0 @@
-{"coverage_key": {"template_id": "trend_mvp_v1", "symbol": "BTCUSDT", "timeframe": "1h", "regime": "ALL", "data_version": "v1", "semantics_version": "sem_v1", "param_space_version": "v1"}, "status": "DONE", "created_utc": "2026-02-23T00:00:00Z", "updated_utc": "2026-02-24T12:51:53Z", "last_run_id": "p3_Walk7b_oos", "notes": "Sharpe: 0.00, Return: 0.00"}
