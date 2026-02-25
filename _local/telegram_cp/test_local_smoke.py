@@ -146,12 +146,55 @@ def test_ml_status_routing(monkeypatch, tmp_path):
 def test_status_command(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    (repo / "data/state").mkdir(parents=True)
+    (repo / "data/state/freshness_table.json").write_text(
+        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 1.0, "status": "OK"}]}),
+        encoding="utf-8",
+    )
+    (repo / "data/state/coverage_matrix_latest.json").write_text(
+        json.dumps({"rows": [], "totals": {"rebase": 0}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(s, "REPO", repo)
 
     resp = s._handle_command(30, "/status")
     # should have the concise summary
-    assert "資料新鮮度" in resp
+    assert "Freshness" in resp
     assert "max_age=" in resp
-    assert "瓶頸=" in resp
+    assert "Coverage" in resp
+
+
+def test_status_command_with_bot_suffix(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    (repo / "data/state").mkdir(parents=True)
+    (repo / "data/state/freshness_table.json").write_text(
+        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 2.0, "status": "OK"}]}),
+        encoding="utf-8",
+    )
+    (repo / "data/state/coverage_matrix_latest.json").write_text(
+        json.dumps({"rows": [], "totals": {"rebase": 0}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(s, "REPO", repo)
+
+    resp = s._handle_command(31, "/status@HONGSTR_bot")
+    assert "WARN: /status SSOT" not in resp
+    assert "Freshness" in resp
+
+
+def test_status_command_warns_when_ssot_missing(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    resp = s._handle_command(32, "/status@HONGSTR_bot")
+    assert "WARN: /status SSOT" in resp
+    assert "已停用 fallback" in resp
 
 
 def test_ping_command(monkeypatch, tmp_path):
