@@ -1,10 +1,12 @@
 # HONGSTR Slimdown Next Round Plan (Stability-First)
 
 Last updated (UTC): 2026-02-25
-Baseline commit: `main@6386f74`
+Baseline commit: `main@89cedb5`
 Scan evidence:
 - `reports/slimdown_full_scan_2026-02-25T165451Z.log`
 - `reports/slimdown_nextscan_2026-02-25T170040Z.log`
+- `reports/slimdown_fullscan_2026-02-25T173842Z.log`
+- `reports/slimdown_next_actions_2026-02-25T173842Z.md`
 
 ## Red Lines (must hold every PR)
 
@@ -22,10 +24,10 @@ Done:
 - `tg_cp /status` is health-pack-first and SSOT fallback only (`_local/telegram_cp/tg_cp_server.py`).
 - dashboard `/api/status` top-level freshness/coverage/regime cards are SSOT-driven (`web/app/api/status/route.ts`).
 - Missing/unreadable SSOT now yields UNKNOWN + refresh-hint behavior in both tg_cp and dashboard status paths.
+- `skill_status_overview()` now delegates to `_status_short_report()` (SSOT path), not `_collect_snapshot()` fold logic.
 
 Remaining gaps:
-- `skill_status_overview()` still computes status-like output via `_collect_snapshot()` (log/report fold path), not via canonical SSOT-only `/status` formatter.
-- `_collect_snapshot()` remains necessary for detail/ops context, but should not drive status-class outputs.
+- none for status-class output; `_collect_snapshot()` remains for non-status detail skills.
 
 ### P0-2 State writer boundary
 
@@ -36,12 +38,16 @@ Done:
   - `scripts/phase4_regime_monitor.py`
   - `scripts/brake_healthcheck.py`
 - canonical writer for dashboard/control-plane state snapshots is `scripts/state_snapshots.py`.
+- `scripts/semantics_check.py` no longer falls back to `data/state/coverage_table.jsonl`.
+- `scripts/state_snapshots.py` no longer falls back to canonical `data/state/*` for coverage/regime/brake upstream inputs.
 
 Remaining gaps:
-- `scripts/state_snapshots.py` still has legacy read fallbacks from `data/state/*` for some inputs (coverage/regime/brake), weakening strict writer boundary.
-- `scripts/semantics_check.py` still keeps legacy read fallback from `data/state/coverage_table.jsonl`.
+- schedule/ops ownership still needs explicit state-plane job ownership (see P1 docs below).
 
 ## B) launchd Planes (P1 docs-only)
+
+Detailed mapping and consolidation notes:
+- `docs/slimdown_launchd_planes.md`
 
 | Plane | Jobs | One-line responsibility | Overlap |
 |---|---|---|---|
@@ -58,13 +64,18 @@ Remaining gaps:
 
 ## C) Next PR Slices
 
-### PR-N1 (this PR) docs-only planning
+### Completed
+
+- PR #65: docs planning (`docs/slimdown_next_round.md`)
+- PR #66: P0 minimal refactor (status SSOT path + writer boundary fallback removal)
+
+### PR-P1 (this PR) launchd planes docs-only
 
 What
-- Add `docs/slimdown_next_round.md` with current gap map and small-step execution slices.
+- Add `docs/slimdown_launchd_planes.md` with current launchd job -> plane mapping and overlap/gap notes.
 
 Why
-- Freeze scope and avoid uncontrolled refactor drift.
+- Make schedule ownership explicit before any plist change.
 
 Risk
 - Low (docs-only).
@@ -78,17 +89,16 @@ Rollback
 Verify
 - file exists and CI passes.
 
-### PR-N2 minimal refactor (P0-only)
+### PR-P2 small ops follow-up (after observation)
 
 What
-- `tg_cp`: make `skill_status_overview()` delegate to SSOT `/status` report path (no `_collect_snapshot()` fold for status-class output).
-- `state writer boundary`: make state snapshot assembly read atomic producer outputs first and drop legacy `data/state/*` fallback for upstream producer inputs where safe.
+- Add/clarify a state-plane schedule owner for `scripts/refresh_state.sh` without deleting existing jobs.
 
 Why
-- complete SSOT-only status behavior and tighten single-writer contract.
+- Reduce ambiguity between validation jobs and canonical SSOT snapshot production.
 
 Risk
-- Low to medium (non-core glue/pathing only).
+- Low to medium (ops schedule timing only).
 
 Safety
 - core untouched, tg_cp no-exec unchanged, no data artifacts committed.
@@ -102,10 +112,10 @@ Verify
 - `git diff --name-only origin/main...HEAD | rg '^src/hongstr/'`
 - `git status --porcelain | rg '^.. data/'`
 
-### PR-N3 schedule cleanup docs/ops follow-up (optional)
+### PR-P3 research-trigger ownership cleanup (optional)
 
 What
-- Update launchd runbook/docs to mark state-plane single ownership and overlap resolution steps.
+- Choose one primary research trigger owner (`research_loop` vs `research_poller`) and document backup path.
 
 Why
 - reduce operational ambiguity without risky job deletion.
