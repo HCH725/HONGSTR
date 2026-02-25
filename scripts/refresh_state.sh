@@ -25,25 +25,34 @@ run_step() {
     fi
 }
 
-run_step "1. Update Coverage Table" \
+run_step "1. Update Coverage Atomic Table" \
     .venv/bin/python scripts/coverage_update.py --scan-root data/backtests --limit 1000 --template trend_mvp_v1 || true
+
+run_step "2. Apply Coverage Semantics Gate (Atomic)" \
+    .venv/bin/python scripts/semantics_check.py || true
+
+run_step "3. Generate Regime Monitor Atomic Snapshot" \
+    .venv/bin/python scripts/phase4_regime_monitor.py || true
+
+run_step "4. Generate Brake Health Atomic Snapshot" \
+    .venv/bin/python scripts/brake_healthcheck.py || true
 
 # Note: scripts/coverage_validate.py might not exist yet, we ensure it's gracefully ignored if it doesn't
 if [ -f "scripts/coverage_validate.py" ]; then
-    run_step "2. Validate Coverage Table" \
+    run_step "5. Validate Coverage Table" \
         .venv/bin/python scripts/coverage_validate.py || true
 else
     echo -e "\n---> [SKIP] scripts/coverage_validate.py (Not implemented, skipping smoothly)"
 fi
 
 if [ -f "scripts/strategy_pool_update.py" ]; then
-    run_step "3. Update Strategy Pool" \
+    run_step "6. Update Strategy Pool" \
         .venv/bin/python scripts/strategy_pool_update.py || true
 else
     echo -e "\n---> [SKIP] scripts/strategy_pool_update.py (Not implemented, skipping smoothly)"
 fi
 
-run_step "4. Generate Dashboard Snapshots" \
+run_step "7. Generate Dashboard Snapshots (Canonical data/state Writer)" \
     .venv/bin/python scripts/state_snapshots.py
 
 echo -e "\n=========================================="

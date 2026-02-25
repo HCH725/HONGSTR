@@ -15,8 +15,11 @@ from datetime import datetime
 
 # Configuration
 FRESHNESS_PATH = "data/state/freshness_table.json"
-REGIME_PATH = "data/state/regime_monitor_latest.json"
-HEALTH_JSON_PATH = "data/state/brake_health_latest.json"
+REGIME_PATH_CANDIDATES = (
+    "reports/state_atomic/regime_monitor_latest.json",
+    "data/state/regime_monitor_latest.json",
+)
+HEALTH_JSON_PATH = "reports/state_atomic/brake_health_latest.json"
 
 FRESHNESS_MAX_AGE_SEC = 24 * 3600  # 24h
 REGIME_MAX_AGE_SEC = 12 * 3600     # 12h
@@ -28,6 +31,14 @@ C_GREEN = "\033[92m"
 C_YELLOW = "\033[93m"
 C_RED = "\033[91m"
 C_RESET = "\033[0m"
+
+
+def pick_existing_path(candidates):
+    for c in candidates:
+        if Path(c).exists():
+            return c
+    # Fallback to the first candidate for deterministic messaging.
+    return candidates[0]
 
 def get_latest_run_dir():
     try:
@@ -76,8 +87,9 @@ def main():
     if status == "FAIL": any_fail = True
 
     # 2. Regime Monitor
-    status, note, mtime = check_file(REGIME_PATH, REGIME_MAX_AGE_SEC)
-    results.append({"item": "Regime Monitor", "status": status, "note": note, "path": REGIME_PATH})
+    regime_path = pick_existing_path(REGIME_PATH_CANDIDATES)
+    status, note, mtime = check_file(regime_path, REGIME_MAX_AGE_SEC)
+    results.append({"item": "Regime Monitor", "status": status, "note": note, "path": regime_path})
     if status == "FAIL": any_fail = True
 
     # 3. Latest Backtest Artifacts

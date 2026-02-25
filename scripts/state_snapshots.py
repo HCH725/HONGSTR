@@ -14,6 +14,10 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 STATE_DIR = Path("data/state")
+ATOMIC_STATE_DIR = Path("reports/state_atomic")
+ATOMIC_COVERAGE_TABLE = ATOMIC_STATE_DIR / "coverage_table.jsonl"
+ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
+ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
 
 
 def _normalize_simple_status(status_raw):
@@ -103,13 +107,29 @@ def write_json(path: Path, data: dict):
     except Exception as e:
         logging.error(f"Failed to write snapshot {path}: {e}")
 
+
+def write_jsonl(path: Path, rows: list):
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(path, "w") as f:
+            for row in rows:
+                f.write(json.dumps(row) + "\n")
+    except Exception as e:
+        logging.error(f"Failed to write snapshot {path}: {e}")
+
+
 def main():
     now_utc_obj = datetime.now(timezone.utc)
     now_utc = now_utc_obj.strftime("%Y-%m-%dT%H:%M:%SZ")
     now_ts = time.time()
 
-    # 1. Coverage Latest
-    cov_recs = read_jsonl(STATE_DIR / "coverage_table.jsonl")
+    # 1. Coverage input (atomic first, fallback to legacy state file)
+    cov_recs = read_jsonl(ATOMIC_COVERAGE_TABLE)
+    if not cov_recs:
+        cov_recs = read_jsonl(STATE_DIR / "coverage_table.jsonl")
+    write_jsonl(STATE_DIR / "coverage_table.jsonl", cov_recs)
+
+    # 2. Coverage Latest
     latest_map = {}
     for r in cov_recs:
         key_obj = r.get("coverage_key", {})
@@ -121,7 +141,7 @@ def main():
 
     write_json(STATE_DIR / "coverage_latest.json", latest_map)
 
-    # 2. Coverage Summary
+    # 3. Coverage Summary
     cov_summary = {
         "count": len(cov_recs),
         "pass_rate": 0,
@@ -151,7 +171,7 @@ def main():
     
     write_json(STATE_DIR / "coverage_summary.json", cov_summary)
 
-    # 3. Strategy Pool Summary
+    # 4. Strategy Pool Summary
     pool_data = read_json(STATE_DIR / "strategy_pool.json") or {}
     candidates = pool_data.get("candidates", [])
     promoted = pool_data.get("promoted", [])
@@ -181,8 +201,20 @@ def main():
 
     write_json(STATE_DIR / "strategy_pool_summary.json", pool_summary)
 
-    # 4. Regime Monitor Summary
-    regime_data = read_json(STATE_DIR / "regime_monitor_latest.json")
+    # 5. Canonicalize Regime Monitor (state_snapshots is the final writer to data/state)
+    regime_data = read_json(ATOMIC_REGIME_MONITOR) or read_json(STATE_DIR / "regime_monitor_latest.json")
+    if isinstance(regime_data, dict) and regime_data:
+        write_json(STATE_DIR / "regime_monitor_latest.json", regime_data)
+    else:
+        regime_data = {
+            "ts_utc": now_utc,
+            "overall": "UNKNOWN",
+            "reason": ["missing_regime_atomic"],
+            "current": {},
+        }
+        write_json(STATE_DIR / "regime_monitor_latest.json", regime_data)
+
+    # 6. Regime Monitor Summary
     if regime_data:
         regime_summary = {
             "status": regime_data.get("overall", "UNKNOWN"),
@@ -206,7 +238,7 @@ def main():
             {"status": "UNKNOWN", "updated_utc": now_utc, "last_updated_utc": now_utc},
         )
 
-    # 5. Data Freshness 3x3
+    # 7. Data Freshness 3x3
     freshness_matrix = []
     thresholds = {"ok_h": 12.0, "warn_h": 48.0}
     symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
@@ -264,14 +296,14 @@ def main():
 
     write_json(STATE_DIR / "freshness_table.json", freshness_table)
 
-    # 6. Execution Mode Snapshot
+    # 8. Execution Mode Snapshot
     execution_mode = {
         "mode": os.getenv("EXECUTION_MODE", "unknown"),
         "last_updated_utc": now_utc
     }
     write_json(STATE_DIR / "execution_mode.json", execution_mode)
 
-    # 7. Services Heartbeat Snapshot
+    # 9. Services Heartbeat Snapshot
     services = {
         "dashboard": "logs/launchd_dashboard.out.log",
         "realtime": "logs/realtime_ws.log",
@@ -309,8 +341,8 @@ def main():
     
     write_json(STATE_DIR / "services_heartbeat.json", heartbeat)
 
-    # 8. Coverage Matrix Snapshot
-    cov_rows = read_jsonl(STATE_DIR / "coverage_table.jsonl")
+    # 10. Coverage Matrix Snapshot
+    cov_rows = cov_recs
     matrix_rows = []
     totals = {"done": 0, "inProgress": 0, "blocked": 0, "rebase": 0}
     
@@ -380,7 +412,21 @@ def main():
     }
     write_json(STATE_DIR / "coverage_matrix_latest.json", matrix_snapshot)
 
-    # 9. Optional Health Pack Aggregator (SSOT summary only)
+    # 11. Canonicalize Brake Health (state_snapshots is the final writer to data/state)
+    brake_data = read_json(ATOMIC_BRAKE_HEALTH) or read_json(STATE_DIR / "brake_health_latest.json")
+    if isinstance(brake_data, dict) and brake_data:
+        write_json(STATE_DIR / "brake_health_latest.json", brake_data)
+    else:
+        brake_data = {
+            "timestamp": now_utc,
+            "overall_fail": False,
+            "results": [],
+            "strict_mode": False,
+            "status": "UNKNOWN",
+        }
+        write_json(STATE_DIR / "brake_health_latest.json", brake_data)
+
+    # 12. Optional Health Pack Aggregator (SSOT summary only)
     fresh_rows = freshness_table.get("rows", [])
     freshness_statuses = []
     freshness_non_ok = 0
@@ -445,7 +491,6 @@ def main():
             except Exception:
                 pass
 
-    brake_data = read_json(STATE_DIR / "brake_health_latest.json") or {}
     brake_results = brake_data.get("results", []) if isinstance(brake_data, dict) else []
     if not isinstance(brake_results, list):
         brake_results = []
