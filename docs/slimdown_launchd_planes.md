@@ -1,6 +1,6 @@
 # HONGSTR Launchd 3-Plane Responsibility Map
 
-Last updated (UTC): 2026-02-25T18:13:36Z  
+Last updated (UTC): 2026-02-25T18:57:00Z  
 Evidence:
 - `reports/slimdown_full_scan_2026-02-25T175644Z.log`
 - `~/Library/LaunchAgents/com.hongstr.*.plist` (`plutil -p`)
@@ -40,6 +40,22 @@ No launchd plist/runtime behavior change is included here.
 | Control | `com.hongstr.research_poller` | every `600s` + `RunAtLoad` | Queue-facing poller only (enqueue/de-dup/cooldown); no heavy research compute. |
 | Control | `com.hongstr.research_loop` | daily `06:20` (`--once`) | Execute queued/scheduled research run in report-only mode; no SSOT state writing. |
 
+## Job Ownership Sheet (`com.hongstr.*`)
+
+| Label | Owner plane | Unique responsibility | Overlap guardrail |
+|---|---|---|---|
+| `com.hongstr.daily_etl` | Data | Produce/refresh ETL data inputs only. | Must not publish canonical `data/state/*` snapshots. |
+| `com.hongstr.weekly_backfill` | Data | Backfill historical market data gaps. | Must not publish canonical `data/state/*` snapshots. |
+| `com.hongstr.retention_cleanup` | Data | Enforce retention policy for logs/runtime artifacts. | Must not run state/status recomputation logic. |
+| `com.hongstr.daily_backtest` | Data | Produce daily backtest artifacts. | Artifacts are inputs only; canonical status is published by State Plane. |
+| `com.hongstr.refresh_state` | State | Canonical state orchestrator (`refresh_state.sh` -> `state_snapshots.py`). | This is the scheduler owner of SSOT publication. |
+| `com.hongstr.daily_healthcheck` | State (alias/deprecated path) | Legacy alias trigger for `refresh_state.sh` only. | Must not own independent state computation or publication. |
+| `com.hongstr.dashboard` | Control | Serve read-only dashboard from SSOT snapshots. | No top-level status recomputation from logs/derived/artifacts. |
+| `com.hongstr.tg_cp` | Control | Serve read-only Telegram control-plane views from SSOT snapshots. | No exec actions; no non-SSOT top-level status fold. |
+| `com.hongstr.realtime_ws` | Control | Keep realtime websocket collector/service alive. | Must not publish canonical `data/state/*` snapshots. |
+| `com.hongstr.research_poller` | Control (Research queue) | Enqueue/de-dup/cooldown research tasks only. | Must not execute heavy research runs itself. |
+| `com.hongstr.research_loop` | Control (Research runner) | Execute report-only research jobs from schedule/queue. | Must not publish canonical `data/state/*` snapshots. |
+
 ## Overlap Checklist
 
 - [ ] `com.hongstr.refresh_state` is the canonical State Plane scheduler owner.
@@ -54,10 +70,51 @@ No launchd plist/runtime behavior change is included here.
 1. `daily_healthcheck` vs `refresh_state`
 - Concern: both are perceived as "health" jobs; ownership can be misunderstood.
 - Direction: `com.hongstr.refresh_state` = canonical SSOT scheduler/publisher; `daily_healthcheck` = legacy alias trigger only.
+- Deprecation path (safe/minimal):
+  - Phase A: keep `daily_healthcheck` as alias-only (calls `refresh_state.sh` and nothing else).
+  - Phase B: mark `daily_healthcheck` as deprecated in docs/ops inventory and stop adding new logic there.
+  - Phase C: when operations are stable, disable/remove alias schedule and keep `refresh_state` as sole scheduler owner.
+  - Rollback: re-enable alias plist and bootstrap it if `refresh_state` schedule has incident risk.
 
 2. `research_poller` vs `research_loop`
 - Concern: two independent trigger paths can both produce report-only outputs.
 - Direction: lock responsibilities now: `research_poller` handles queue/de-dup/cooldown only, `research_loop` executes report-only runs only.
+
+## Migration SOP (plist change, zero-downtime mindset)
+
+Use this standard sequence whenever changing any `com.hongstr.*.plist` to avoid duplicate instances and Telegram 409-style conflicts:
+
+```bash
+LABEL="com.hongstr.<job>"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+
+# 1) Unload old definition/process
+launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
+
+# 2) Wait for teardown
+sleep 5
+
+# 3) Load new definition
+launchctl bootstrap "gui/$(id -u)" "$PLIST"
+
+# 4) Verify launchd state
+launchctl print "gui/$(id -u)/$LABEL" | rg 'state|pid|last exit|active count|program|ProgramArguments'
+```
+
+Single-instance verification checklist (especially for tg_cp/realtime services):
+
+```bash
+# A) Only one launchd service active for the label
+launchctl print "gui/$(id -u)/com.hongstr.tg_cp" | rg 'state =|pid =|active count'
+
+# B) Only one process instance
+pgrep -af "tg_cp_server.py"
+```
+
+Interpretation:
+- `active count` should indicate a single active service.
+- `pgrep` should show one expected runtime instance for the target daemon.
+- If more than one instance appears, repeat `bootout -> wait -> bootstrap` and verify again before declaring rollout complete.
 
 ## Success Criteria
 
