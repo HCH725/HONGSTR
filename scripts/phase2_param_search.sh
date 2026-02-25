@@ -23,8 +23,8 @@ PY="${REPO_ROOT}/.venv/bin/python"
 SYMBOLS="BTCUSDT,ETHUSDT,BNBUSDT"
 TIMEFRAMES="1h,4h"
 IS_START="2020-01-01"
-IS_END="2024-12-31"
-OOS_START="2025-01-01"
+IS_END=$(python3 -c "from scripts.splits import IS_END_DATE; print(IS_END_DATE)")
+OOS_START=$(python3 -c "from scripts.splits import OOS_START_DATE; print(OOS_START_DATE)")
 OOS_END="now"
 
 ATR_PERIODS=(10 14)

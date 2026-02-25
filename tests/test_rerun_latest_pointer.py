@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from scripts.splits import IS_END_DATE
 
 
 class TestRerunLatestPointer(unittest.TestCase):
@@ -105,7 +106,7 @@ class TestRerunLatestPointer(unittest.TestCase):
             {
                 "name": "BULL_2024",
                 "start": "2024-01-01",
-                "end": "2024-12-31",
+                "end": IS_END_DATE,
                 "status": "PENDING",
                 "symbols": ["BTCUSDT"],
             },

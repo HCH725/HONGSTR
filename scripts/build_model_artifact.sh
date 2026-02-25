@@ -73,6 +73,8 @@ try:
     else:
         ts_vals = dataset.index
         
+from scripts.splits import IS_END_DATE
+# ...
     meta = {
         'feature_schema': {col: str(dataset[col].dtype) for col in feature_cols},
         'label_spec': {
@@ -81,7 +83,7 @@ try:
             'classification': 'direction (fwd_return > 0)'
         },
         'train_spec': {
-            'is_split_logic': '<= 2024-12-31 23:59:59 UTC',
+            'is_split_logic': f'<= {IS_END_DATE} 23:59:59 UTC',
             'is_rows': len(df_is),
             'oos_rows': len(df_oos),
         },

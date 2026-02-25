@@ -20,10 +20,12 @@ STRATEGY = "vwap_supertrend"
 SYMBOLS = "BTCUSDT,ETHUSDT,BNBUSDT"
 TIMEFRAMES = "1h,4h"
 
-IS_START = "2020-01-01"
-IS_END = "2024-12-31"
+from scripts.splits import IS_END_DATE, OOS_START_DATE
 
-OOS_START = "2025-01-01"
+IS_START = "2020-01-01"
+IS_END = IS_END_DATE
+
+OOS_START = OOS_START_DATE
 OOS_END = "now"
 
 OUT_DIR = Path("reports/strategy_research/phase1")

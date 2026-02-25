@@ -12,7 +12,7 @@ commands = [
     ("3. Run ML Baseline", ["bash", "scripts/run_ml_baseline.sh", "--freq", "1h", "--horizon", "24"]),
     ("4. Build Model Artifact", ["bash", "scripts/build_model_artifact.sh", "--freq", "1h", "--horizon", "24"]),
     ("5. Build Signals", ["bash", "scripts/build_signals.sh", "--freq", "1h", "--horizon", "24"]),
-    ("6. Run Backtest (Report Only)", [".venv/bin/python", "scripts/run_backtest.py", "--signal-parquet", "reports/research/signals/signal_1h_24.parquet", "--signal-policy", "report_only", "--symbols", "BTCUSDT", "--timeframes", "1h", "--start", "2025-01-01", "--end", "2025-02-01"])
+    ("6. Run Backtest (Report Only)", [".venv/bin/python", "scripts/run_backtest.py", "--signal-parquet", "reports/research/signals/signal_1h_24.parquet", "--signal-policy", "report_only", "--symbols", "BTCUSDT", "--timeframes", "1h", "--start", OOS_START_DATE, "--end", "2025-02-01"])
 ]
 
 with open(out_md, "w") as f:

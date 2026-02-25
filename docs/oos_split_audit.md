@@ -16,6 +16,7 @@ Confirm whether IS/OOS/WF splits are hard-coded (fixed) and reproducible, and id
 ### Primary location(s)
 
 The canonical boundary for the global IS/OOS split is **2024-12-31**.
+**SSOT: [scripts/splits.py](file:///Users/hong/Projects/HONGSTR/scripts/splits.py)**
 
 - **File(s)**:
   - `research/models/baseline.py`: `is_end="2024-12-31"`
