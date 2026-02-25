@@ -46,7 +46,6 @@ env/
 *.swo
 
 # Project Specific
-data/
 !src/hongstr/data/
 !src/hongstr/data/*.py
 logs/
@@ -78,3 +77,25 @@ scripts/agent_*.sh
 
 # Research Loop state & queue (never track in git)
 data/state/_research/
+
+# --- HONGSTR guardrails: artifacts must not be tracked ---
+*.parquet
+*.pkl
+*.pickle
+*.joblib
+*.onnx
+*.pt
+*.ckpt
+*.npz
+
+# Granular data ignores
+data/realtime/**
+data/derived/**
+data/backtests/**
+data/reports/**
+
+# logs/state/tmp
+logs/**
+_local/data/**
+_local/state/**
+*.log
