@@ -1,0 +1,20 @@
+{
+    "pool_id": "hongstr_main_pool",
+    "candidates": [
+        {
+            "strategy_id": "trend_mvp_btc_1h",
+            "params": {
+                "fast_ema": 12,
+                "slow_ema": 26
+            },
+            "last_score": 0.5,
+            "last_oos_metrics": {
+                "sharpe": 1.2,
+                "return": 0.05
+            },
+            "coverage_key_ref": "trend_mvp_v1_BTCUSDT_1h"
+        }
+    ],
+    "promoted": [],
+    "demoted": []
+}
