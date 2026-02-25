@@ -118,6 +118,7 @@ We provide specialized scripts for monitoring:
 
 - **Watch Realtime**: `bash scripts/watch_realtime.sh --symbol BTCUSDT --lines 20`
 - **Check Data Paths**: `bash scripts/check_data_paths.sh`
+- **Brake Healthcheck**: `./.venv/bin/python scripts/brake_healthcheck.py`
 
 ### Manual Execution
 
