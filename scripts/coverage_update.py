@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 scripts/coverage_update.py
-Extracts stats from the latest backtest report and updates data/state/coverage_table.jsonl.
+Extracts stats from the latest backtest report and updates atomic coverage table.
 Strictly Read-Only on core. Stability-first (exit 0).
 """
 import os
@@ -13,7 +13,7 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-STATE_FILE = Path("data/state/coverage_table.jsonl")
+ATOMIC_COVERAGE_FILE = Path("reports/state_atomic/coverage_table.jsonl")
 
 def get_latest_backtest_summary() -> str | None:
     summaries = glob.glob("data/backtests/*/*/summary.json")
@@ -24,7 +24,7 @@ def get_latest_backtest_summary() -> str | None:
 
 def main():
     latest_summary = get_latest_backtest_summary()
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ATOMIC_COVERAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
     
     if not latest_summary:
         logging.warning("No backtest summaries found. State unchanged.")
@@ -76,8 +76,8 @@ def main():
 
     # Load existing table to update or append
     table = []
-    if STATE_FILE.exists():
-        with open(STATE_FILE, "r") as f:
+    if ATOMIC_COVERAGE_FILE.exists():
+        with open(ATOMIC_COVERAGE_FILE, "r") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -100,7 +100,7 @@ def main():
         table.append(new_record)
 
     # Write back 
-    with open(STATE_FILE, "w") as f:
+    with open(ATOMIC_COVERAGE_FILE, "w") as f:
         for row in table:
             f.write(json.dumps(row) + "\n")
             

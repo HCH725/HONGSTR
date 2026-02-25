@@ -10,7 +10,8 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-STATE_FILE = Path("data/state/coverage_table.jsonl")
+ATOMIC_COVERAGE_FILE = Path("reports/state_atomic/coverage_table.jsonl")
+LEGACY_STATE_FILE = Path("data/state/coverage_table.jsonl")
 SEMANTICS_FILE = Path("configs/semantics_version.json")
 
 def main():
@@ -25,14 +26,15 @@ def main():
         logging.error(f"Failed to read semantics file: {e}")
         return
 
-    if not STATE_FILE.exists():
+    source_file = ATOMIC_COVERAGE_FILE if ATOMIC_COVERAGE_FILE.exists() else LEGACY_STATE_FILE
+    if not source_file.exists():
         logging.warning("No coverage table found.")
         return
 
     table = []
     needs_update = False
     
-    with open(STATE_FILE, "r") as f:
+    with open(source_file, "r") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -51,10 +53,12 @@ def main():
             except Exception:
                 pass
 
+    ATOMIC_COVERAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(ATOMIC_COVERAGE_FILE, "w") as f:
+        for row in table:
+            f.write(json.dumps(row) + "\n")
+
     if needs_update:
-        with open(STATE_FILE, "w") as f:
-            for row in table:
-                f.write(json.dumps(row) + "\n")
         logging.info(f"Gated mismatched versions. Coverage table marked as NEEDS_REBASE.")
     else:
         logging.info("All coverage entries are semantically up-to-date.")

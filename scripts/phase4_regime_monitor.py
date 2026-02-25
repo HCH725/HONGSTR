@@ -9,7 +9,7 @@ import pandas as pd
 
 REPO = Path(__file__).parent.parent
 PHASE3_RESULTS = REPO / "reports/strategy_research/phase3/phase3_results.json"
-STATE_DIR = REPO / "data/state"
+ATOMIC_STATE_DIR = REPO / "reports/state_atomic"
 REPORT_DIR = REPO / "reports/strategy_research/phase4"
 
 def resolve_latest_run():
@@ -164,8 +164,9 @@ def main():
         "suggestion": "Monitor regime shifts. If FAIL, consider re-optimizing parameters or manual pause (report_only)."
     }
     
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    with open(STATE_DIR / "regime_monitor_latest.json", "w") as f:
+    ATOMIC_STATE_DIR.mkdir(parents=True, exist_ok=True)
+    atomic_regime_path = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
+    with open(atomic_regime_path, "w") as f:
         json.dump(snapshot, f, indent=2)
         
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -195,6 +196,7 @@ Generated: {snapshot['ts_utc']}
         f.write(report_md)
         
     print(f"Regime monitor finished with status: {status}")
+    print(f"Atomic output: {atomic_regime_path.relative_to(REPO)}")
     sys.exit(0)
 
 if __name__ == "__main__":

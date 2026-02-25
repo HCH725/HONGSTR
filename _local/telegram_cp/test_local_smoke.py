@@ -328,6 +328,53 @@ def test_status_prefers_system_health_pack_when_present(monkeypatch, tmp_path):
     assert "Sources: system_health_latest.json (preferred)" in resp
 
 
+def test_status_health_pack_overrides_conflicting_component_files(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_status_ssot_sources(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+
+    state_dir = repo / "data/state"
+    # Conflicting component files should be ignored when health pack is present.
+    (state_dir / "coverage_matrix_latest.json").write_text(
+        json.dumps(
+            {
+                "rows": [{"symbol": "BTCUSDT", "tf": "1h", "lag_hours": 99.0, "status": "FAIL"}],
+                "totals": {"done": 0, "inProgress": 0, "blocked": 1, "rebase": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (state_dir / "regime_monitor_latest.json").write_text(
+        json.dumps({"overall": "FAIL", "reason": ["component says fail"]}),
+        encoding="utf-8",
+    )
+    (state_dir / "system_health_latest.json").write_text(
+        json.dumps(
+            {
+                "ssot_status": "OK",
+                "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
+                "refresh_hint": "bash scripts/refresh_state.sh",
+                "components": {
+                    "freshness": {"status": "OK", "max_age_h": 0.8},
+                    "coverage_matrix": {"status": "PASS", "done": 1, "total": 1, "max_lag_h": 0.0, "rebase": 0},
+                    "brake": {"status": "OK"},
+                    "regime_monitor": {"status": "OK", "age_h": 0.1, "ok_within_h": 12},
+                    "regime_signal": {"status": "OK", "top_reason": None},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    resp = s._handle_command(36, "/status")
+    assert "SSOT_STATUS: OK" in resp
+    assert "CoverageMatrix: PASS 1/1 done | max_lag_h=0.0 | rebase=0" in resp
+    assert "RegimeSignal: OK" in resp
+    assert "component says fail" not in resp
+
+
 def test_ping_command(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
