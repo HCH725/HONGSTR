@@ -249,6 +249,77 @@ def main():
     
     write_json(STATE_DIR / "services_heartbeat.json", heartbeat)
 
+    # 8. Coverage Matrix Snapshot
+    cov_rows = read_jsonl(STATE_DIR / "coverage_table.jsonl")
+    matrix_rows = []
+    totals = {"done": 0, "inProgress": 0, "blocked": 0, "rebase": 0}
+    
+    # Track latest per (symbol, tf)
+    latest_per_key = {}
+    for r in cov_rows:
+        key_obj = r.get("coverage_key", {})
+        sym = key_obj.get("symbol", "UNKNOWN")
+        tf = key_obj.get("timeframe", "UNKNOWN")
+        k = (sym, tf)
+        latest_per_key[k] = r
+        
+        status = r.get("status", "").upper()
+        if status == "DONE": totals["done"] += 1
+        elif status == "IN_PROGRESS": totals["inProgress"] += 1
+        elif status == "BLOCKED_DATA_QUALITY": totals["blocked"] += 1
+        elif status == "NEEDS_REBASE": totals["rebase"] += 1
+
+    for (sym, tf), r in latest_per_key.items():
+        status_raw = r.get("status", "").upper()
+        status_map = "FAIL"
+        if status_raw == "DONE": status_map = "PASS"
+        elif status_raw == "IN_PROGRESS": status_map = "WARN"
+        elif status_raw == "NEEDS_REBASE": status_map = "NEEDS_REBASE"
+        
+        # Best effort for earliest/latest from results or fallback to record timestamps
+        res = r.get("results", {})
+        is_range = res.get("is", {})
+        oos_range = res.get("oos", {})
+        
+        earliest = is_range.get("start") or r.get("created_utc") or "N/A"
+        latest = oos_range.get("end") or is_range.get("end") or r.get("updated_utc") or "N/A"
+        
+        lag_h = 0.0
+        if latest != "N/A":
+            try:
+                # If latest is "now" or "2025-..."
+                if latest == "now":
+                    lag_h = 0.0
+                else:
+                    # Handle both ISO and simple date formats
+                    clean_latest = latest.replace("Z", "+00:00")
+                    if "T" not in clean_latest and " " not in clean_latest:
+                        # Simple date "2024-12-31" -> add time
+                        clean_latest += "T00:00:00+00:00"
+                    
+                    # fromisoformat handles +00:00
+                    latest_ts = datetime.fromisoformat(clean_latest).timestamp()
+                    lag_h = round((now_ts - latest_ts) / 3600.0, 1)
+            except Exception as e:
+                # logging.debug(f"Lag calculation failed for {latest}: {e}")
+                pass
+
+        matrix_rows.append({
+            "symbol": sym,
+            "tf": tf,
+            "earliest": earliest,
+            "latest": latest,
+            "lag_hours": lag_h,
+            "status": status_map
+        })
+
+    matrix_snapshot = {
+        "ts_utc": now_utc,
+        "rows": sorted(matrix_rows, key=lambda x: (x["symbol"], x["tf"])),
+        "totals": totals
+    }
+    write_json(STATE_DIR / "coverage_matrix_latest.json", matrix_snapshot)
+
     logging.info("Snapshots successfully written to data/state/")
 
 if __name__ == "__main__":
