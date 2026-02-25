@@ -741,226 +741,66 @@ def _chat_allowed(msg: dict) -> bool:
 
 # ────────────────────── system snapshot (read-only) ──────────────────────
 def _collect_snapshot() -> dict:
-    """Read all available read-only signals from logs, reports, and alerts."""
-    dashboard_log = REPO / "logs/launchd_dashboard.out.log"
-    etl_log = REPO / "logs/launchd_daily_etl.out.log"
-    weekly_log = REPO / "logs/launchd_weekly_backfill.out.log"
-    healthcheck_log = REPO / "logs/launchd_daily_healthcheck.out.log"
-    backtest_log = REPO / "logs/launchd_daily_backtest.out.log"
-    realtime_log = REPO / "logs/launchd_realtime_ws.out.log"
-
-    # dashboard health
-    dash_tail = "\n".join(_tail(dashboard_log, 50))
-    dash_ok = any(k in dash_tail for k in ["HTTP/1.1 200", "HTTP 200", "dashboard healthy"])
-
-    # data freshness
-    freshness = {}
+    """Read SSOT-only snapshot data for prompts and diagnostics."""
+    freshness: dict[str, dict[str, dict[str, object]]] = {}
     freshness_snap = _load_json(REPO / "data/state/freshness_table.json", {})
     freshness_rows = freshness_snap.get("rows", []) if isinstance(freshness_snap, dict) else []
     if isinstance(freshness_rows, list):
         for row in freshness_rows:
             if not isinstance(row, dict):
                 continue
-            sym = row.get("symbol")
-            tf = row.get("tf")
+            sym = str(row.get("symbol") or "").strip()
+            tf = str(row.get("tf") or "").strip()
             if not sym or not tf:
                 continue
             if sym not in freshness:
                 freshness[sym] = {}
             freshness[sym][tf] = {
                 "age_hours": row.get("age_h"),
-                "status": row.get("status", "UNKNOWN"),
+                "status": str(row.get("status", "UNKNOWN")).upper(),
                 "reason": row.get("reason"),
             }
 
-    # Log freshness evaluation
-    max_age = 0.0
-    offenders = []
-    for sym, tfs in freshness.items():
-        for tf, d in tfs.items():
-            age = d["age_hours"] or 0.0
-            max_age = max(max_age, age)
-            if d["status"] != "OK":
-                offenders.append(f"{sym}_{tf}")
-    
-    log_event("FRESHNESS_EVAL", max_age=round(max_age, 1), offenders_n=len(offenders), offenders=",".join(offenders))
-
-    # control plane report
-    cp = _load_json(REPO / "reports/control_plane_latest.json", {})
-    cp_status = cp.get("status", "UNKNOWN")
-    cp_summary = (cp.get("summary") or "").strip()[:300]
-    cp_age = _file_age_hours(REPO / "reports/control_plane_latest.json")
-
-    # action items report
-    ai = _load_json(REPO / "reports/action_items_latest.json", {})
-    overall_gate = ai.get("overall_gate", "UNKNOWN")
-    top_action = ""
-    tops = ai.get("top_actions") or []
-    if tops and isinstance(tops[0], dict):
-        top_action = tops[0].get("title", "")
-
-    # launchd log ages (tells us when jobs last ran)
-    log_ages = {
-        "etl": _file_age_hours(etl_log),
-        "healthcheck": _file_age_hours(healthcheck_log),
-        "backtest": _file_age_hours(backtest_log),
-        "weekly_backfill": _file_age_hours(weekly_log),
-        "realtime_ws": _file_age_hours(realtime_log),
-    }
-
-    # etl recent status (look for OK/FAIL in last 10 lines)
-    etl_tail = "\n".join(_tail(etl_log, 10))
-    etl_ok = "ETL OK" in etl_tail or "Complete" in etl_tail
-    etl_fail = "ETL FAIL" in etl_tail or "ERROR" in etl_tail
-
-    # regime monitor
-    regime = _load_json(REPO / "data/state/regime_monitor_latest.json", {})
-
-    # brake health
-    brake_health = _load_json(REPO / "data/state/brake_health_latest.json", {})
-
-    # coverage / rebase summary
-    rebase_count = 0
-    total_coverage = 0
-    cov_lag_max = 0.0
-    cov_found = False
-    cov_done = 0
-    cov_blocked = 0
-    cov_status = "UNKNOWN"
-    
-    matrix = _load_json(REPO / "data/state/coverage_matrix_latest.json", {})
-    matrix_rows = matrix.get("rows", []) if isinstance(matrix, dict) else []
-    if isinstance(matrix, dict) and "rows" in matrix and isinstance(matrix_rows, list):
-        cov_found = True
-        cov_totals = matrix.get("totals", {})
-        rebase_count = int(cov_totals.get("rebase", 0) or 0)
-        cov_row_statuses = []
-        
-        if "done" in cov_totals and "inProgress" in cov_totals and "blocked" in cov_totals:
-            cov_done = int(cov_totals.get("done", 0) or 0)
-            cov_blocked = int(cov_totals.get("blocked", 0) or 0)
-            total_coverage = (
-                int(cov_totals.get("done", 0) or 0)
-                + int(cov_totals.get("inProgress", 0) or 0)
-                + int(cov_totals.get("blocked", 0) or 0)
-            )
-        else:
-            total_coverage = len(matrix_rows)
-            cov_done = 0
-            cov_blocked = 0
-        
-        for row in matrix_rows:
-            if not isinstance(row, dict):
-                continue
-            row_status = _normalize_coverage_status(row.get("status"))
-            cov_row_statuses.append(row_status)
-            if "done" not in cov_totals:
-                if row_status == "PASS":
-                    cov_done += 1
-                elif row_status == "FAIL":
-                    cov_blocked += 1
-            lag = row.get("lag_hours")
-            try:
-                lag_v = float(lag)
-            except Exception:
-                continue
-            if lag_v > cov_lag_max:
-                cov_lag_max = lag_v
-
-        cov_status = _coverage_health_status(
-            cov_row_statuses,
-            blocked_count=cov_blocked,
-            rebase_count=rebase_count,
-            total_count=total_coverage,
-        )
-
-    pending_alerts = _count_pending_alerts()
+    regime_raw = _load_json(REPO / "data/state/regime_monitor_latest.json", {})
+    regime = regime_raw if isinstance(regime_raw, dict) else {}
+    regime_status = str(
+        regime.get("status")
+        or regime.get("overall")
+        or regime.get("overall_status")
+        or "UNKNOWN"
+    ).upper()
+    if regime_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        regime_status = "UNKNOWN"
+    if "status" not in regime:
+        regime["status"] = regime_status
+    if "overall" not in regime and regime_status != "UNKNOWN":
+        regime["overall"] = regime_status
 
     return {
-        "dashboard_ok": dash_ok,
+        "status_report": _status_short_report(),
         "freshness": freshness,
-        "cp_status": cp_status,
-        "cp_summary": cp_summary,
-        "cp_age_hours": cp_age,
-        "overall_gate": overall_gate,
-        "top_action": top_action,
-        "log_ages": log_ages,
-        "etl_ok": etl_ok,
-        "etl_fail": etl_fail,
         "regime_monitor": regime,
-        "pending_alerts": pending_alerts,
-        "brake_health": brake_health,
-        "rebase_count": rebase_count,
-        "total_coverage": total_coverage,
-        "cov_lag_max": cov_lag_max,
-        "cov_found": cov_found,
-        "cov_done": cov_done,
-        "cov_blocked": cov_blocked,
-        "cov_status": cov_status,
+        "pending_alerts": _count_pending_alerts(),
+        "refresh_hint": _status_refresh_hint(),
     }
 
 
 def _snapshot_text() -> str:
-    """Build a compact text summary of system state for LLM system prompt."""
+    """Build a compact SSOT-only summary for LLM system prompts."""
     snap = _collect_snapshot()
     now = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
-    parts = [f"[系統快照 {now}]"]
+    status_report = str(snap.get("status_report") or _status_unknown_report([], []))
+    refresh_hint = str(snap.get("refresh_hint") or _status_refresh_hint())
 
-    # dashboard
-    parts.append(f"Dashboard: {'正常運行' if snap['dashboard_ok'] else '可能有問題'}")
+    parts = [
+        f"[系統快照 {now}]",
+        status_report,
+        f"RefreshHint: Run `{refresh_hint}` when SSOT snapshots are missing or stale.",
+    ]
 
-    # data freshness
-    fresh_lines = []
-    overall_ok = True
-    any_fail = False
-    
-    for sym in ["BTCUSDT", "ETHUSDT", "BNBUSDT"]:
-        sym_data = snap["freshness"].get(sym, {})
-        tf_results = []
-        for tf in ["1m", "1h", "4h"]:
-            d = sym_data.get(tf, {})
-            age = d.get("age_hours")
-            status = d.get("status", "WARN")
-            if status != "OK": overall_ok = False
-            if status == "FAIL": any_fail = True
-            
-            age_str = f"{age:.1f}h" if age is not None else "缺失"
-            tf_results.append(f"{tf}:{age_str}({status})")
-        
-        fresh_lines.append(f"{sym}: {' / '.join(tf_results)}")
-
-    if overall_ok:
-        parts.append("資料新鮮度: ✅ 良好 (皆在 12h 內)")
-    elif any_fail:
-        parts.append("資料新鮮度: ❌ 嚴重落後 (部分超過 48h)")
-    else:
-        parts.append("資料新鮮度: ⚠️ 延遲 (部分超過 12h)")
-    
-    parts.extend(fresh_lines)
-
-    # etl status
-    if snap["etl_fail"]:
-        parts.append("ETL: 最近執行有 FAIL")
-    elif snap["etl_ok"]:
-        parts.append("ETL: 最近執行正常")
-    else:
-        etl_age = snap["log_ages"].get("etl")
-        parts.append(f"ETL: log 約 {etl_age:.0f}h 前" if etl_age is not None else "ETL: log 不存在")
-
-    # control plane
-    cp_age = snap["cp_age_hours"]
-    parts.append(f"ControlPlane 報告: status={snap['cp_status']}, 約 {cp_age:.0f}h 前" if cp_age is not None else f"ControlPlane: status={snap['cp_status']}")
-    if snap["cp_summary"]:
-        parts.append(f"CP 摘要: {snap['cp_summary']}")
-
-    # backtest gate
-    parts.append(f"Backtest Gate: {snap['overall_gate']}")
-    if snap["top_action"]:
-        parts.append(f"優先行動: {snap['top_action']}")
-
-    # pending alerts
-    if snap["pending_alerts"] > 0:
-        parts.append(f"⚠️ 待處理排程告警: {snap['pending_alerts']} 筆")
+    pending_alerts = snap.get("pending_alerts")
+    if isinstance(pending_alerts, int) and pending_alerts > 0:
+        parts.append(f"⚠️ 待處理排程告警: {pending_alerts} 筆")
 
     return "\n".join(parts)
 
@@ -1585,13 +1425,10 @@ def _send_daily_briefing(state: dict) -> None:
             txt = (msg_obj.get("content") or "").strip()
     except Exception as exc:
         log_event("BRIEFING_LLM_ERR", err=type(exc).__name__)
-        snap = _collect_snapshot()
         txt = (
-            f"☀️ 洪老裴早安！今日户外快照（{today_str}）："
-            f"\nDashboard: {'穩定' if snap['dashboard_ok'] else '波動'}"
-            f"\nCP Status: {snap.get('cp_status','?')}"
-            f"\nBacktest Gate: {snap.get('overall_gate','?')}"
-            f"\n（LLM 離線，以上為純文字快照）"
+            f"☀️ 洪老裴早安！今日快照（{today_str}）："
+            f"\n{_snapshot_text()[:800]}"
+            "\n（LLM 離線，以上為 SSOT 快照）"
         )
 
     if is_action_request(txt):
