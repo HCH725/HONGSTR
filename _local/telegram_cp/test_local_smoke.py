@@ -10,7 +10,9 @@ These tests validate:
 """
 import json
 import importlib.util
+import os
 import sys
+import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
@@ -204,8 +206,11 @@ def test_status_command(monkeypatch, tmp_path):
     assert "freshness_table.json" in resp
     assert "coverage_matrix_latest.json" in resp
     assert "Dashboard lag 37.5h" not in resp
+    assert "SSOT_SEMANTICS: SystemHealth only" in resp
     assert "Freshness:" in resp
     assert "CoverageMatrix: PASS" in resp
+    assert "RegimeMonitor:" in resp
+    assert "RegimeSignal:" in resp
 
 
 def test_status_command_with_bot_suffix(monkeypatch, tmp_path):
@@ -237,7 +242,58 @@ def test_status_command_warns_when_ssot_missing(monkeypatch, tmp_path):
     assert "missing=[" in resp
     assert "freshness_table.json" in resp
     assert "coverage_matrix_latest.json" in resp
+    assert "RegimeMonitor: N/A" in resp
+    assert "RegimeSignal: N/A" in resp
     assert "Sources:" in resp
+
+
+def test_status_regime_signal_fail_does_not_flip_ssot(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_status_ssot_sources(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+
+    state_dir = repo / "data/state"
+    (state_dir / "freshness_table.json").write_text(
+        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 1.0, "status": "OK"}]}),
+        encoding="utf-8",
+    )
+    (state_dir / "regime_monitor_latest.json").write_text(
+        json.dumps({"overall": "FAIL", "reason": ["MDD breach"]}),
+        encoding="utf-8",
+    )
+
+    resp = s._handle_command(33, "/status")
+    assert "SSOT_STATUS: OK" in resp
+    assert "RegimeMonitor: OK" in resp
+    assert "RegimeSignal: FAIL (MDD breach)" in resp
+
+
+def test_status_regime_monitor_stale_affects_health(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_status_ssot_sources(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+
+    state_dir = repo / "data/state"
+    (state_dir / "freshness_table.json").write_text(
+        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 1.0, "status": "OK"}]}),
+        encoding="utf-8",
+    )
+    (state_dir / "regime_monitor_latest.json").write_text(
+        json.dumps({"overall": "OK"}),
+        encoding="utf-8",
+    )
+    old_ts = time.time() - (13 * 3600)
+    os.utime(state_dir / "regime_monitor_latest.json", (old_ts, old_ts))
+
+    resp = s._handle_command(34, "/status")
+    assert "SSOT_STATUS: WARN" in resp
+    assert "RegimeMonitor: WARN" in resp
+    assert "RegimeSignal: OK" in resp
+
 
 def test_ping_command(monkeypatch, tmp_path):
     s = _load_server()

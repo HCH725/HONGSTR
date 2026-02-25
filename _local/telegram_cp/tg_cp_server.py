@@ -88,6 +88,7 @@ BRIEFING_ENABLED = os.environ.get("HONGSTR_BRIEFING_ENABLED", "1") != "0"
 # Deferred followup config
 FOLLOWUP_MAX_DELAY_MIN = int(os.environ.get("HONGSTR_FOLLOWUP_MAX_MIN", "60"))
 FOLLOWUP_ENABLED = os.environ.get("HONGSTR_FOLLOWUP_ENABLED", "1") != "0"
+REGIME_MONITOR_FRESH_OK_H = float(os.environ.get("HONGSTR_REGIME_MONITOR_FRESH_OK_H", "12"))
 
 # ────────────────────── basic io ──────────────────────
 def _safe_enqueue(trigger: str, source: str = "tg_cp", details: dict = None):
@@ -395,6 +396,13 @@ def _status_max(*statuses: str) -> str:
     return best
 
 
+def _normalize_regime_signal_status(status_raw: object) -> str:
+    status = str(status_raw or "UNKNOWN").upper().strip()
+    if status not in {"OK", "WARN", "FAIL"}:
+        return "UNKNOWN"
+    return status
+
+
 def _fmt_num(v: float | int | None) -> str:
     if v is None:
         return "N/A"
@@ -486,11 +494,13 @@ def _status_short_report() -> str:
         return "\n".join(
             [
                 "SSOT_STATUS: WARN",
+                "SSOT_SEMANTICS: SystemHealth only (RegimeSignal is separate trade-risk alert)",
                 f"Issues: missing=[{miss}] unreadable=[{bad}]",
                 "Freshness: N/A",
                 "CoverageMatrix: N/A",
                 "Brake: N/A",
-                "Regime: N/A",
+                "RegimeMonitor: N/A",
+                "RegimeSignal: N/A",
                 _status_ssot_sources_line(),
             ]
         )
@@ -549,20 +559,40 @@ def _status_short_report() -> str:
             continue
         brake_status = _status_max(brake_status, str(r.get("status", "UNKNOWN")))
 
-    regime_status = str(regime.get("overall", "UNKNOWN")).upper()
-    if regime_status not in {"OK", "WARN", "FAIL"}:
-        regime_status = "UNKNOWN"
+    regime_signal_status = _normalize_regime_signal_status(regime.get("overall"))
+    regime_reasons = regime.get("reason")
+    regime_top_reason = None
+    if isinstance(regime_reasons, list) and regime_reasons:
+        top = regime_reasons[0]
+        if isinstance(top, str) and top.strip():
+            regime_top_reason = top.strip()
+    if regime_top_reason and len(regime_top_reason) > 120:
+        regime_top_reason = regime_top_reason[:117] + "..."
+
+    regime_monitor_age = _file_age_hours(source_map["regime_monitor_latest.json"])
+    if regime_monitor_age is None:
+        regime_monitor_status = "UNKNOWN"
+    elif regime_monitor_age <= REGIME_MONITOR_FRESH_OK_H:
+        regime_monitor_status = "OK"
+    else:
+        regime_monitor_status = "WARN"
 
     rebase_status = "WARN" if matrix_rebase > 0 else "OK"
-    overall = _status_max(fresh_status, cov_status, brake_status, regime_status, rebase_status)
+    # SSOT_STATUS is system-health only; market risk signal is reported separately.
+    overall = _status_max(fresh_status, cov_status, brake_status, regime_monitor_status, rebase_status)
+    regime_signal_line = f"RegimeSignal: {regime_signal_status}"
+    if regime_top_reason:
+        regime_signal_line += f" ({regime_top_reason})"
 
     return "\n".join(
         [
             f"SSOT_STATUS: {overall}",
+            "SSOT_SEMANTICS: SystemHealth only (RegimeSignal is separate trade-risk alert)",
             f"Freshness: {fresh_status} max_age_h={_fmt_num(max_age)}",
             f"CoverageMatrix: {cov_status} {done_count}/{total_count} done | max_lag_h={_fmt_num(max_lag)} | rebase={matrix_rebase}",
             f"Brake: {brake_status}",
-            f"Regime: {regime_status}",
+            f"RegimeMonitor: {regime_monitor_status} age_h={_fmt_num(regime_monitor_age)} (<= {REGIME_MONITOR_FRESH_OK_H:.0f}h OK)",
+            regime_signal_line,
             _status_ssot_sources_line(),
         ]
     )
