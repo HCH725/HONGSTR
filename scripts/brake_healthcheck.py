@@ -17,7 +17,6 @@ from datetime import datetime
 FRESHNESS_PATH = "data/state/freshness_table.json"
 REGIME_PATH_CANDIDATES = (
     "reports/state_atomic/regime_monitor_latest.json",
-    "data/state/regime_monitor_latest.json",
 )
 HEALTH_JSON_PATH = "reports/state_atomic/brake_health_latest.json"
 

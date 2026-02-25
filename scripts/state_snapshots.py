@@ -72,6 +72,44 @@ def _source_meta(path: Path, now_ts: float, ts_field_candidates=None):
                 break
     return meta
 
+
+def _normalize_regime_snapshot(payload: dict, now_utc: str) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    out = dict(payload)
+    ts_utc = out.get("ts_utc") or out.get("timestamp_utc") or out.get("timestamp")
+    if not isinstance(ts_utc, str) or not ts_utc.strip():
+        ts_utc = now_utc
+    out["ts_utc"] = ts_utc
+    out.setdefault("updated_at_utc", ts_utc)
+    return out
+
+
+def _normalize_brake_snapshot(payload: dict, now_utc: str) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    out = dict(payload)
+    ts_utc = out.get("ts_utc") or out.get("updated_at_utc") or out.get("timestamp")
+    if not isinstance(ts_utc, str) or not ts_utc.strip():
+        ts_utc = now_utc
+    out["ts_utc"] = ts_utc
+    out.setdefault("updated_at_utc", ts_utc)
+    if "status" not in out:
+        status = "FAIL" if bool(out.get("overall_fail")) else "OK"
+        results = out.get("results")
+        if isinstance(results, list):
+            for row in results:
+                if not isinstance(row, dict):
+                    continue
+                row_status = _normalize_simple_status(row.get("status"))
+                if row_status == "FAIL":
+                    status = "FAIL"
+                    break
+                if row_status == "WARN" and status != "FAIL":
+                    status = "WARN"
+        out["status"] = status
+    return out
+
 def read_jsonl(path: Path):
     records = []
     if not path.exists():
@@ -200,12 +238,13 @@ def main():
     write_json(STATE_DIR / "strategy_pool_summary.json", pool_summary)
 
     # 5. Canonicalize Regime Monitor (state_snapshots is the final writer to data/state)
-    regime_data = read_json(ATOMIC_REGIME_MONITOR)
+    regime_data = _normalize_regime_snapshot(read_json(ATOMIC_REGIME_MONITOR), now_utc)
     if isinstance(regime_data, dict) and regime_data:
         write_json(STATE_DIR / "regime_monitor_latest.json", regime_data)
     else:
         regime_data = {
             "ts_utc": now_utc,
+            "updated_at_utc": now_utc,
             "overall": "UNKNOWN",
             "reason": ["missing_regime_atomic"],
             "current": {},
@@ -411,12 +450,14 @@ def main():
     write_json(STATE_DIR / "coverage_matrix_latest.json", matrix_snapshot)
 
     # 11. Canonicalize Brake Health (state_snapshots is the final writer to data/state)
-    brake_data = read_json(ATOMIC_BRAKE_HEALTH)
+    brake_data = _normalize_brake_snapshot(read_json(ATOMIC_BRAKE_HEALTH), now_utc)
     if isinstance(brake_data, dict) and brake_data:
         write_json(STATE_DIR / "brake_health_latest.json", brake_data)
     else:
         brake_data = {
             "timestamp": now_utc,
+            "ts_utc": now_utc,
+            "updated_at_utc": now_utc,
             "overall_fail": False,
             "results": [],
             "strict_mode": False,
