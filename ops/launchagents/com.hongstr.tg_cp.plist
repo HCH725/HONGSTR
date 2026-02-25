@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.hongstr.tg_cp</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>
+      cd __REPO_ROOT__ &amp;&amp;
+      source scripts/load_env.sh 2&gt;/dev/null || true;
+      export PYTHONUNBUFFERED=1;
+      exec __REPO_ROOT__/.venv/bin/python __REPO_ROOT__/_local/telegram_cp/tg_cp_server.py
+    </string>
+  </array>
+
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+
+  <key>StandardOutPath</key><string>__REPO_ROOT__/logs/launchd_tg_cp.out.log</string>
+  <key>StandardErrorPath</key><string>__REPO_ROOT__/logs/launchd_tg_cp.err.log</string>
+</dict>
+</plist>

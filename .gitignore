@@ -75,3 +75,6 @@ scripts/agent_*.sh
 
 # macOS
 .DS_Store
+
+# Research Loop state & queue (never track in git)
+data/state/_research/

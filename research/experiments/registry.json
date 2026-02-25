@@ -1,0 +1,35 @@
+{
+    "allowed_strategies": [
+        "trend_follower_v1",
+        "mean_reversion_v2"
+    ],
+    "allowed_symbols": [
+        "BTCUSDT",
+        "ETHUSDT",
+        "BNBUSDT"
+    ],
+    "allowed_timeframes": [
+        "1h",
+        "4h"
+    ],
+    "parameter_ranges": {
+        "window": [
+            10,
+            200
+        ],
+        "threshold": [
+            0.01,
+            0.5
+        ],
+        "lookback": [
+            24,
+            168
+        ]
+    },
+    "forbidden_keywords": [
+        "arbitrage",
+        "high_frequency",
+        "hft",
+        "market_making"
+    ]
+}

@@ -12,18 +12,31 @@ PHASE3_RESULTS = REPO / "reports/strategy_research/phase3/phase3_results.json"
 STATE_DIR = REPO / "data/state"
 REPORT_DIR = REPO / "reports/strategy_research/phase4"
 
-def get_latest_backtest_summary():
+def resolve_latest_run():
+    """
+    Search for the latest 'Full Run' (containing both selection.json and summary.json).
+    Fallback to the latest 'Fragment Run' (any summary.json) if no Full Run exists.
+    """
     backtest_root = REPO / "data/backtests"
     if not backtest_root.exists():
-        return None
+        return None, None, "no_data"
     
-    summaries = list(backtest_root.glob("**/summary.json"))
-    if not summaries:
-        return None
+    all_summaries = list(backtest_root.glob("**/summary.json"))
+    if not all_summaries:
+        return None, None, "no_summary_found"
     
-    # Sort by mtime
-    summaries.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return summaries[0]
+    # Sort all summaries by mtime to find the latest overall
+    all_summaries.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    
+    # 1. Search for a Full Run
+    for summary_p in all_summaries:
+        run_dir = summary_p.parent
+        if (run_dir / "selection.json").exists():
+            return run_dir, summary_p, "full_run"
+            
+    # 2. Fallback to the latest fragment run
+    latest_fragment = all_summaries[0]
+    return latest_fragment.parent, latest_fragment, "fallback_fragment"
 
 def compute_thresholds(phase3_data):
     walks = phase3_data.get("walks", [])
@@ -99,12 +112,12 @@ def evaluate(current, thresholds):
     elif curr_mdd < m_p80: # More negative than p80
         if status != "FAIL": status = "WARN"
         reasons.append(f"MDD ({curr_mdd:.2%}) < WARN threshold ({m_p80:.2%}) - Risk elevated")
-
+ 
     if not reasons:
         reasons.append("All metrics within Phase 3 comfort zone.")
         
     return status, reasons
-
+ 
 def main():
     if not PHASE3_RESULTS.exists():
         print(f"Error: {PHASE3_RESULTS} not found.")
@@ -118,9 +131,9 @@ def main():
         print("Error: Could not compute thresholds from Phase 3 data.")
         sys.exit(0)
         
-    latest_summary_p = get_latest_backtest_summary()
+    latest_run_dir, latest_summary_p, source_reason = resolve_latest_run()
     if not latest_summary_p:
-        print("Error: No backtest summary found.")
+        print(f"Error: {source_reason}")
         sys.exit(0)
         
     with open(latest_summary_p, "r") as f:
@@ -140,11 +153,13 @@ def main():
             "mdd_p80": thresholds["mdd"]["p80"]
         },
         "current": {
-            "sharpe": current_data.get("sharpe"),
-            "mdd": current_data.get("max_drawdown"),
-            "return": current_data.get("total_return"),
-            "trades": current_data.get("trades_count"),
-            "summary_source": str(latest_summary_p.relative_to(REPO))
+            "sharpe": current_data.get("sharpe", 0.0),
+            "mdd": current_data.get("max_drawdown", 0.0),
+            "return": current_data.get("total_return", 0.0),
+            "trades": current_data.get("trades_count", 0),
+            "run_dir": str(latest_run_dir.relative_to(REPO)) if latest_run_dir else "N/A",
+            "summary_path": str(latest_summary_p.relative_to(REPO)) if latest_summary_p else "N/A",
+            "source_reason": source_reason
         },
         "suggestion": "Monitor regime shifts. If FAIL, consider re-optimizing parameters or manual pause (report_only)."
     }
@@ -170,7 +185,7 @@ Generated: {snapshot['ts_utc']}
 
 ### What to do next (manual)
 - {snapshot['suggestion']}
-- Source Data: `{snapshot['current']['summary_source']}`
+- Source Data: `{snapshot['current']['summary_path']}` ({snapshot['current']['source_reason']})
 
 ---
 *Note: This is a report-only diagnostic. No automated actions were taken.*

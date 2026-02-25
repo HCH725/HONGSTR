@@ -20,6 +20,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+import logging
+
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("tg_cp_server")
 
 # Ensure project root is in sys.path for _local imports
 REPO_ROOT = str(Path(__file__).resolve().parent.parent.parent)
@@ -37,6 +42,14 @@ try:
 except Exception:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from guardrail import is_action_request, refusal_message, redact_secrets  # type: ignore
+
+try:
+    from _local.telegram_cp.router import should_use_specialist
+    from _local.telegram_cp.reasoning_client import call_reasoning_specialist
+except Exception:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from router import should_use_specialist
+    from reasoning_client import call_reasoning_specialist
 
 # ────────────────────── paths ──────────────────────
 REPO = Path(os.environ.get("HONGSTR_REPO", "/Users/hong/Projects/HONGSTR"))
@@ -77,6 +90,23 @@ FOLLOWUP_MAX_DELAY_MIN = int(os.environ.get("HONGSTR_FOLLOWUP_MAX_MIN", "60"))
 FOLLOWUP_ENABLED = os.environ.get("HONGSTR_FOLLOWUP_ENABLED", "1") != "0"
 
 # ────────────────────── basic io ──────────────────────
+def _safe_enqueue(trigger: str, source: str = "tg_cp", details: dict = None):
+    """Safely enqueue a research trigger without blocking or failing the main path."""
+    try:
+        from research.loop.trigger_queue import enqueue
+        from datetime import datetime, timezone
+        evt = {
+            "ts_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "source": source,
+            "trigger": trigger,
+            "details": details or {}
+        }
+        enqueue(evt)
+        logger.info(f"Trigger enqueued: {trigger} from {source}")
+    except Exception as e:
+        logger.warning(f"Failed to enqueue trigger {trigger}: {e}")
+
+
 def _load_text(path: Path, default: str = "") -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -428,6 +458,9 @@ def _collect_snapshot() -> dict:
     etl_ok = "ETL OK" in etl_tail or "Complete" in etl_tail
     etl_fail = "ETL FAIL" in etl_tail or "ERROR" in etl_tail
 
+    # regime monitor
+    regime = _load_json(REPO / "data/state/regime_monitor_latest.json", {})
+
     # pending alerts count
     pending_alerts = _count_pending_alerts()
 
@@ -442,6 +475,7 @@ def _collect_snapshot() -> dict:
         "log_ages": log_ages,
         "etl_ok": etl_ok,
         "etl_fail": etl_fail,
+        "regime_monitor": regime,
         "pending_alerts": pending_alerts,
     }
 
@@ -567,6 +601,9 @@ def skill_freshness_detail() -> str:
         lines.append("• 請檢查 `logs/launchd_daily_etl.out.log` 確認 ETL 狀態。")
         if any_fail:
             lines.append("• 🔴 偵測到嚴重落後 (>48h)，建議優先人工介入追資料。")
+            _safe_enqueue(trigger="freshness_fail", details={"any_fail": True})
+        elif any_stale:
+            _safe_enqueue(trigger="freshness_warn", details={"any_stale": True})
 
     lines.append("\n💡 備註：此回報僅供參考資料完整性，不影響下單邏輯。系統目前為唯讀監控模式，不會主動發起交易或修改任何設定。")
     return "\n".join(lines)
@@ -608,6 +645,7 @@ def skill_ml_status() -> str:
     lines.extend(results)
     
     if ok_count < 2:
+        _safe_enqueue(trigger="ml_fail", details={"ok_count": ok_count})
         lines.append("\n💡 處置建議:")
         lines.append("• 請先確認『資料新鮮度』是否正常。")
         lines.append("• 資料正常後，可嘗試手動執行: `bash scripts/ml_daily_manual.sh` (僅提示，請手動執行)。")
@@ -615,44 +653,123 @@ def skill_ml_status() -> str:
     return "\n".join(lines)
 
 
+def skill_research_status() -> str:
+    """Read-only: show today's research loop state and leaderboard top entry."""
+    STATE_PATH = REPO / "data/state/_research/loop_state.json"
+    LEADERBOARD_PATH = REPO / "data/state/_research/leaderboard.json"
+    state = _load_json(STATE_PATH, {})
+
+    if not state:
+        return (
+            "🔬 **Research Loop 狀態**\n"
+            "• 尚未執行過 (loop_state.json 不存在)\n"
+            "• 手動觸發: `bash scripts/run_research_loop.sh --once`"
+        )
+
+    last_run_raw = state.get("last_run", "")
+    status = state.get("status", "UNKNOWN")
+    last_exp = state.get("last_exp") or "N/A"
+    gate_passed = state.get("gate_passed")
+    report_path = state.get("report_path") or "N/A"
+    error = state.get("error")
+    actions = state.get("actions", [])
+
+    from datetime import datetime as _dt, timezone as _tz
+    today_str = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+    ran_today = last_run_raw.startswith(today_str)
+
+    gate_icon = "✅" if gate_passed else ("❌" if gate_passed is False else "❓")
+    lines = [
+        f"🔬 **Research Loop 狀態** ({status})",
+        f"• 今日是否執行: {'✅ 已執行' if ran_today else '⏳ 尚未執行 (排程 06:20 或手動觸發)'}",
+        f"• 上次執行: {last_run_raw[:19] if last_run_raw else 'N/A'}",
+        f"• 實驗 ID: {last_exp}",
+        f"• Gate: {gate_icon} {'PASSED' if gate_passed else ('FAILED' if gate_passed is False else 'N/A')}",
+        f"• 報告: `{report_path.split('/')[-1] if report_path != 'N/A' else 'N/A'}`",
+        f"• actions: {actions} (report_only, 安全)",
+    ]
+
+    if status == "WARN" and error:
+        lines.append(f"\n⚠️ **WARN 原因**: {error[:200]}")
+        lines.append("💡 回退: `git checkout origin/main -- research/loop/`")
+
+    leaderboard = _load_json(LEADERBOARD_PATH, [])
+    if leaderboard and isinstance(leaderboard, list):
+        top = leaderboard[0]
+        lines.append(f"\n🏆 **Leaderboard Top**: {top.get('experiment_id','?')} | OOS Sharpe={top.get('oos_sharpe',0):.2f}")
+
+    if not ran_today:
+        lines.append("\n💡 手動觸發: `bash scripts/run_research_loop.sh --once`")
+
+    return "\n".join(lines)
+
+
 def skill_regime_status() -> str:
-    p = REPO / "data/state/regime_monitor_summary.json"
-    data = {}
-    if p.exists():
-        try:
-            with open(p, "r") as f:
-                data = json.load(f)
-        except Exception:
-            pass
+    snap = _collect_snapshot()
+    data = snap.get("regime_monitor", {})
+    status = data.get("overall", "UNKNOWN")
+    ts_utc = data.get("ts_utc", "UNKNOWN")
     
-    status = data.get("status", "UNKNOWN")
+    # Check for data gaps in freshness
+    any_stale = False
+    for sym, tfs in snap["freshness"].items():
+        for tf, d in tfs.items():
+            if d.get("status") != "OK":
+                any_stale = True
+    
     lines = [f"🌐 市場機制監控 (Regime Monitor): {status}"]
+    lines.append(f"• 更新時間: {ts_utc}")
     
     if status == "UNKNOWN":
         lines.append("❌ 尚未產生快照。")
-        lines.append("💡 建議執行: `PYTHONPATH=. .venv/bin/python scripts/phase4_regime_monitor.py` 重新產生。")
+        lines.append("💡 建議執行: `.venv/bin/python scripts/phase4_regime_monitor.py` 重新產生。")
+        return "\n".join(lines)
+
+    current = data.get("current", {})
+    sharpe = current.get("sharpe", 0)
+    mdd = current.get("mdd", 0)
+    trades = current.get("trades", 0)
+    summary_src = current.get("summary_path") or "N/A"
+    src_reason = current.get("source_reason") or "state_missing"
+    
+    lines.append(f"• Sharpe: {sharpe:.3f} | MDD: {mdd:.2%} | Trades: {trades}")
+    lines.append(f"• 來源: `{summary_src}` ({src_reason})")
+    
+    if summary_src == "N/A":
+        lines.append("⚠️ 診斷資料不全，請執行: `bash scripts/refresh_state.sh` 後重啟監控。")
+    
+    # Conclusion
+    reasons = data.get("reason", [])
+    reason_str = reasons[0] if reasons else "正常運行中"
+    lines.append(f"\n結論: {status} — {reason_str}")
+    if status in ["WARN", "FAIL"]:
+        trigger = f"regime_{status.lower()}"
+        _safe_enqueue(trigger=trigger, details={"status": status, "ts": ts_utc})
+    
+    # Proof-by-contradiction
+    lines.append("\n反證：排除資料缺口")
+    if not any_stale:
+        lines.append("✅ 資料新鮮度良好 (BTC/ETH/BNB 皆在 12h 內)")
+        lines.append("✅ 資料缺口可能性低 (Data gap unlikely cause)")
+        lines.append("💡 驗證指令: `bash scripts/check_data_coverage.sh` (應顯示 PASS)")
     else:
-        updated = data.get("updated_utc", "UNKNOWN")
-        lines.append(f"• 更新時間: {updated}")
-        metrics = data.get("key_metrics", {})
-        s = metrics.get("sharpe")
-        m = metrics.get("mdd")
-        t = metrics.get("trades")
-        lines.append(f"• Sharpe: {s:.3f} | MDD: {m:.2%} | Trades: {t}")
-        
-        reasons = data.get("reasons", [])
-        if reasons:
-            lines.append("\n📝 判定原因:")
-            for r in reasons[:3]:
-                lines.append(f"  - {r}")
-        
-        if status != "OK":
-            lines.append("\n⚠️ 自修引導 (SOP):")
-            lines.append("• 建議執行: `bash scripts/check_data_coverage.sh` 排除資料缺口。")
-            lines.append("• 重新分析: `PYTHONPATH=. .venv/bin/python scripts/phase4_regime_monitor.py`。")
-            lines.append("• 最後檢查: 確認 `logs/` 下有無異常重啟。")
-            
-    lines.append("\n💡 備註：此回報屬監控性質，不代表交易有問題。系統為唯讀模式，不會自動下單或修改任何設定。")
+        lines.append("⚠️ 偵測到資料過時 (Partially STALE/FAIL)")
+        lines.append("🔴 需優先排除缺口，資料不全可能導致判定偏誤")
+        lines.append("💡 建議執行: `bash scripts/refresh_state.sh` 後檢查 ETL 日誌")
+
+    # SOP
+    lines.append("\n下一步檢查順序:")
+    if any_stale:
+        lines.append("1. 執行 `bash scripts/check_data_coverage.sh` 確認缺口")
+        lines.append("2. 檢查 `logs/launchd_daily_etl.out.log` 排除 ETL 錯誤")
+        lines.append("3. 執行 `bash scripts/refresh_state.sh` 強制重整")
+    
+    idx = 4 if any_stale else 1
+    lines.append(f"{idx}. 查看 regime 源文件: `cat {summary_src}`")
+    lines.append(f"{idx+1}. 手動重跑診斷: `PYTHONPATH=. .venv/bin/python scripts/phase4_regime_monitor.py`")
+    lines.append(f"{idx+2}. 檢查判定細節: `grep -E 'threshold|Risk' data/state/regime_monitor_latest.json`")
+
+    lines.append("\n💡 備註：此回報屬監控性質。系統為唯讀模式，不會自動下單或修改設定。")
     return "\n".join(lines)
 
 
@@ -1209,10 +1326,56 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
     history = _get_history(state, chat_id)
 
     # ── call LLM ──
-    if use_llm:
+    if not use_llm:
+        return LLM_OFFLINE_MSG, "FALLBACK"
+
+    snapshot = _collect_snapshot()
+    use_specialist = should_use_specialist(text, snapshot)
+    
+    llm_resp = None
+    llm_err = None
+    route = "LLM"
+
+    if use_specialist:
+        logger.info(f"Routing to Reasoning Specialist: {text[:50]}...")
+        # Prepare context for specialist
+        specialist_prompt = f"User Query: {text}\n\nSystem Snapshot:\n{json.dumps(snapshot, indent=2)}"
+        analysis = call_reasoning_specialist(specialist_prompt)
+        
+        if analysis:
+            # Format specialist output for user (Chinese Template)
+            resp_lines = [
+                f"🧠 **Reasoning Specialist 診斷判讀** ({analysis.status})",
+                f"**分析問題**: {analysis.problem}",
+                "\n**核心發現 (Key Findings)**:",
+                *[f"• {f}" for f in analysis.key_findings],
+                "\n**推論假說 (Hypotheses)**:",
+                *[f"• {h}" for h in analysis.hypotheses],
+                "\n**建議運維 SOP (Informational Only)**:",
+                *[f"• {s}" for s in analysis.recommended_next_steps],
+            ]
+            if analysis.risks:
+                resp_lines.extend(["\n**潛在風險 (Risks)**:", *[f"• {r}" for r in analysis.risks]])
+            
+            # Attach citations if available
+            if analysis.citations:
+                resp_lines.extend(["\n**依據資料 (Citations)**:", *[f"• {c}" for c in analysis.citations]])
+
+            llm_resp = "\n".join(resp_lines)
+            route = "SPECIALIST"
+        else:
+            logger.warning("Specialist failed or timed out. Falling back to Snapshot reply with WARN.")
+            # FALLBACK: Conservative snapshot reply marked with WARN
+            lines = [
+                "⚠️ **Specialist 診斷暫時不可用 (Timeout/Fail)**",
+                "系統目前進入保守降級模式，以下為基礎監控快照：",
+                skill_status_overview(include_sources=False)
+            ]
+            llm_resp = "\n".join(lines)
+            route = "FALLBACK_WARN"
+
+    if not llm_resp:
         llm_resp, llm_err = _llm_chat(chat_id, text, history)
-    else:
-        llm_resp, llm_err = "", "LLM disabled"
 
     if llm_resp:
         # ── extract and process FOLLOWUP tag before guardrail check ──
@@ -1224,7 +1387,9 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
             followup_min = None  # discard followup if guardrail blocked
 
         resp = llm_resp
-        route = "LLM"
+        # Only set LLM route if it hasn't been set (e.g. by Specialist)
+        if not route or route == "LLM":
+            route = "LLM"
 
         # ── enqueue followup if requested ──
         if followup_min and followup_topic and FOLLOWUP_ENABLED:
@@ -1305,7 +1470,8 @@ def _handle_command(chat_id: int, text: str) -> str:
             "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
             "• /regime_status — 同 /regime\n"
-            "• /ml_status — ML 流水線健康狀態\n\n"
+            "• /ml_status — ML 流水線健康狀態\n"
+            "• /research_status — Research Loop 今日狀態 + Leaderboard\n\n"
             "🔧 其他指令：\n"
             "• /skills /run /remember /memories /ping"
         )
@@ -1321,6 +1487,9 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/regime" or cmd == "/regime_status":
         return skill_regime_status()
+
+    if cmd == "/research_status" or cmd == "/research":
+        return skill_research_status()
 
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
@@ -1357,6 +1526,9 @@ def _handle_command(chat_id: int, text: str) -> str:
         body.extend(log_lines[-10:])
         return "\n".join(body)
 
+    if cmd == "/consult":
+        return "__DELEGATE_TO_ROUTER__"
+
     return "不認識這個指令，用 /help 看看可以做什麼 🙂"
 
 
@@ -1371,6 +1543,14 @@ def _handle_message(msg: dict) -> None:
 
     if text.startswith("/"):
         out = _handle_command(chat_id, text)
+        if out == "__DELEGATE_TO_ROUTER__":
+            # Trigger build_chat_reply for /consult
+            cleaned = text.replace("/consult", "", 1).strip()
+            resp, route = build_chat_reply(chat_id, cleaned, use_llm=True)
+            _send(chat_id, resp, reply_to=msg_id)
+            log_event("CONSULT", chat_id=chat_id, route=route)
+            return
+        
         _send(chat_id, out, reply_to=msg_id)
         log_event("CMD", chat_id=chat_id, cmd=_cmd_base(text) or "unknown")
         return

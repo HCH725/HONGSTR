@@ -12,6 +12,8 @@ import json
 import importlib.util
 import sys
 from pathlib import Path
+from unittest.mock import patch, MagicMock
+from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
 
 
 def _sandbox_state(monkeypatch, tmp_path, s):
@@ -560,7 +562,7 @@ def test_regime_command(monkeypatch, tmp_path):
     
     state_dir = repo / "data/state"
     state_dir.mkdir(parents=True)
-    summary_p = state_dir / "regime_monitor_summary.json"
+    latest_p = state_dir / "regime_monitor_latest.json"
     
     # Case: Missing file
     resp = s._handle_command(12345, "/regime")
@@ -568,25 +570,218 @@ def test_regime_command(monkeypatch, tmp_path):
     assert "尚未產生快照" in resp
 
     # Case: OK
-    summary_p.write_text(json.dumps({
-        "status": "OK",
-        "updated_utc": "2026-02-24T00:00:00Z",
-        "key_metrics": {"sharpe": 1.5, "mdd": -0.02, "trades": 100},
-        "reasons": ["All metrics within comfort zone"]
-    }))
+    fake_snap = {
+        "freshness": {
+            "BTCUSDT": {"1m": {"status": "OK"}, "1h": {"status": "OK"}, "4h": {"status": "OK"}}
+        },
+        "regime_monitor": {
+            "overall": "OK",
+            "ts_utc": "2026-02-24T00:00:00Z",
+            "current": {
+                "sharpe": 1.5, 
+                "mdd": -0.02, 
+                "trades": 100, 
+                "summary_path": "data/backtests/run1/summary.json",
+                "source_reason": "full_run"
+            },
+            "reason": ["All metrics within comfort zone"]
+        }
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    
     resp = s._handle_command(12345, "/regime")
     assert "OK" in resp
     assert "Sharpe: 1.500" in resp
-    assert "自修引導" not in resp
+    assert "來源: `data/backtests/run1/summary.json` (full_run)" in resp
+    assert "排除資料缺口" in resp
+    assert "資料缺口可能性低" in resp
 
     # Case: WARN
-    summary_p.write_text(json.dumps({
-        "status": "WARN",
-        "updated_utc": "2026-02-24T00:01:00Z",
-        "key_metrics": {"sharpe": 0.3, "mdd": -0.04, "trades": 80},
-        "reasons": ["Sharpe dropped below median"]
-    }))
+    fake_snap["regime_monitor"] = {
+        "overall": "WARN",
+        "ts_utc": "2026-02-24T00:01:00Z",
+        "current": {
+            "sharpe": 0.3, 
+            "mdd": -0.04, 
+            "trades": 80, 
+            "summary_path": "data/backtests/run2/summary.json",
+            "source_reason": "fallback_fragment"
+        },
+        "reason": ["Sharpe dropped below median"]
+    }
     resp = s._handle_command(12345, "/regime")
     assert "WARN" in resp
-    assert "自修引導 (SOP)" in resp
+    assert "來源: `data/backtests/run2/summary.json` (fallback_fragment)" in resp
+    assert "下一步檢查順序" in resp
     assert "check_data_coverage.sh" in resp
+
+# ── Specialist Routing ──
+
+def test_specialist_routing_via_keyword(monkeypatch, tmp_path):
+    """Test that 'why' triggers the Reasoning Specialist."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock snapshot
+    fake_snap = {
+        "dashboard_ok": True,
+        "regime_monitor": {"status": "OK"},
+        "freshness": {}, 
+        "cp_status": "OK",
+        "cp_age_hours": 1.0,
+        "cp_summary": "Summary",
+        "overall_gate": "OK",
+        "top_action": "None",
+        "pending_alerts": 0,
+        "etl_ok": True,
+        "etl_fail": False,
+        "log_ages": {"etl": 1.0, "healthcheck": 1.0}
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    
+    # Mock specialist call
+    mock_analysis = ReasoningAnalysis(
+        status="OK",
+        problem="Test Problem",
+        key_findings=["Finding 1"],
+        hypotheses=["Hypothesis 1"],
+        recommended_next_steps=["Step 1"],
+        risks=[],
+        citations=[]
+    )
+    
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: mock_analysis)
+    
+    resp, route = s.build_chat_reply(100, "Why is the system behaving like this?")
+    assert route == "SPECIALIST"
+    assert "Reasoning Specialist Analysis" in resp
+    assert "Test Problem" in resp
+
+def test_specialist_routing_via_state_trigger(monkeypatch, tmp_path):
+    """Test that Regime FAIL triggers the Reasoning Specialist for status queries."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock snapshot with Regime FAIL
+    fake_snap = {
+        "dashboard_ok": True,
+        "regime_monitor": {"status": "FAIL"},
+        "freshness": {},
+        "cp_status": "WARN",
+        "overall_gate": "FAIL",
+        "pending_alerts": 5,
+        "cp_age_hours": 1.0,
+        "cp_summary": "Summary",
+        "top_action": "Fix Regime",
+        "etl_ok": True,
+        "etl_fail": False,
+        "log_ages": {"etl": 1.0, "healthcheck": 1.0}
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    
+    # Mock specialist call
+    mock_analysis = ReasoningAnalysis(
+        status="FAIL",
+        problem="Regime Failure",
+        key_findings=["Regime is broken"],
+        hypotheses=["Market volatility"],
+        recommended_next_steps=["Check data"],
+        risks=[],
+        citations=[]
+    )
+    
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: mock_analysis)
+    
+    resp, route = s.build_chat_reply(101, "目前的狀態如何？") # "status" keyword in Chinese
+    assert route == "SPECIALIST"
+    assert "Regime Failure" in resp
+
+def test_specialist_fallback_to_broker(monkeypatch, tmp_path):
+    """Test that Broker is used if Specialist fails."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Trigger with 'why'
+    fake_snap = {
+        "dashboard_ok": True,
+        "regime_monitor": {"status": "OK"},
+        "freshness": {},
+        "cp_status": "OK",
+        "overall_gate": "OK",
+        "cp_age_hours": 1.0,
+        "cp_summary": "Summary",
+        "top_action": "None",
+        "pending_alerts": 0,
+        "etl_ok": True,
+        "etl_fail": False,
+        "log_ages": {"etl": 1.0, "healthcheck": 1.0}
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    
+    # Mock specialist failure (returns None)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+    # Mock broker chat
+    monkeypatch.setattr(s, "_llm_chat", lambda *args, **kwargs: ("Broker reply", None))
+    
+    resp, route = s.build_chat_reply(102, "Why?")
+    assert route == "LLM" # Routed to Broker
+    assert "Broker reply" in resp
+
+def test_regime_warn_freshness_ok(monkeypatch, tmp_path):
+    """Test Regime WARN + Freshness OK -> Data gap unlikely."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    fake_snap = {
+        "freshness": {
+            "BTCUSDT": {"1m": {"status": "OK"}, "1h": {"status": "OK"}, "4h": {"status": "OK"}}
+        },
+        "regime_monitor": {
+            "overall": "WARN",
+            "ts_utc": "2026-02-24T03:29:34Z",
+            "reason": ["MDD elevated"],
+            "current": {
+                "sharpe": 0.2,
+                "mdd": -0.033,
+                "trades": 800,
+                "summary_source": "data/backtests/summary.json"
+            }
+        }
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    
+    out = s.skill_regime_status()
+    assert "結論: WARN" in out
+    assert "資料缺口可能性低" in out
+    assert "1. 查看 regime 源文件" in out
+    assert "scripts/check_data_coverage.sh" in out
+
+def test_regime_warn_freshness_fail(monkeypatch, tmp_path):
+    """Test Regime WARN + Freshness FAIL -> Recommend ETL first."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    fake_snap = {
+        "freshness": {
+            "BTCUSDT": {"1m": {"status": "FAIL"}, "1h": {"status": "OK"}, "4h": {"status": "OK"}},
+            "ETHUSDT": {"1m": {"status": "OK"}, "1h": {"status": "OK"}, "4h": {"status": "OK"}},
+            "BNBUSDT": {"1m": {"status": "OK"}, "1h": {"status": "OK"}, "4h": {"status": "OK"}}
+        },
+        "regime_monitor": {
+            "overall": "WARN",
+            "ts_utc": "2026-02-24T03:29:34Z",
+            "reason": ["MDD elevated"],
+            "current": {
+                "sharpe": 0.2,
+                "mdd": -0.033,
+                "trades": 800,
+                "summary_source": "data/backtests/summary.json"
+            }
+        }
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    
+    out = s.skill_regime_status()
+    assert "結論: WARN" in out
+    assert "偵測到資料過時" in out
+    assert "1. 執行 `bash scripts/check_data_coverage.sh`" in out
