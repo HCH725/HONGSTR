@@ -367,6 +367,10 @@ def _status_ssot_sources() -> list[tuple[str, Path]]:
     ]
 
 
+def _status_health_pack_path() -> Path:
+    return REPO / "data/state/system_health_latest.json"
+
+
 def _status_ssot_sources_line() -> str:
     names = [name for name, _ in _status_ssot_sources()]
     return "Sources: " + ", ".join(names)
@@ -480,7 +484,101 @@ def _read_coverage_table_rebase(path: Path) -> tuple[int | None, str | None]:
     return rebase, None
 
 
+def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
+    if not isinstance(health_pack, dict) or not health_pack:
+        return None
+
+    components = health_pack.get("components", {})
+    if not isinstance(components, dict):
+        return None
+
+    semantics = str(
+        health_pack.get("ssot_semantics")
+        or "SystemHealth only (RegimeSignal is separate trade-risk alert)"
+    )
+    overall = str(health_pack.get("ssot_status", "UNKNOWN")).upper()
+    if overall not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        overall = "UNKNOWN"
+
+    fresh = components.get("freshness", {})
+    cov = components.get("coverage_matrix", {})
+    brake = components.get("brake", {})
+    regime_monitor = components.get("regime_monitor", {})
+    regime_signal = components.get("regime_signal", {})
+    if not isinstance(fresh, dict):
+        fresh = {}
+    if not isinstance(cov, dict):
+        cov = {}
+    if not isinstance(brake, dict):
+        brake = {}
+    if not isinstance(regime_monitor, dict):
+        regime_monitor = {}
+    if not isinstance(regime_signal, dict):
+        regime_signal = {}
+
+    fresh_status = str(fresh.get("status", "UNKNOWN")).upper()
+    if fresh_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        fresh_status = "UNKNOWN"
+    max_age = fresh.get("max_age_h")
+
+    cov_status = _normalize_coverage_status(cov.get("status"))
+    if cov_status == "NEEDS_REBASE":
+        cov_status = "WARN"
+    if cov_status not in {"PASS", "WARN", "FAIL", "UNKNOWN"}:
+        cov_status = "UNKNOWN"
+    done_count = cov.get("done")
+    total_count = cov.get("total")
+    max_lag = cov.get("max_lag_h")
+    matrix_rebase = cov.get("rebase")
+
+    brake_status = str(brake.get("status", "UNKNOWN")).upper()
+    if brake_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        brake_status = "UNKNOWN"
+
+    regime_monitor_status = str(regime_monitor.get("status", "UNKNOWN")).upper()
+    if regime_monitor_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        regime_monitor_status = "UNKNOWN"
+    regime_monitor_age = regime_monitor.get("age_h")
+    regime_ok_h = regime_monitor.get("ok_within_h")
+
+    regime_signal_status = _normalize_regime_signal_status(regime_signal.get("status"))
+    regime_top_reason = regime_signal.get("top_reason")
+    if not isinstance(regime_top_reason, str) or not regime_top_reason.strip():
+        regime_top_reason = None
+    if regime_top_reason and len(regime_top_reason) > 120:
+        regime_top_reason = regime_top_reason[:117] + "..."
+    regime_signal_line = f"RegimeSignal: {regime_signal_status}"
+    if regime_top_reason:
+        regime_signal_line += f" ({regime_top_reason})"
+
+    refresh_hint = str(health_pack.get("refresh_hint") or "bash scripts/refresh_state.sh")
+    sources_line = "Sources: system_health_latest.json (preferred), " + ", ".join(
+        name for name, _ in _status_ssot_sources()
+    )
+
+    return "\n".join(
+        [
+            f"SSOT_STATUS: {overall}",
+            f"SSOT_SEMANTICS: {semantics}",
+            f"Freshness: {fresh_status} max_age_h={_fmt_num(max_age)}",
+            f"CoverageMatrix: {cov_status} {done_count}/{total_count} done | max_lag_h={_fmt_num(max_lag)} | rebase={matrix_rebase}",
+            f"Brake: {brake_status}",
+            f"RegimeMonitor: {regime_monitor_status} age_h={_fmt_num(regime_monitor_age)} (<= {float(regime_ok_h or REGIME_MONITOR_FRESH_OK_H):.0f}h OK)",
+            regime_signal_line,
+            f"Action: run `{refresh_hint}` if snapshots look stale",
+            sources_line,
+        ]
+    )
+
+
 def _status_short_report() -> str:
+    health_pack_path = _status_health_pack_path()
+    if health_pack_path.exists():
+        health_pack = _load_json(health_pack_path, {})
+        rendered = _status_short_report_from_health_pack(health_pack if isinstance(health_pack, dict) else {})
+        if rendered:
+            return rendered
+
     parsed: dict[str, object] = {}
     missing: list[str] = []
     unreadable: list[str] = []
@@ -537,6 +635,7 @@ def _status_short_report() -> str:
                 "Brake: N/A",
                 "RegimeMonitor: N/A",
                 "RegimeSignal: N/A",
+                "Action: run `bash scripts/refresh_state.sh` then retry /status",
                 _status_ssot_sources_line(),
             ]
         )
