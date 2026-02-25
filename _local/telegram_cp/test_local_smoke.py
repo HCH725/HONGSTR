@@ -143,46 +143,85 @@ def test_ml_status_routing(monkeypatch, tmp_path):
 
 
 
+def _write_status_ssot_sources(repo: Path) -> None:
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "freshness_table.json").write_text(
+        json.dumps(
+            {
+                "rows": [
+                    {"symbol": "BTCUSDT", "tf": "1m", "age_h": 1.2, "status": "OK"},
+                    {"symbol": "ETHUSDT", "tf": "1h", "age_h": 2.3, "status": "WARN"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (state_dir / "coverage_matrix_latest.json").write_text(
+        json.dumps(
+            {
+                "rows": [{"symbol": "BTCUSDT", "tf": "1h", "lag_hours": 0.0, "status": "PASS"}],
+                "totals": {"rebase": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (state_dir / "brake_health_latest.json").write_text(
+        json.dumps(
+            {
+                "overall_fail": False,
+                "results": [{"item": "Freshness Table", "status": "OK"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (state_dir / "regime_monitor_latest.json").write_text(
+        json.dumps({"overall": "OK"}),
+        encoding="utf-8",
+    )
+    (state_dir / "coverage_table.jsonl").write_text(
+        json.dumps(
+            {
+                "coverage_key": {"symbol": "BTCUSDT", "timeframe": "1h"},
+                "status": "DONE",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def test_status_command(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
-    (repo / "data/state").mkdir(parents=True)
-    (repo / "data/state/freshness_table.json").write_text(
-        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 1.0, "status": "OK"}]}),
-        encoding="utf-8",
-    )
-    (repo / "data/state/coverage_matrix_latest.json").write_text(
-        json.dumps({"rows": [], "totals": {"rebase": 0}}),
-        encoding="utf-8",
-    )
+    _write_status_ssot_sources(repo)
     monkeypatch.setattr(s, "REPO", repo)
 
     resp = s._handle_command(30, "/status")
-    # should have the concise summary
-    assert "Freshness" in resp
-    assert "max_age=" in resp
-    assert "Coverage" in resp
+    assert "SSOT_STATUS:" in resp
+    assert "Sources:" in resp
+    assert "freshness_table.json" in resp
+    assert "coverage_matrix_latest.json" in resp
+    assert "Dashboard lag 37.5h" not in resp
+    assert "Freshness:" in resp
+    assert "CoverageMatrix:" in resp
 
 
 def test_status_command_with_bot_suffix(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
-    (repo / "data/state").mkdir(parents=True)
-    (repo / "data/state/freshness_table.json").write_text(
-        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 2.0, "status": "OK"}]}),
-        encoding="utf-8",
-    )
-    (repo / "data/state/coverage_matrix_latest.json").write_text(
-        json.dumps({"rows": [], "totals": {"rebase": 0}}),
-        encoding="utf-8",
-    )
+    _write_status_ssot_sources(repo)
     monkeypatch.setattr(s, "REPO", repo)
 
-    resp = s._handle_command(31, "/status@HONGSTR_bot")
-    assert "WARN: /status SSOT" not in resp
-    assert "Freshness" in resp
+    resp_plain = s._handle_command(31, "/status")
+    resp_suffix = s._handle_command(31, "/status@HONGSTR_bot")
+    resp_ws = s._handle_command(31, "   /status   ")
+    assert resp_plain == resp_suffix == resp_ws
+    assert "Sources:" in resp_suffix
+    assert "freshness_table.json" in resp_suffix
+    assert "coverage_matrix_latest.json" in resp_suffix
 
 
 def test_status_command_warns_when_ssot_missing(monkeypatch, tmp_path):
@@ -193,9 +232,11 @@ def test_status_command_warns_when_ssot_missing(monkeypatch, tmp_path):
     monkeypatch.setattr(s, "REPO", repo)
 
     resp = s._handle_command(32, "/status@HONGSTR_bot")
-    assert "WARN: /status SSOT" in resp
-    assert "已停用 fallback" in resp
-
+    assert "SSOT_STATUS: WARN" in resp
+    assert "missing=[" in resp
+    assert "freshness_table.json" in resp
+    assert "coverage_matrix_latest.json" in resp
+    assert "Sources:" in resp
 
 def test_ping_command(monkeypatch, tmp_path):
     s = _load_server()
