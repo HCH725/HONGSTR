@@ -21,3 +21,7 @@ strategy-pool style ranking without touching `src/hongstr/**`.
 
 PR-2 extends this with direction variants (`LONG`, `SHORT`, `LONGSHORT`) for
 selected strategies so leaderboard comparisons can happen in the same format.
+
+PR-3 adds `research/experiments/dca1_executor.py` for a report-only DCA-1
+research path (base + 1 safety + SL/TP + optional trailing) with compatible
+summary/gate/selection/results artifacts.
