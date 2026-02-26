@@ -42,6 +42,59 @@
         "allow_extra": false,
         "fields": []
       }
+    },
+    {
+      "name": "incident_timeline_builder",
+      "type": "read_only",
+      "description": "Build SSOT-only incident timeline from system health snapshots.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "start",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "end",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "keywords",
+            "type": "csv_string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "services",
+            "type": "csv_string",
+            "required": false,
+            "default": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "signal_leakage_audit",
+      "type": "read_only",
+      "description": "Run lookahead and signal leakage audit on research datasets.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "max_lookahead_ms",
+            "type": "int",
+            "required": false,
+            "default": 0
+          }
+        ]
+      }
     }
   ]
 }

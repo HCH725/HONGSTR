@@ -17,6 +17,8 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
 
+INCIDENT_FIXTURES = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/incident_timeline")
+
 
 def _sandbox_state(monkeypatch, tmp_path, s):
     monkeypatch.setattr(s, "STATE_DIR", tmp_path / "state")
@@ -447,6 +449,39 @@ def test_skills_command(monkeypatch, tmp_path):
     resp = s._handle_command(50, "/skills")
     assert "status_overview" in resp
     assert "logs_tail_hint" in resp
+    assert "incident_timeline_builder" in resp
+
+
+def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "with_health_pack")
+
+    out, ok = s._handle_run(
+        "/run incident_timeline_builder "
+        "start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod "
+        "keywords=latency,regime services=tg_cp,dashboard"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert set(payload.keys()) == {"summary", "timeline", "suspected_root_causes", "next_questions"}
+    assert payload["summary"]["report_only"] is True
+    assert payload["summary"]["status"] in {"OK", "WARN", "FAIL", "UNKNOWN"}
+    assert isinstance(payload["timeline"], list) and payload["timeline"]
+
+
+def test_incident_timeline_builder_run_missing_ssot_returns_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "missing_all")
+
+    out, ok = s._handle_run(
+        "/run incident_timeline_builder start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["summary"]["status"] == "UNKNOWN"
+    assert "refresh_state.sh" in str(payload["summary"]["refresh_hint"])
 
 
 def test_unknown_command(monkeypatch, tmp_path):

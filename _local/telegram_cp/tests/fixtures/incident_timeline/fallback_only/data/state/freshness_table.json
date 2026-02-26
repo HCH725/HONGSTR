@@ -1,0 +1,6 @@
+{
+  "ts_utc": "2026-02-26T06:00:00Z",
+  "rows": [
+    {"symbol": "BTCUSDT", "tf": "1h", "status": "OK", "age_h": 1.0}
+  ]
+}
