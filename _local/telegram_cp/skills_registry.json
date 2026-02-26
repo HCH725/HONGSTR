@@ -116,6 +116,27 @@
           }
         ]
       }
+    },
+    {
+      "name": "config_drift_auditor",
+      "type": "read_only",
+      "description": "Audit configuration drift between a baseline SHA and the current repo.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "baseline_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "paths",
+            "type": "csv_string",
+            "required": false,
+            "default": ""
+          }
+        ]
+      }
     }
   ]
 }

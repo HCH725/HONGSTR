@@ -57,6 +57,7 @@ except Exception:
     sys.path.insert(0, str(Path(__file__).resolve().parent / "skills"))
     from incident_timeline_builder import build_incident_timeline
     from system_health_morning_brief import get_morning_brief
+    from config_drift_auditor import audit_config_drift
 
 # ────────────────────── paths ──────────────────────
 REPO = Path(os.environ.get("HONGSTR_REPO", "/Users/hong/Projects/HONGSTR"))
@@ -1108,7 +1109,19 @@ def skill_system_health_morning_brief(args: dict) -> str:
     return payload["markdown"]
 
 
+def skill_config_drift_auditor(args: dict) -> str:
+    baseline_ref = str(args.get("baseline_ref", ""))
+    paths = str(args.get("paths", ""))
+    try:
+        from _local.telegram_cp.skills.config_drift_auditor import audit_config_drift
+    except ImportError:
+        from config_drift_auditor import audit_config_drift
+    payload = audit_config_drift(REPO, baseline_ref, paths)
+    return payload["markdown"]
+
+
 SKILL_IMPL = {
+    "config_drift_auditor": skill_config_drift_auditor,
     "system_health_morning_brief": skill_system_health_morning_brief,
     "status_overview": lambda args: skill_status_overview(bool(args.get("include_sources", False))),
     "logs_tail_hint": lambda args: skill_logs_tail_hint(int(args.get("lines", 60))),

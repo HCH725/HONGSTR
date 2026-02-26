@@ -1260,3 +1260,74 @@ def test_morning_brief_integration(monkeypatch, tmp_path):
     assert ok is True
     assert "Morning Brief" in out
     assert "Status: OK" in out
+
+# ── config_drift_auditor ──
+
+def test_config_drift_auditor_no_drift(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / ".env.example").write_text("BASE=1\n", encoding="utf-8")
+    monkeypatch.setattr(s, "REPO", repo_path)
+
+    # Mock git.Repo
+    mock_repo = MagicMock()
+    mock_commit = MagicMock()
+    mock_blob = MagicMock()
+    mock_blob.data_stream.read.return_value = b"BASE=1\n"
+    
+    # Using __truediv__ for path lookup in tree
+    mock_commit.tree.__truediv__.return_value = mock_blob
+    mock_repo.commit.return_value = mock_commit
+    
+    with patch("git.Repo", return_value=mock_repo):
+        from _local.telegram_cp.skills.config_drift_auditor import audit_config_drift
+        res = audit_config_drift(repo_path, "baseline_sha", paths=".env.example")
+        
+    assert res["status"] == "OK"
+    assert "No drift detected" in res["markdown"]
+    assert len(res["data"]["results"]) == 1
+    assert res["data"]["results"][0]["status"] == "MATCH"
+
+def test_config_drift_auditor_with_drift(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / ".env.example").write_text("CURRENT=2\n", encoding="utf-8")
+    monkeypatch.setattr(s, "REPO", repo_path)
+
+    mock_repo = MagicMock()
+    mock_commit = MagicMock()
+    mock_blob = MagicMock()
+    mock_blob.data_stream.read.return_value = b"BASE=1\n"
+    
+    mock_commit.tree.__truediv__.return_value = mock_blob
+    mock_repo.commit.return_value = mock_commit
+    
+    with patch("git.Repo", return_value=mock_repo):
+        from _local.telegram_cp.skills.config_drift_auditor import audit_config_drift
+        res = audit_config_drift(repo_path, "baseline_sha", paths=".env.example")
+        
+    assert res["status"] == "WARN"
+    assert "Drifted" in res["markdown"]
+    assert res["data"]["results"][0]["status"] == "DRIFT"
+    assert "diff" in res["data"]["results"][0]
+
+def test_config_drift_auditor_unknown_ref(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    monkeypatch.setattr(s, "REPO", repo_path)
+
+    mock_repo = MagicMock()
+    mock_repo.commit.side_effect = Exception("not found")
+    
+    with patch("git.Repo", return_value=mock_repo):
+        from _local.telegram_cp.skills.config_drift_auditor import audit_config_drift
+        res = audit_config_drift(repo_path, "missing_sha")
+        
+    assert res["status"] == "UNKNOWN"
+    assert "not found" in res["markdown"]
