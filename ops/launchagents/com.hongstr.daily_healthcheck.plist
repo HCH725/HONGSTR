@@ -4,6 +4,7 @@
 <dict>
     <key>Label</key>
     <string>com.hongstr.daily_healthcheck</string>
+    <!-- Compatibility alias only: triggers refresh_state flow, no independent SSOT ownership. -->
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
