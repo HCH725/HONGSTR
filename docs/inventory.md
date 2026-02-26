@@ -17,7 +17,7 @@
 - scripts/ingest_historical.py
 - scripts/aggregate_data.py
 - scripts/check_data_coverage.sh
-- data/derived/<SYMBOL>/1m/klines.jsonl (canonical backtest source)
+- data/derived/SYMBOL/1m/klines.jsonl (canonical backtest source)
 
 ## Notifications
 
@@ -35,6 +35,11 @@
 - .github/CODEOWNERS
 - .github/workflows/guardrails.yml
 - .github/pull_request_template.md
+
+## Governance (Overfit)
+
+- [Overfit Governance Standard (Aggressive)](docs/governance/overfit_governance_aggressive.md)
+- [Overfit Weekly Report Template](docs/governance/overfit_weekly_report_template.md)
 
 ## State / Artifacts (expected)
 
