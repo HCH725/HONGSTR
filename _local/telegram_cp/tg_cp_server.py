@@ -51,6 +51,12 @@ except Exception:
     from router import should_use_specialist
     from reasoning_client import call_reasoning_specialist
 
+try:
+    from _local.telegram_cp.skills.system_health_morning_brief import build_system_health_morning_brief
+except Exception:
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "skills"))
+    from system_health_morning_brief import build_system_health_morning_brief
+
 # ────────────────────── paths ──────────────────────
 REPO = Path(os.environ.get("HONGSTR_REPO", "/Users/hong/Projects/HONGSTR"))
 LOCAL_DIR = REPO / "_local/telegram_cp"
@@ -1071,6 +1077,12 @@ def skill_logs_tail_hint(lines: int = 60) -> str:
     ])
 
 
+def skill_system_health_morning_brief() -> str:
+    """Read-only SSOT morning brief in strict JSON schema."""
+    payload = build_system_health_morning_brief(REPO)
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
 SKILL_IMPL = {
     "status_overview": lambda args: skill_status_overview(bool(args.get("include_sources", False))),
     "logs_tail_hint": lambda args: skill_logs_tail_hint(int(args.get("lines", 60))),
@@ -1078,6 +1090,7 @@ SKILL_IMPL = {
     "ml_status": lambda args: skill_ml_status(),
     "regime_status": lambda args: skill_regime_status(),
     "brake_status": lambda args: skill_brake_status(),
+    "system_health_morning_brief": lambda args: skill_system_health_morning_brief(),
 }
 
 

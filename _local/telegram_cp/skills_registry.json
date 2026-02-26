@@ -42,6 +42,15 @@
         "allow_extra": false,
         "fields": []
       }
+    },
+    {
+      "name": "system_health_morning_brief",
+      "type": "read_only",
+      "description": "Generate SSOT-only schema-bound morning brief from system health snapshots.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": []
+      }
     }
   ]
 }
