@@ -1535,3 +1535,75 @@ def test_run_quant_missing_artifacts_returns_json_contract(monkeypatch, tmp_path
     assert payload["actions"] == []
     assert payload["missing_artifacts"]
     assert "refresh_state.sh" in str(payload.get("refresh_hint", ""))
+
+
+def test_skills_help_and_run_help_schema_examples(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+
+    resp = s._handle_command(99, "/skills help backtest_reproducibility_audit")
+    assert "allowed_keys" in resp
+    assert "example_command" in resp
+    assert "example_json" in resp
+    assert "strategy_id" in resp
+
+    run_help, ok = s._handle_run("/run help strategy_regime_sensitivity_report")
+    assert ok is True
+    assert "allowed_keys" in run_help
+    assert "strategy_id" in run_help
+    assert "example_command" in run_help
+    assert "refresh_hint" in run_help
+
+
+def test_run_backtest_reproducibility_accepts_kv_and_json(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out_kv, ok_kv = s._handle_run(
+        "/run backtest_reproducibility_audit strategy_id=BT_123 runs=3 report_only=true"
+    )
+    assert ok_kv is True
+    payload_kv = json.loads(out_kv)
+    inputs_kv = payload_kv.get("inputs", {})
+    assert inputs_kv.get("strategy_id") == "BT_123"
+    assert inputs_kv.get("runs") == 3
+    assert inputs_kv.get("report_only") is True
+
+    out_json, ok_json = s._handle_run(
+        '/run backtest_reproducibility_audit {"strategy_id":"BT_123","runs":2,"report_only":true}'
+    )
+    assert ok_json is True
+    payload_json = json.loads(out_json)
+    inputs_json = payload_json.get("inputs", {})
+    assert inputs_json.get("strategy_id") == "BT_123"
+    assert inputs_json.get("runs") == 2
+    assert inputs_json.get("report_only") is True
+
+
+def test_run_unknown_keys_returns_helpful_context(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    out, ok = s._handle_run("/run backtest_reproducibility_audit foo=1")
+    assert ok is False
+    assert "unknown keys" in out
+    assert "allowed_keys" in out
+    assert "example_command" in out
+    assert "refresh_hint" in out
+
+
+def test_quant_skill_help_examples_match_schema(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    for skill_name in [
+        "backtest_reproducibility_audit",
+        "factor_health_and_drift_report",
+        "strategy_regime_sensitivity_report",
+    ]:
+        out, ok = s._handle_run(f"/run help {skill_name}")
+        assert ok is True
+        assert "allowed_keys" in out
+        assert "schema:" in out
+        assert "example_command:" in out

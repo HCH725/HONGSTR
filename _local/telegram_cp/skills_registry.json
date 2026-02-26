@@ -200,18 +200,48 @@
       "name": "backtest_reproducibility_audit",
       "type": "read_only",
       "description": "Verify backtest reproducibility between baseline and current research manifests.",
+      "example_command": "/run backtest_reproducibility_audit strategy_id=trend_mvp_btc_1h runs=3 report_only=true",
+      "example_json": "/run backtest_reproducibility_audit {\"strategy_id\":\"trend_mvp_btc_1h\",\"runs\":3,\"report_only\":true}",
       "args_schema": {
         "allow_extra": false,
         "fields": [
           {
+            "name": "strategy_id",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "runs",
+            "type": "int",
+            "required": false,
+            "default": 3,
+            "min": 1,
+            "max": 20
+          },
+          {
+            "name": "report_only",
+            "type": "bool",
+            "required": false,
+            "default": true
+          },
+          {
+            "name": "manifest_path",
+            "type": "string",
+            "required": false,
+            "default": "reports/research/backtest_manifest.json"
+          },
+          {
             "name": "backtest_id",
             "type": "string",
-            "required": true
+            "required": false,
+            "default": ""
           },
           {
             "name": "baseline_sha",
             "type": "string",
-            "required": true
+            "required": false,
+            "default": ""
           }
         ]
       }
@@ -220,6 +250,8 @@
       "name": "factor_health_and_drift_report",
       "type": "read_only",
       "description": "Report on factor health, decay, and drift from research artifacts.",
+      "example_command": "/run factor_health_and_drift_report factor_id=factor_alpha report_only=true",
+      "example_json": "/run factor_health_and_drift_report {\"factor_id\":\"factor_alpha\",\"report_only\":true}",
       "args_schema": {
         "allow_extra": false,
         "fields": [
@@ -227,6 +259,24 @@
             "name": "factor_id",
             "type": "string",
             "required": true
+          },
+          {
+            "name": "report_only",
+            "type": "bool",
+            "required": false,
+            "default": true
+          },
+          {
+            "name": "factor_manifest_path",
+            "type": "string",
+            "required": false,
+            "default": "reports/research/factor_manifest.json"
+          },
+          {
+            "name": "baseline_ref",
+            "type": "string",
+            "required": false,
+            "default": ""
           }
         ]
       }
@@ -235,6 +285,8 @@
       "name": "strategy_regime_sensitivity_report",
       "type": "read_only",
       "description": "Analyze strategy sensitivity to regime changes based on research snapshots.",
+      "example_command": "/run strategy_regime_sensitivity_report strategy_id=trend_mvp_btc_1h report_only=true",
+      "example_json": "/run strategy_regime_sensitivity_report {\"strategy_id\":\"trend_mvp_btc_1h\",\"report_only\":true}",
       "args_schema": {
         "allow_extra": false,
         "fields": [
@@ -242,6 +294,24 @@
             "name": "strategy_id",
             "type": "string",
             "required": true
+          },
+          {
+            "name": "report_only",
+            "type": "bool",
+            "required": false,
+            "default": true
+          },
+          {
+            "name": "regime_report_path",
+            "type": "string",
+            "required": false,
+            "default": "reports/research/regime_sensitivity.json"
+          },
+          {
+            "name": "regime_set",
+            "type": "string",
+            "required": false,
+            "default": ""
           }
         ]
       }

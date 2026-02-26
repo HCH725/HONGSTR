@@ -25,3 +25,7 @@ selected strategies so leaderboard comparisons can happen in the same format.
 PR-3 adds `research/experiments/dca1_executor.py` for a report-only DCA-1
 research path (base + 1 safety + SL/TP + optional trailing) with compatible
 summary/gate/selection/results artifacts.
+
+PR-4 adds `research/experiments/overfit_governance.py` to turn overfit
+governance into executable weekly hard/soft gates + markdown recommendations
+(`promote/demote/watchlist`, report_only).

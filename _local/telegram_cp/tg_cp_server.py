@@ -32,10 +32,19 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 try:
-    from _local.telegram_cp.args_schema import parse_args, validate  # type: ignore
+    from _local.telegram_cp.args_schema import (  # type: ignore
+        ArgsValidationError,
+        parse_args,
+        validate,
+    )
 except Exception:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from args_schema import parse_args, validate  # type: ignore
+
+    class ArgsValidationError(ValueError):
+        def __init__(self, message: str, *, details: dict | None = None):
+            super().__init__(message)
+            self.details = details or {}
 
 try:
     from _local.telegram_cp.guardrail import is_action_request, refusal_message, redact_secrets  # type: ignore
@@ -1146,33 +1155,61 @@ def skill_execution_quality_report_readonly(args: dict) -> str:
 
 
 def skill_backtest_reproducibility_audit(args: dict) -> dict:
+    strategy_id = str(args.get("strategy_id", ""))
+    runs = int(args.get("runs", 1))
+    report_only = bool(args.get("report_only", True))
     backtest_id = str(args.get("backtest_id", ""))
     baseline_sha = str(args.get("baseline_sha", ""))
+    manifest_path = str(args.get("manifest_path", "reports/research/backtest_manifest.json"))
     try:
         from _local.telegram_cp.skills.backtest_reproducibility_audit import audit_backtest_reproducibility
     except ImportError:
         from backtest_reproducibility_audit import audit_backtest_reproducibility
-    payload = audit_backtest_reproducibility(REPO, backtest_id, baseline_sha)
+    payload = audit_backtest_reproducibility(
+        REPO,
+        strategy_id=strategy_id,
+        runs=runs,
+        report_only=report_only,
+        backtest_id=backtest_id,
+        baseline_sha=baseline_sha,
+        manifest_path=manifest_path,
+    )
     return payload
 
 
 def skill_factor_health_and_drift_report(args: dict) -> dict:
     factor_id = str(args.get("factor_id", ""))
+    factor_manifest_path = str(args.get("factor_manifest_path", "reports/research/factor_manifest.json"))
+    baseline_ref = str(args.get("baseline_ref", ""))
     try:
         from _local.telegram_cp.skills.factor_health_and_drift_report import get_factor_health_report
     except ImportError:
         from factor_health_and_drift_report import get_factor_health_report
     payload = get_factor_health_report(REPO, factor_id)
+    if isinstance(payload, dict):
+        inputs = payload.setdefault("inputs", {})
+        if isinstance(inputs, dict):
+            inputs.setdefault("factor_manifest_path", factor_manifest_path)
+            inputs.setdefault("baseline_ref", baseline_ref)
+            inputs.setdefault("report_only", bool(args.get("report_only", True)))
     return payload
 
 
 def skill_strategy_regime_sensitivity_report(args: dict) -> dict:
     strategy_id = str(args.get("strategy_id", ""))
+    regime_report_path = str(args.get("regime_report_path", "reports/research/regime_sensitivity.json"))
+    regime_set = str(args.get("regime_set", ""))
     try:
         from _local.telegram_cp.skills.strategy_regime_sensitivity_report import get_strategy_sensitivity_report
     except ImportError:
         from strategy_regime_sensitivity_report import get_strategy_sensitivity_report
     payload = get_strategy_sensitivity_report(REPO, strategy_id)
+    if isinstance(payload, dict):
+        inputs = payload.setdefault("inputs", {})
+        if isinstance(inputs, dict):
+            inputs.setdefault("regime_report_path", regime_report_path)
+            inputs.setdefault("regime_set", regime_set)
+            inputs.setdefault("report_only", bool(args.get("report_only", True)))
     return payload
 
 
@@ -1939,18 +1976,112 @@ def _format_run_output(skill_name: str, output: object) -> str:
     return str(output)
 
 
+def _build_example_commands(skill_name: str, schema: dict, sk_meta: dict) -> tuple[str, str]:
+    if isinstance(sk_meta.get("example_command"), str) and sk_meta.get("example_command", "").strip():
+        kv_example = str(sk_meta.get("example_command")).strip()
+    else:
+        tokens = []
+        obj: dict[str, object] = {}
+        fields = schema.get("fields", []) if isinstance(schema, dict) else []
+        for field in fields:
+            if not isinstance(field, dict):
+                continue
+            name = str(field.get("name", "")).strip()
+            if not name:
+                continue
+            f_type = str(field.get("type", "string"))
+            if "default" in field:
+                val = field.get("default")
+            elif f_type == "bool":
+                val = True
+            elif f_type == "int":
+                val = 1
+            elif f_type == "float":
+                val = 0.1
+            elif f_type == "csv_string":
+                val = "A,B"
+            else:
+                val = f"<{name}>"
+            obj[name] = val
+            val_txt = str(val).lower() if isinstance(val, bool) else str(val)
+            tokens.append(f"{name}={val_txt}")
+        kv_example = f"/run {skill_name}"
+        if tokens:
+            kv_example += " " + " ".join(tokens)
+
+    if isinstance(sk_meta.get("example_json"), str) and sk_meta.get("example_json", "").strip():
+        json_example = str(sk_meta.get("example_json")).strip()
+    else:
+        payload = {}
+        fields = schema.get("fields", []) if isinstance(schema, dict) else []
+        for field in fields:
+            if not isinstance(field, dict):
+                continue
+            name = str(field.get("name", "")).strip()
+            if not name:
+                continue
+            f_type = str(field.get("type", "string"))
+            if "default" in field:
+                payload[name] = field.get("default")
+            elif f_type == "bool":
+                payload[name] = True
+            elif f_type == "int":
+                payload[name] = 1
+            elif f_type == "float":
+                payload[name] = 0.1
+            elif f_type == "csv_string":
+                payload[name] = "A,B"
+            else:
+                payload[name] = f"<{name}>"
+        json_example = f"/run {skill_name} {json.dumps(payload, ensure_ascii=False)}"
+
+    return kv_example, json_example
+
+
 def _run_help(skill_name: str) -> str:
     sk = SKILL_MAP.get(skill_name)
     if not sk:
         return f"找不到技能: {skill_name}\n請先用 /skills 看可用技能"
     schema = sk.get("args_schema", {})
+    allowed_keys = [
+        str(f.get("name"))
+        for f in schema.get("fields", [])
+        if isinstance(schema, dict) and isinstance(f, dict) and f.get("name")
+    ]
+    example_command, example_json = _build_example_commands(skill_name, schema, sk)
     return "\n".join([
         f"技能: {sk.get('name')}",
         f"類型: {sk.get('type')}",
         f"說明: {sk.get('description')}",
-        f"參數: {json.dumps(schema, ensure_ascii=False)}",
-        f"範例: /run {skill_name} include_sources=true",
+        f"allowed_keys: {allowed_keys}",
+        f"schema: {json.dumps(schema, ensure_ascii=False)}",
+        f"example_command: {example_command}",
+        f"example_json: {example_json}",
+        f"refresh_hint: {_status_refresh_hint()}",
     ])
+
+
+def _run_arg_error_message(skill_name: str, schema: dict, error: Exception) -> str:
+    sk = SKILL_MAP.get(skill_name) or {}
+    allowed_keys = [
+        str(f.get("name"))
+        for f in schema.get("fields", [])
+        if isinstance(schema, dict) and isinstance(f, dict) and f.get("name")
+    ]
+    if hasattr(error, "details") and isinstance(getattr(error, "details"), dict):
+        details = getattr(error, "details")
+        if isinstance(details.get("allowed_keys"), list):
+            allowed_keys = [str(x) for x in details.get("allowed_keys")]
+    example_command, example_json = _build_example_commands(skill_name, schema, sk)
+    return "\n".join(
+        [
+            f"參數錯誤: {error}",
+            f"allowed_keys: {allowed_keys}",
+            f"example_command: {example_command}",
+            f"example_json: {example_json}",
+            f"refresh_hint: {_status_refresh_hint()}",
+        ]
+    )
 
 
 def _handle_run(text: str) -> tuple[str, bool]:
@@ -1970,11 +2101,14 @@ def _handle_run(text: str) -> tuple[str, bool]:
     skill_type = str(sk.get("type", "")).strip().lower() if isinstance(sk, dict) else ""
     if not sk or skill_type not in {"read_only", "report_only"} or skill_name not in SKILL_IMPL:
         return f"找不到技能: {skill_name}\n請先用 /skills", False
+    schema = sk.get("args_schema", {})
     try:
         parsed = parse_args(args_raw)
-        valid_args = validate(sk.get("args_schema", {}), parsed)
+        valid_args = validate(schema, parsed)
+    except ArgsValidationError as exc:
+        return _run_arg_error_message(skill_name, schema, exc), False
     except Exception as exc:
-        return f"參數錯誤: {exc}\n請用 /run help {skill_name}", False
+        return _run_arg_error_message(skill_name, schema, exc), False
     out = SKILL_IMPL[skill_name](valid_args)
     return _format_run_output(skill_name, out), True
 
@@ -2027,10 +2161,16 @@ def _handle_command(chat_id: int, text: str) -> str:
         return skill_brake_status()
 
     if cmd == "/skills":
+        m_sk = re.match(r"^/skills(?:@\w+)?\s*(.*)$", text.strip())
+        tail_sk = (m_sk.group(1) if m_sk else "").strip()
+        if tail_sk.startswith("help "):
+            name = tail_sk.split(None, 1)[1].strip()
+            return _run_help(name)
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         lines.append("• (內建) /ml_status: ML 流水線健康狀態")
         lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
+        lines.append("• 用法: /skills help <skill> 或 /run help <skill>")
         return "可用 read-only 技能：\n" + "\n".join(lines)
 
     if cmd == "/run":
