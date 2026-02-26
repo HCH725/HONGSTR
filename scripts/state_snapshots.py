@@ -18,6 +18,16 @@ ATOMIC_STATE_DIR = Path("reports/state_atomic")
 ATOMIC_COVERAGE_TABLE = ATOMIC_STATE_DIR / "coverage_table.jsonl"
 ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
 ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
+FRESHNESS_THRESHOLDS = {
+    "realtime": {"ok_h": 12.0, "warn_h": 48.0, "fail_h": 48.0},
+    "backtest": {"ok_h": 30.0, "warn_h": 72.0, "fail_h": 96.0},
+}
+FRESHNESS_BACKTEST_SOURCE_PREFIXES = ("data/derived/",)
+FRESHNESS_BACKTEST_TAGS = {
+    t.strip()
+    for t in os.getenv("HONGSTR_FRESHNESS_BACKTEST_TAGS", "").split(",")
+    if t.strip()
+}
 
 
 def _normalize_simple_status(status_raw):
@@ -25,6 +35,33 @@ def _normalize_simple_status(status_raw):
     if status in {"OK", "PASS", "WARN", "FAIL", "UNKNOWN"}:
         return status
     return "UNKNOWN"
+
+
+def _freshness_profile_from_source(source: str | None, tags: list[str] | None = None) -> str:
+    source_str = str(source or "").replace("\\", "/")
+    normalized_tags = {str(tag).strip() for tag in (tags or []) if str(tag).strip()}
+    if normalized_tags & FRESHNESS_BACKTEST_TAGS:
+        return "backtest"
+    if any(source_str.startswith(prefix) for prefix in FRESHNESS_BACKTEST_SOURCE_PREFIXES):
+        return "backtest"
+    return "realtime"
+
+
+def _evaluate_freshness_status(age_h: float | None, profile: str, source_error: str | None = None) -> tuple[str, str | None]:
+    profile_key = profile if profile in FRESHNESS_THRESHOLDS else "realtime"
+    thresholds = FRESHNESS_THRESHOLDS[profile_key]
+
+    if source_error:
+        return "FAIL", source_error
+    if age_h is None:
+        return "FAIL", "unknown_age"
+    if age_h <= thresholds["ok_h"]:
+        return "OK", None
+    if age_h <= thresholds["fail_h"]:
+        if age_h <= thresholds["warn_h"]:
+            return "WARN", f"exceeds {thresholds['ok_h']:.0f}h ({age_h:.1f}h)"
+        return "WARN", f"exceeds {thresholds['warn_h']:.0f}h ({age_h:.1f}h)"
+    return "FAIL", f"exceeds {thresholds['fail_h']:.0f}h ({age_h:.1f}h)"
 
 
 def _normalize_coverage_status(status_raw):
@@ -277,7 +314,6 @@ def main():
 
     # 7. Data Freshness 3x3
     freshness_matrix = []
-    thresholds = {"ok_h": 12.0, "warn_h": 48.0}
     symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
     timeframes = ["1m", "1h", "4h"]
 
@@ -287,44 +323,36 @@ def main():
             p = Path(".") / f"data/derived/{sym}/{tf}/klines.jsonl"
             
             age_h = None
-            reason = None
+            source_error = None
             source = str(p.relative_to(Path("."))) if p.exists() else None
-            
+
             if p.exists():
                 try:
                     age_h = (now_ts - p.stat().st_mtime) / 3600.0
                 except Exception as e:
-                    reason = f"stat_error: {str(e)}"
+                    source_error = f"stat_error: {str(e)}"
             else:
-                reason = "missing_source"
-            
-            status = "FAIL"
-            if reason:
-                status = "FAIL"
-            elif age_h is None:
-                status = "FAIL"
-                reason = "unknown_age"
-            elif age_h <= thresholds["ok_h"]:
-                status = "OK"
-            elif age_h <= thresholds["warn_h"]:
-                status = "WARN"
-                reason = f"exceeds 12h ({age_h:.1f}h)"
-            else:
-                status = "FAIL"
-                reason = f"exceeds 48h ({age_h:.1f}h)"
-            
+                source_error = "missing_source"
+
+            profile = _freshness_profile_from_source(
+                source,
+                tags=[sym, tf, f"{sym}:{tf}", "derived"],
+            )
+            status, reason = _evaluate_freshness_status(age_h, profile, source_error)
+
             freshness_matrix.append({
                 "symbol": sym,
                 "tf": tf,
                 "age_h": round(age_h, 1) if age_h is not None else None,
                 "status": status,
                 "source": source,
-                "reason": reason
+                "reason": reason,
+                "profile": profile,
             })
 
     freshness_table = {
         "generated_utc": now_utc,
-        "thresholds": thresholds,
+        "thresholds": FRESHNESS_THRESHOLDS,
         "rows": freshness_matrix 
     }
     
