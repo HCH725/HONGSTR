@@ -7,8 +7,102 @@
       "args_schema": {
         "allow_extra": false,
         "fields": [
-          {"name": "artifact_path", "type": "string", "required": false, "default": "research/audit/tests/fixtures/clean.json"},
-          {"name": "max_lookahead_ms", "type": "int", "required": false, "default": 0}
+          {
+            "name": "artifact_path",
+            "type": "string",
+            "required": false,
+            "default": "research/audit/tests/fixtures/clean.json"
+          },
+          {
+            "name": "max_lookahead_ms",
+            "type": "int",
+            "required": false,
+            "default": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "backtest_reproducibility_audit",
+      "type": "report_only",
+      "description": "Report-only reproducibility audit from research manifests.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "manifest_path",
+            "type": "string",
+            "required": false,
+            "default": "reports/research/backtest_manifest.json"
+          },
+          {
+            "name": "split_ref",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "run_id",
+            "type": "string",
+            "required": false,
+            "default": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "factor_health_and_drift_report",
+      "type": "report_only",
+      "description": "Report-only factor health/drift summary from factor manifest.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "factor_manifest_path",
+            "type": "string",
+            "required": false,
+            "default": "reports/research/factor_manifest.json"
+          },
+          {
+            "name": "factor_name",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "baseline_ref",
+            "type": "string",
+            "required": false,
+            "default": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "strategy_regime_sensitivity_report",
+      "type": "report_only",
+      "description": "Report-only strategy regime sensitivity summary from existing artifact.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "regime_report_path",
+            "type": "string",
+            "required": false,
+            "default": "reports/research/regime_sensitivity.json"
+          },
+          {
+            "name": "strategy_id",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "regime_set",
+            "type": "string",
+            "required": false,
+            "default": ""
+          }
         ]
       }
     }

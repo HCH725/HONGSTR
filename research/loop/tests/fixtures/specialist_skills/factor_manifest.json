@@ -1,0 +1,5 @@
+{
+  "factor_name": "trend_mvp_v1",
+  "window": "2025-01-01..2026-01-01",
+  "drift_score": 0.12
+}

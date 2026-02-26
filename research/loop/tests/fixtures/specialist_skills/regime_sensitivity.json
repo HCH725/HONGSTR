@@ -1,0 +1,5 @@
+{
+  "strategy_id": "trend_mvp_btc_1h",
+  "regime_set": "ALL",
+  "sensitivity": "stable"
+}
