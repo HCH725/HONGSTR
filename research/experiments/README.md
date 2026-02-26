@@ -18,3 +18,6 @@ PR-1 adds a research-only candidate catalog and artifact writer:
 The writer emits per-candidate `summary.json`, `gate.json`, `selection.json`,
 and `*_results.json` under `reports/research/<run_id>/...` for leaderboard /
 strategy-pool style ranking without touching `src/hongstr/**`.
+
+PR-2 extends this with direction variants (`LONG`, `SHORT`, `LONGSHORT`) for
+selected strategies so leaderboard comparisons can happen in the same format.

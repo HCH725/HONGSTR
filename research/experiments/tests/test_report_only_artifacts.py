@@ -1,7 +1,11 @@
 import json
 from pathlib import Path
 
-from research.experiments.candidate_catalog import family_counts, phase2_pr1_candidates
+from research.experiments.candidate_catalog import (
+    family_counts,
+    phase2_pr1_candidates,
+    phase2_pr2_candidates,
+)
 from research.experiments.report_only_artifacts import (
     build_strategy_pool_payload,
     write_report_only_artifacts,
@@ -54,3 +58,23 @@ def test_strategy_pool_payload_sorted(tmp_path):
 
     last_scores = [row["last_score"] for row in payload["candidates"]]
     assert last_scores == sorted(last_scores, reverse=True)
+
+
+def test_direction_variants_show_up_in_leaderboard(monkeypatch, tmp_path):
+    reports_root = tmp_path / "reports" / "research"
+    run_dir = write_report_only_artifacts(
+        reports_root,
+        candidates=phase2_pr2_candidates(),
+        run_id="PR2_DIRECTION",
+    )
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    directions_in_manifest = {str(row["direction"]).upper() for row in manifest["entries"]}
+    assert "LONG" in directions_in_manifest
+    assert {"SHORT", "LONGSHORT"} & directions_in_manifest
+
+    monkeypatch.setattr(leaderboard, "REPORTS_ROOT", reports_root)
+    entries = leaderboard.build_leaderboard(top_n=40)
+
+    directions = {str(row.get("direction", "")).upper() for row in entries}
+    assert "LONG" in directions
+    assert {"SHORT", "LONGSHORT"} & directions
