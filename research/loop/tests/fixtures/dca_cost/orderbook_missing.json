@@ -1,0 +1,8 @@
+{
+  "order_qty": 1.0,
+  "side": "BUY",
+  "order_ts": "2026-02-01T00:00:00Z",
+  "market_ctx": {
+    "orderbook_snapshots": []
+  }
+}

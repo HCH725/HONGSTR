@@ -40,6 +40,12 @@ RESEARCH_STATE_DIR.mkdir(parents=True, exist_ok=True)
 # ── Constants ──────────────────────────────────────────────────────────────────
 LOCK_TTL_HOURS = 2
 LLM_TIMEOUT = int(os.getenv("HONGSTR_LLM_TIMEOUT", "120"))
+ENABLE_DCA1_CANDIDATES = os.getenv("HONGSTR_ENABLE_DCA1_CANDIDATE", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -136,6 +142,24 @@ def run_backtest_simulated(proposal: ResearchProposal, dry_run: bool = False) ->
         return {"status": "DRY_RUN", "is_sharpe": 0.0, "oos_sharpe": 0.0,
                 "is_mdd": 0.0, "oos_mdd": 0.0, "pnl_mult": 1.0,
                 "timestamp": datetime.now().isoformat()}
+    if ENABLE_DCA1_CANDIDATES:
+        try:
+            from research.loop.dca1_executor import maybe_run_dca1_candidate
+
+            dca_result = maybe_run_dca1_candidate(
+                proposal_strategy=proposal.strategy,
+                proposal_id=proposal.experiment_id,
+                symbol=proposal.symbol,
+                timeframe=proposal.timeframe,
+                reports_root=REPORTS_ROOT,
+                enabled=ENABLE_DCA1_CANDIDATES,
+            )
+            if isinstance(dca_result, dict):
+                logger.info(f"Running DCA-1 cost-aware candidate for {proposal.experiment_id} (report_only).")
+                return dca_result
+        except Exception as exc:
+            logger.warning(f"DCA-1 optional candidate failed; fallback to simulated result: {type(exc).__name__}")
+
     logger.info(f"Running simulated backtest for {proposal.experiment_id}...")
     time.sleep(1)
     return {
