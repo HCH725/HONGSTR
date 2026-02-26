@@ -17,7 +17,7 @@
 - scripts/ingest_historical.py
 - scripts/aggregate_data.py
 - scripts/check_data_coverage.sh
-- data/derived/<SYMBOL>/1m/klines.jsonl (canonical backtest source)
+- data/derived/SYMBOL/1m/klines.jsonl (canonical backtest source)
 
 ## Notifications
 
@@ -35,6 +35,16 @@
 - .github/CODEOWNERS
 - .github/workflows/guardrails.yml
 - .github/pull_request_template.md
+
+## Governance & Audits
+
+- [Overfit Governance Standard (Aggressive)](docs/governance/overfit_governance_aggressive.md)
+- [Audit: Current Gaps (Short/Multi/DCA)](docs/audits/current_gaps_short_multi_strategy_dca.md)
+- [Technical Gap Audit Template](docs/audits/gap_audit_template.md)
+
+## Diagrams & Flows
+
+- [Strategy Lifecycle Flow (Backtest to Pool)](docs/diagrams/backtest_to_strategy_pool_flow.md)
 
 ## State / Artifacts (expected)
 
