@@ -449,6 +449,7 @@ def test_skills_command(monkeypatch, tmp_path):
     resp = s._handle_command(50, "/skills")
     assert "status_overview" in resp
     assert "logs_tail_hint" in resp
+    assert "signal_leakage_and_lookahead_audit" in resp
     assert "incident_timeline_builder" in resp
 
 
@@ -527,6 +528,33 @@ def test_unknown_command(monkeypatch, tmp_path):
 
     resp = s._handle_command(60, "/foobar")
     assert "/help" in resp
+
+
+def test_signal_leakage_lookahead_proxy_skill(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+
+    out, ok = s._handle_run(
+        "/run signal_leakage_and_lookahead_audit artifact_path=research/audit/tests/fixtures/lookahead.json"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload.get("report_only") is True
+    assert payload.get("status") == "FAIL"
+    assert any(i.get("type") == "lookahead" for i in payload.get("issues", []))
+
+
+def test_signal_leakage_lookahead_proxy_scope_guard(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+
+    out, ok = s._handle_run(
+        "/run signal_leakage_and_lookahead_audit artifact_path=data/state/system_health_latest.json"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload.get("status") == "UNKNOWN"
+    assert any(i.get("type") == "scope" for i in payload.get("issues", []))
 
 
 # ── conversation history ──

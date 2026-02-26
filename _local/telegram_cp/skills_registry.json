@@ -83,10 +83,16 @@
     {
       "name": "signal_leakage_audit",
       "type": "read_only",
-      "description": "Run lookahead and signal leakage audit on research datasets.",
+      "description": "Proxy (read-only) to quant specialist signal leakage/lookahead audit.",
       "args_schema": {
         "allow_extra": false,
         "fields": [
+          {
+            "name": "artifact_path",
+            "type": "string",
+            "required": false,
+            "default": "research/audit/tests/fixtures/clean.json"
+          },
           {
             "name": "max_lookahead_ms",
             "type": "int",
@@ -164,6 +170,28 @@
             "name": "env",
             "type": "string",
             "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "signal_leakage_and_lookahead_audit",
+      "type": "read_only",
+      "description": "Proxy (read-only) to quant specialist leakage/lookahead audit.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "artifact_path",
+            "type": "string",
+            "required": false,
+            "default": "research/audit/tests/fixtures/clean.json"
+          },
+          {
+            "name": "max_lookahead_ms",
+            "type": "int",
+            "required": false,
+            "default": 0
           }
         ]
       }
