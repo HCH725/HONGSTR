@@ -28,4 +28,5 @@ Otherwise it falls back to `~/.hongstr/skills`.
 - `global_red_lines.md`
 - `hongstr-dev/`
 - `hongstr-research/`
+- `skill_specs/`
 - `skills_storage_and_deploy.md`

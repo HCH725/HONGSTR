@@ -19,3 +19,4 @@ Policy SSOT: `docs/skills/global_red_lines.md` (all guardrails come from this fi
 - `pr_ssot_flow.md`: branch/commit/PR flow under GitHub SSOT.
 - `testing_verification.md`: required checks before PR.
 - `anti_patterns.md`: common mistakes to avoid.
+- Canonical schema reference: `docs/skills/skill_specs/skill_specs_v1.md`.
