@@ -10,6 +10,8 @@ Evidence:
 This is a docs-only consolidation map.  
 No launchd plist/runtime behavior change is included here.
 
+Policy SSOT: [`docs/skills/global_red_lines.md`](/Users/hong/Projects/HONGSTR/docs/skills/global_red_lines.md)
+
 ## 3-Plane Model (Target)
 
 - Data Plane: ETL/backfill/retention workloads (plus daily backtest artifact production), no SSOT status publication.

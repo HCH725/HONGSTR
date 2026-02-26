@@ -1,12 +1,9 @@
 # HONGSTR Slim-down Inventory (SSOT Consolidation)
 
-## Global Red Lines (Non-negotiables)
-- stability-first: `src/hongstr/**` core diff=0
-- ML/Research default `report_only`
-- no committing generated artifacts under `data/**` (runtime state snapshots remain untracked)
-- tg_cp strict read-only (`no subprocess`, `no os.system`, `no Popen`, no shell/auto-remediation)
-- GitHub SSOT: commit + push + PR via `gh` + `scripts/gh_pr_merge.sh`
-- Telegram-only unchanged
+## Policy SSOT
+
+- Canonical guardrails policy: [`docs/skills/global_red_lines.md`](/Users/hong/Projects/HONGSTR/docs/skills/global_red_lines.md)
+- This inventory references that policy instead of duplicating red-line text.
 
 ## 1) Current SSOT Producers (write `data/state/*.json`)
 
@@ -118,7 +115,7 @@
 3. **Control Plane**: read-only consumers (`tg_cp`, dashboard)
 
 ### D) Research convergence (spec-driven jobs)
-- Keep research outputs `report_only` by default.
+- Keep research outputs policy-aligned with [`global_red_lines.md`](/Users/hong/Projects/HONGSTR/docs/skills/global_red_lines.md).
 - Converge triggers to enqueue-only spec JSON; runner consumes specs without touching execution semantics.
 
 ## 7) Minimal follow-up refactor scope (PR-2)
