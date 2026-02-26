@@ -180,7 +180,20 @@ def log_event(event: str, **kwargs: object) -> None:
 # ────────────────────── config ──────────────────────
 POLICY = _load_json(POLICY_PATH, {})
 PERSONA = _load_text(PERSONA_PATH, "")
-SKILLS = _load_json(SKILLS_PATH, {"skills": []}).get("skills", [])
+
+def _load_all_skills() -> list[dict]:
+    s1 = _load_json(SKILLS_PATH, {"skills": []}).get("skills", [])
+    spec_path = LOCAL_DIR / "specialist_skills_registry.json"
+    if spec_path.exists():
+        s2 = _load_json(spec_path, {"skills": []}).get("skills", [])
+        # Merge, avoiding name collisions if any
+        seen = {s.get("name") for s in s1 if isinstance(s, dict)}
+        for s in s2:
+            if isinstance(s, dict) and s.get("name") not in seen:
+                s1.append(s)
+    return s1
+
+SKILLS = _load_all_skills()
 SKILL_MAP = {s.get("name"): s for s in SKILLS if isinstance(s, dict)}
 REFUSAL_TXT = _load_text(REFUSAL_PATH, "")
 SAFE_SOP_TXT = _load_text(SAFE_SOP_PATH, "")
@@ -1979,6 +1992,36 @@ def _handle_run(text: str) -> tuple[str, bool]:
     return _format_run_output(skill_name, out), True
 
 
+def _format_skill_help(skill_info: dict) -> str:
+    name = skill_info.get("name", "unknown")
+    desc = skill_info.get("description", "No description")
+    schema = skill_info.get("args_schema", {})
+    fields = schema.get("fields", [])
+    
+    lines = [f"🛠️ **Skill: {name}**", desc, ""]
+    
+    if fields:
+        lines.append("**Parameters (Schema):**")
+        for f in fields:
+            f_name = f.get("name")
+            f_type = f.get("type", "string")
+            req = " (必填)" if f.get("required") else ""
+            default = f" [預設: {f.get('default')}]" if "default" in f else ""
+            lines.append(f"• `{f_name}` ({f_type}){req}{default}")
+    else:
+        lines.append("此技能不需要額外參數。")
+        
+    example = skill_info.get("example_command")
+    if example:
+        lines.append(f"\n**範例指令:**\n`{example}`")
+        
+    refresh = skill_info.get("refresh_hint")
+    if refresh:
+        lines.append(f"\n**更新提示:**\n`{refresh}`")
+        
+    return "\n".join(lines)
+
+
 def _handle_command(chat_id: int, text: str) -> str:
     cmd = _cmd_base(text)
 
@@ -2027,11 +2070,32 @@ def _handle_command(chat_id: int, text: str) -> str:
         return skill_brake_status()
 
     if cmd == "/skills":
-        lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
-        lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
-        lines.append("• (內建) /ml_status: ML 流水線健康狀態")
-        lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
-        return "可用 read-only 技能：\n" + "\n".join(lines)
+        parts = text.split()
+        if len(parts) == 1:
+            # /skills
+            lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
+            lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
+            lines.append("• (內建) /ml_status: ML 流水線健康狀態")
+            lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
+            return "可用 read-only 技能：\n" + "\n".join(lines) + "\n\n用法提示：`/skills help <skill_name>` 查閱詳細說明與參數。"
+
+        if len(parts) >= 2 and parts[1].lower() == "help":
+            if len(parts) == 2:
+                # /skills help
+                return (
+                    "💡 **Skills Help Overview**\n\n"
+                    "你可以透過 `/skills help <skill_name>` 查詢特定技能的詳細用法。\n"
+                    "例如：`/skills help status_overview`\n\n"
+                    "這會回傳該技能的 Schema、必填欄位、參數限制以及範例指令。"
+                )
+            
+            # /skills help <name>
+            skill_name = parts[2].lower()
+            skill_info = SKILL_MAP.get(skill_name)
+            if not skill_info:
+                return f"❌ 找不到技能 `{skill_name}`。請輸入 `/skills` 查看清單。"
+            
+            return _format_skill_help(skill_info)
 
     if cmd == "/run":
         out, _ = _handle_run(text)
