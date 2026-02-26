@@ -1,35 +1,55 @@
 {
-    "allowed_strategies": [
-        "trend_follower_v1",
-        "mean_reversion_v2"
+  "allowed_strategies": [
+    "trend_follower_v1",
+    "mean_reversion_v2",
+    "trend_mvp",
+    "supertrend",
+    "ma_cross",
+    "rsi2_reversion",
+    "bbands_reversion",
+    "zscore_reversion",
+    "atr_breakout",
+    "keltner_breakout"
+  ],
+  "allowed_symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT"
+  ],
+  "allowed_timeframes": [
+    "1h",
+    "4h"
+  ],
+  "parameter_ranges": {
+    "window": [
+      10,
+      200
     ],
-    "allowed_symbols": [
-        "BTCUSDT",
-        "ETHUSDT",
-        "BNBUSDT"
+    "threshold": [
+      0.01,
+      0.5
     ],
-    "allowed_timeframes": [
-        "1h",
-        "4h"
+    "lookback": [
+      24,
+      168
     ],
-    "parameter_ranges": {
-        "window": [
-            10,
-            200
-        ],
-        "threshold": [
-            0.01,
-            0.5
-        ],
-        "lookback": [
-            24,
-            168
-        ]
-    },
-    "forbidden_keywords": [
-        "arbitrage",
-        "high_frequency",
-        "hft",
-        "market_making"
+    "atr_mult": [
+      1.0,
+      5.0
+    ],
+    "fast_ema": [
+      5,
+      50
+    ],
+    "slow_ema": [
+      20,
+      300
     ]
+  },
+  "forbidden_keywords": [
+    "arbitrage",
+    "high_frequency",
+    "hft",
+    "market_making"
+  ]
 }
