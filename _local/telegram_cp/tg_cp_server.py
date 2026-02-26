@@ -58,6 +58,7 @@ except Exception:
     from incident_timeline_builder import build_incident_timeline
     from system_health_morning_brief import get_morning_brief
     from config_drift_auditor import audit_config_drift
+    from data_freshness_watchdog_report import get_freshness_report
 
 # ────────────────────── paths ──────────────────────
 REPO = Path(os.environ.get("HONGSTR_REPO", "/Users/hong/Projects/HONGSTR"))
@@ -1120,7 +1121,18 @@ def skill_config_drift_auditor(args: dict) -> str:
     return payload["markdown"]
 
 
+def skill_data_freshness_watchdog_report(args: dict) -> str:
+    env = str(args.get("env", "prod"))
+    try:
+        from _local.telegram_cp.skills.data_freshness_watchdog_report import get_freshness_report
+    except ImportError:
+        from data_freshness_watchdog_report import get_freshness_report
+    payload = get_freshness_report(REPO, env)
+    return payload["markdown"]
+
+
 SKILL_IMPL = {
+    "data_freshness_watchdog_report": skill_data_freshness_watchdog_report,
     "config_drift_auditor": skill_config_drift_auditor,
     "system_health_morning_brief": skill_system_health_morning_brief,
     "status_overview": lambda args: skill_status_overview(bool(args.get("include_sources", False))),

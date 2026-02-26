@@ -1331,3 +1331,66 @@ def test_config_drift_auditor_unknown_ref(monkeypatch, tmp_path):
         
     assert res["status"] == "UNKNOWN"
     assert "not found" in res["markdown"]
+
+# ── data_freshness_watchdog_report ──
+
+def test_freshness_report_full_pack(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True)
+    
+    (state_dir / "system_health_latest.json").write_text(json.dumps({
+        "generated_utc": "2026-02-26T12:00:00Z",
+        "components": {
+            "freshness": {"status": "OK", "max_age_h": 0.5}
+        }
+    }))
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.data_freshness_watchdog_report import get_freshness_report
+    res = get_freshness_report(repo, "prod")
+    
+    assert res["status"] == "OK"
+    assert "Watchdog" in res["markdown"]
+    assert "Max Gap:* 0.5h" in res["markdown"]
+    assert res["data"]["source_mode"] == "system_health_latest"
+
+def test_freshness_report_fallback(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True)
+    
+    (state_dir / "freshness_table.json").write_text(json.dumps({
+        "ts_utc": "2026-02-26T12:00:00Z",
+        "rows": [
+            {"symbol": "BTCUSDT", "tf": "1m", "status": "OK", "age_h": 0.1},
+            {"symbol": "ETHUSDT", "tf": "1m", "status": "WARN", "age_h": 1.5}
+        ]
+    }))
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.data_freshness_watchdog_report import get_freshness_report
+    res = get_freshness_report(repo, "prod")
+    
+    assert res["status"] == "WARN"
+    assert "Max Gap:* 1.5h" in res["markdown"]
+    assert res["data"]["source_mode"] == "ssot_fallback"
+
+def test_freshness_report_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.data_freshness_watchdog_report import get_freshness_report
+    res = get_freshness_report(repo, "prod")
+    
+    assert res["status"] == "UNKNOWN"
+    assert "No freshness data found" in res["markdown"]

@@ -137,6 +137,21 @@
           }
         ]
       }
+    },
+    {
+      "name": "data_freshness_watchdog_report",
+      "type": "read_only",
+      "description": "Report data freshness statistics (p50/p95/max) from SSOT state.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
     }
   ]
 }
