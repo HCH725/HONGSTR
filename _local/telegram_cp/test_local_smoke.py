@@ -1559,6 +1559,24 @@ def test_run_quant_missing_artifacts_returns_json_contract(monkeypatch, tmp_path
     assert "refresh_state.sh" in str(payload.get("refresh_hint", ""))
 
 
+def test_run_strategy_regime_sensitivity_accepts_report_only_arg(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run(
+        "/run strategy_regime_sensitivity_report strategy_id=trend_mvp_btc_1h report_only=true"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["skill"] == "strategy_regime_sensitivity_report"
+    assert payload["report_only"] is True
+    inputs = payload.get("inputs", {})
+    assert inputs.get("strategy_id") == "trend_mvp_btc_1h"
+
+
 def test_run_help_includes_schema_allowed_keys_and_examples(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
