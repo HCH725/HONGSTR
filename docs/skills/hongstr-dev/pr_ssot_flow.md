@@ -1,14 +1,24 @@
 # PR / SSOT Flow (Dev)
 
-**MUST READ FIRST:** `docs/skills/global_red_lines.md`
+Policy SSOT: `docs/skills/global_red_lines.md`
 
 ## Branching
-- Use descriptive branches: `antigravity/<topic>-YYYYMMDD`
+- Use `codex/<topic>-<UTC timestamp>` for agent branches.
 
-## Commit discipline
-- No generated `data/**` artifacts committed.
-- Keep PRs focused; avoid “big refactor while fixing”.
+## Scope discipline
+- Keep PRs minimal and single-purpose.
+- Avoid mixed refactors across planes in one PR.
 
-## Plan B: gh CLI helper
-- Use: `bash scripts/gh_pr_merge.sh "<title>" "<body>"`
-- Must pass CI; rollback via `git revert <commit_sha>`
+## GitHub SSOT flow
+1. Create branch from `main`.
+2. Implement change.
+3. Run required verification checks.
+4. Commit + push + PR.
+5. Merge via squash after checks are green.
+
+## Plan B helper
+- Preferred helper: `bash scripts/gh_pr_merge.sh "<title>" "<body>"`
+- Fallback: `gh pr create` + `gh pr checks --watch` + `gh pr merge --squash --delete-branch`
+
+## Rollback
+- `git revert <merge_commit_sha>`
