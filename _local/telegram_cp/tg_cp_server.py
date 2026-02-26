@@ -59,6 +59,7 @@ except Exception:
     from system_health_morning_brief import get_morning_brief
     from config_drift_auditor import audit_config_drift
     from data_freshness_watchdog_report import get_freshness_report
+    from execution_quality_report_readonly import get_execution_quality_report
 
 # ────────────────────── paths ──────────────────────
 REPO = Path(os.environ.get("HONGSTR_REPO", "/Users/hong/Projects/HONGSTR"))
@@ -1131,7 +1132,18 @@ def skill_data_freshness_watchdog_report(args: dict) -> str:
     return payload["markdown"]
 
 
+def skill_execution_quality_report_readonly(args: dict) -> str:
+    env = str(args.get("env", "prod"))
+    try:
+        from _local.telegram_cp.skills.execution_quality_report_readonly import get_execution_quality_report
+    except ImportError:
+        from execution_quality_report_readonly import get_execution_quality_report
+    payload = get_execution_quality_report(REPO, env)
+    return payload["markdown"]
+
+
 SKILL_IMPL = {
+    "execution_quality_report_readonly": skill_execution_quality_report_readonly,
     "data_freshness_watchdog_report": skill_data_freshness_watchdog_report,
     "config_drift_auditor": skill_config_drift_auditor,
     "system_health_morning_brief": skill_system_health_morning_brief,

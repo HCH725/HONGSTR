@@ -1394,3 +1394,20 @@ def test_freshness_report_unknown(monkeypatch, tmp_path):
     
     assert res["status"] == "UNKNOWN"
     assert "No freshness data found" in res["markdown"]
+
+# ── execution_quality_report_readonly ──
+
+def test_execution_quality_report_missing_ssot_returns_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    # No execution_quality_latest.json created
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.execution_quality_report_readonly import get_execution_quality_report
+    res = get_execution_quality_report(repo, "prod")
+    
+    assert res["status"] == "UNKNOWN"
+    assert "Execution Quality SSOT missing" in res["markdown"]
+    assert "data/state/execution_quality_latest.json" in res["markdown"]

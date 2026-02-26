@@ -152,6 +152,21 @@
           }
         ]
       }
+    },
+    {
+      "name": "execution_quality_report_readonly",
+      "type": "read_only",
+      "description": "Report execution metrics (slippage/latency) from SSOT state (SKELETON).",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
     }
   ]
 }
