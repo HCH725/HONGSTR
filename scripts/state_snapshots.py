@@ -10,6 +10,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -37,7 +38,7 @@ def _normalize_simple_status(status_raw):
     return "UNKNOWN"
 
 
-def _freshness_profile_from_source(source: str | None, tags: list[str] | None = None) -> str:
+def _freshness_profile_from_source(source: Optional[str], tags: Optional[list[str]] = None) -> str:
     source_str = str(source or "").replace("\\", "/")
     normalized_tags = {str(tag).strip() for tag in (tags or []) if str(tag).strip()}
     if normalized_tags & FRESHNESS_BACKTEST_TAGS:
@@ -47,7 +48,7 @@ def _freshness_profile_from_source(source: str | None, tags: list[str] | None = 
     return "realtime"
 
 
-def _evaluate_freshness_status(age_h: float | None, profile: str, source_error: str | None = None) -> tuple[str, str | None]:
+def _evaluate_freshness_status(age_h: Optional[float], profile: str, source_error: Optional[str] = None) -> tuple[str, Optional[str]]:
     profile_key = profile if profile in FRESHNESS_THRESHOLDS else "realtime"
     thresholds = FRESHNESS_THRESHOLDS[profile_key]
 
