@@ -1,35 +1,44 @@
 {
-    "allowed_strategies": [
-        "trend_follower_v1",
-        "mean_reversion_v2"
-    ],
-    "allowed_symbols": [
-        "BTCUSDT",
-        "ETHUSDT",
-        "BNBUSDT"
-    ],
-    "allowed_timeframes": [
-        "1h",
-        "4h"
-    ],
-    "parameter_ranges": {
-        "window": [
-            10,
-            200
-        ],
-        "threshold": [
-            0.01,
-            0.5
-        ],
-        "lookback": [
-            24,
-            168
-        ]
-    },
-    "forbidden_keywords": [
-        "arbitrage",
-        "high_frequency",
-        "hft",
-        "market_making"
-    ]
+  "allowed_strategies": [
+    "trend_mvp_btc_1h",
+    "supertrend_v2",
+    "ema_cross_v3",
+    "rsi_mean_revert_v1",
+    "bollinger_revert_v2",
+    "breakout_atr_v1",
+    "vol_compression_v1",
+    "dca1_supertrend",
+    "trend_follower_v1",
+    "mean_reversion_v2"
+  ],
+  "allowed_symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT"
+  ],
+  "allowed_timeframes": [
+    "1h",
+    "4h"
+  ],
+  "parameter_ranges": {
+    "window": [10, 200],
+    "threshold": [0.01, 0.5],
+    "lookback": [24, 168],
+    "atr_len": [5, 100],
+    "atr_mult": [1.0, 8.0],
+    "fast": [5, 80],
+    "slow": [20, 400],
+    "base_order": [0.1, 20.0],
+    "safety_mult": [1.0, 4.0],
+    "spacing_pct": [0.2, 6.0],
+    "take_profit_pct": [0.2, 6.0],
+    "stop_loss_pct": [0.5, 10.0],
+    "trailing_pct": [0.0, 4.0]
+  },
+  "forbidden_keywords": [
+    "arbitrage",
+    "high_frequency",
+    "hft",
+    "market_making"
+  ]
 }

@@ -1,0 +1,29 @@
+{
+  "name": "aggressive_yield_first",
+  "hard_gates": {
+    "min_oos_sharpe": 0.55,
+    "max_oos_mdd": -0.20,
+    "min_trades_count": 12,
+    "min_pnl_mult": 1.0,
+    "max_is_oos_sharpe_ratio": 3.0
+  },
+  "soft_targets": {
+    "oos_sharpe": 1.05,
+    "oos_mdd": -0.12,
+    "trades_count": 36,
+    "pnl_mult": 1.08,
+    "total_cost_bps": 16.0
+  },
+  "soft_weights": {
+    "oos_sharpe": 22.0,
+    "oos_mdd": 12.0,
+    "trades_count": 6.0,
+    "pnl_mult": 10.0,
+    "total_cost_bps": 8.0
+  },
+  "score": {
+    "base": 100.0,
+    "clip_min": 0.0,
+    "clip_max": 180.0
+  }
+}

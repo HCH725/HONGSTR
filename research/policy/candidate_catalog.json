@@ -1,0 +1,118 @@
+{
+  "defaults": {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h"
+  },
+  "families": [
+    {
+      "family": "trend",
+      "enabled": true,
+      "strategies": [
+        {
+          "strategy_id": "trend_mvp_btc_1h",
+          "variant": "baseline",
+          "directions": ["LONG"],
+          "parameters": {
+            "window": 40,
+            "threshold": 0.05
+          }
+        },
+        {
+          "strategy_id": "supertrend_v2",
+          "variant": "atr_follow",
+          "directions": ["LONG", "SHORT", "LONGSHORT"],
+          "parameters": {
+            "atr_len": 10,
+            "atr_mult": 3.0,
+            "window": 30
+          }
+        },
+        {
+          "strategy_id": "ema_cross_v3",
+          "variant": "fast_slow",
+          "directions": ["LONG", "SHORT", "LONGSHORT"],
+          "parameters": {
+            "fast": 12,
+            "slow": 48,
+            "window": 48
+          }
+        }
+      ]
+    },
+    {
+      "family": "mr",
+      "enabled": true,
+      "strategies": [
+        {
+          "strategy_id": "rsi_mean_revert_v1",
+          "variant": "oversold_bounce",
+          "directions": ["LONG", "SHORT"],
+          "parameters": {
+            "window": 14,
+            "threshold": 0.12
+          }
+        },
+        {
+          "strategy_id": "bollinger_revert_v2",
+          "variant": "band_revert",
+          "directions": ["LONG", "SHORT"],
+          "parameters": {
+            "window": 20,
+            "threshold": 0.16
+          }
+        }
+      ]
+    },
+    {
+      "family": "vol",
+      "enabled": true,
+      "strategies": [
+        {
+          "strategy_id": "breakout_atr_v1",
+          "variant": "range_break",
+          "directions": ["LONG", "SHORT"],
+          "parameters": {
+            "window": 24,
+            "threshold": 0.08
+          }
+        },
+        {
+          "strategy_id": "vol_compression_v1",
+          "variant": "squeeze_release",
+          "directions": ["LONG", "SHORT"],
+          "parameters": {
+            "window": 30,
+            "threshold": 0.10
+          }
+        }
+      ]
+    },
+    {
+      "family": "dca1",
+      "enabled": true,
+      "strategies": [
+        {
+          "strategy_id": "dca1_supertrend",
+          "variant": "base_safety1",
+          "directions": ["LONG", "SHORT"],
+          "base_strategy": "supertrend_v2",
+          "parameters": {
+            "base_order": 1.0,
+            "safety_mult": 1.6,
+            "spacing_pct": 1.2,
+            "take_profit_pct": 1.1,
+            "stop_loss_pct": 2.3,
+            "trailing_pct": 0.7
+          },
+          "sweep": {
+            "safety_mult": [1.4, 1.8],
+            "spacing_pct": [1.0, 1.8],
+            "take_profit_pct": [1.0, 1.4],
+            "stop_loss_pct": [2.0, 2.6],
+            "trailing_pct": [0.0, 0.8]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "order_notional": 800.0,
+  "orderbook": {
+    "bid_px": 100.0,
+    "ask_px": 101.0
+  },
+  "market_stats": null,
+  "expected": {
+    "slippage_source": "L3_FIXED_BPS"
+  }
+}
