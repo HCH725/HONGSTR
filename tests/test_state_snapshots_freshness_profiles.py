@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 
-REPO = Path("/Users/hong/Projects/HONGSTR")
+REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "scripts/state_snapshots.py"
 CASE_FIXTURE = REPO / "tests/fixtures/freshness_profiles/cases.json"
 
