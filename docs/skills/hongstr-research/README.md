@@ -10,3 +10,4 @@ This pack defines:
 - Artifact & traceability rules (reports/research/, manifests, summary_path/source_reason)
 - Research anti-patterns (lookahead, survivorship bias, overfitting, “research -> production” shortcuts)
 - Report-only principle (outputs must not affect execution/trading/core)
+- Canonical schema reference: `docs/skills/skill_specs/skill_specs_v1.md`
