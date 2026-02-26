@@ -1036,3 +1036,75 @@ def test_regime_warn_freshness_fail(monkeypatch, tmp_path):
     assert "結論: WARN" in out
     assert "偵測到資料過時" in out
     assert "1. 執行 `bash scripts/check_data_coverage.sh`" in out
+
+# ── specialist parser robustness ──
+
+def test_specialist_parser_prose(monkeypatch, tmp_path):
+    """Test parser with text prose around JSON."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock Ollama response with prose
+    prose_content = "Here is my analysis:\n{\"status\": \"OK\", \"problem\": \"p\", \"key_findings\": [], \"hypotheses\": [], \"recommended_next_steps\": [], \"risks\": [], \"actions\": [], \"citations\": []}\nHope this helps!"
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"message": {"content": prose_content}}).encode("utf-8")
+    mock_resp.__enter__.return_value = mock_resp
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_resp)
+    
+    # Trigger specialist
+    resp, route = s.build_chat_reply(200, "Why is the system behaving like this?")
+    assert route == "SPECIALIST"
+    assert "OK" in resp
+
+def test_specialist_parser_codefence(monkeypatch, tmp_path):
+    """Test parser with markdown codefence."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock Ollama response with codefence
+    code_content = "<thought>Thinking...</thought>\n```json\n{\"status\": \"WARN\", \"problem\": \"p2\", \"key_findings\": [], \"hypotheses\": [], \"recommended_next_steps\": [], \"risks\": [], \"actions\": [], \"citations\": []}\n```"
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"message": {"content": code_content}}).encode("utf-8")
+    mock_resp.__enter__.return_value = mock_resp
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_resp)
+    
+    # Trigger specialist
+    resp, route = s.build_chat_reply(201, "Why?")
+    assert route == "SPECIALIST"
+    assert "WARN" in resp
+    assert "p2" in resp
+
+def test_specialist_parser_unparsable(monkeypatch, tmp_path):
+    """Test fallback to WARN when content is completely unparsable."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock Ollama response with garbage
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"message": {"content": "I am a potato and I refuse to speak JSON."}}).encode("utf-8")
+    mock_resp.__enter__.return_value = mock_resp
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_resp)
+    
+    # Trigger specialist
+    resp, route = s.build_chat_reply(202, "Why?")
+    assert route == "SPECIALIST"
+    assert "WARN" in resp
+    assert "failed" in resp or "invalid" in resp
+
+def test_specialist_parser_schema_normalization(monkeypatch, tmp_path):
+    """Test schema normalization (missing status/actions)."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # Mock Ollama response with missing status and actions
+    minimal_json = "{\"problem\": \"missing fields\", \"key_findings\": [], \"hypotheses\": [], \"recommended_next_steps\": [], \"risks\": [], \"citations\": []}"
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"message": {"content": minimal_json}}).encode("utf-8")
+    mock_resp.__enter__.return_value = mock_resp
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_resp)
+    
+    # Trigger specialist
+    resp, route = s.build_chat_reply(203, "Why?")
+    assert route == "SPECIALIST"
+    assert "WARN" in resp
+    assert "missing fields" in resp
