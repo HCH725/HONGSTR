@@ -24,6 +24,7 @@ FRESHNESS_THRESHOLDS = {
     "realtime": {"ok_h": 0.1, "warn_h": 0.25, "fail_h": 1.0},
     "backtest": {"ok_h": 26.0, "warn_h": 50.0, "fail_h": 72.0},
 }
+FRESHNESS_ROW_KEYS = ("symbol", "tf", "profile", "age_h", "status", "source", "reason")
 
 
 def _normalize_simple_status(status_raw):
@@ -62,6 +63,64 @@ def _evaluate_freshness_status(age_h: Optional[float], profile: str, source_erro
     if age_h <= thresholds["fail_h"]:
         return "WARN", f"exceeds {thresholds['warn_h']:.2f}h ({age_h:.1f}h)"
     return "WARN", f"exceeds {thresholds['fail_h']:.2f}h ({age_h:.1f}h)"
+
+
+def _canonicalize_freshness_row(
+    symbol: object,
+    tf: object,
+    profile: Optional[str],
+    age_h: Optional[float],
+    status: object,
+    source: Optional[str],
+    reason: Optional[str],
+) -> dict:
+    """
+    Enforce deterministic row schema for ops-grade freshness output.
+    Keys and value types are normalized to avoid shape drift across runs.
+    """
+    symbol_norm = str(symbol or "UNKNOWN").strip() or "UNKNOWN"
+    tf_norm = str(tf or "UNKNOWN").strip() or "UNKNOWN"
+
+    profile_norm = str(profile or DEFAULT_FRESHNESS_PROFILE).strip().lower()
+    if profile_norm not in FRESHNESS_THRESHOLDS:
+        profile_norm = DEFAULT_FRESHNESS_PROFILE
+
+    source_norm = str(source or "").replace("\\", "/").strip()
+    if not source_norm:
+        source_norm = f"data/derived/{symbol_norm}/{tf_norm}/klines.jsonl"
+
+    status_norm = _normalize_simple_status(status)
+    if status_norm not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        status_norm = "UNKNOWN"
+
+    age_norm = None
+    if age_h is not None:
+        try:
+            age_norm = round(float(age_h), 1)
+        except Exception:
+            age_norm = None
+
+    reason_norm = "" if reason is None else str(reason).strip()
+
+    return {
+        "symbol": symbol_norm,
+        "tf": tf_norm,
+        "profile": profile_norm,
+        "age_h": age_norm,
+        "status": status_norm,
+        "source": source_norm,
+        "reason": reason_norm,
+    }
+
+
+def _build_freshness_table(now_utc: str, rows: list[dict]) -> dict:
+    return {
+        "generated_utc": now_utc,
+        "ts_utc": now_utc,
+        "default_profile": DEFAULT_FRESHNESS_PROFILE,
+        "thresholds": {k: dict(v) for k, v in FRESHNESS_THRESHOLDS.items()},
+        "rows": rows,
+    }
 
 
 def _normalize_coverage_status(status_raw):
@@ -337,25 +396,19 @@ def main():
             profile = _freshness_profile_from_source(source, DEFAULT_FRESHNESS_PROFILE)
             status, reason = _evaluate_freshness_status(age_h, profile, source_error)
             
-            freshness_matrix.append({
-                "symbol": sym,
-                "tf": tf,
-                "age_h": round(age_h, 1) if age_h is not None else None,
-                "status": status,
-                "source": source,
-                "reason": reason,
-                "profile": profile,
-            })
+            freshness_matrix.append(
+                _canonicalize_freshness_row(
+                    symbol=sym,
+                    tf=tf,
+                    profile=profile,
+                    age_h=age_h,
+                    status=status,
+                    source=source,
+                    reason=reason,
+                )
+            )
 
-    freshness_table = {
-        "generated_utc": now_utc,
-        "default_profile": DEFAULT_FRESHNESS_PROFILE,
-        "thresholds": FRESHNESS_THRESHOLDS,
-        "rows": freshness_matrix 
-    }
-    
-    # SSOT schema compatibility: keep generated_utc and also expose ts_utc
-    freshness_table.setdefault("ts_utc", freshness_table.get("generated_utc"))
+    freshness_table = _build_freshness_table(now_utc, freshness_matrix)
 
     write_json(STATE_DIR / "freshness_table.json", freshness_table)
 
