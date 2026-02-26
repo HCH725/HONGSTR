@@ -1,8 +1,9 @@
 # HONGSTR Launchd 3-Plane Responsibility Map
 
-Last updated (UTC): 2026-02-26T09:36:21Z  
+Last updated (UTC): 2026-02-26T10:27:30Z  
 Evidence:
 - `reports/slimdown_full_scan_2026-02-25T175644Z.log`
+- `reports/launchd_cleanup_scan_2026-02-26T022650Z.log`
 - `~/Library/LaunchAgents/com.hongstr.*.plist` (`plutil -p`)
 
 ## Scope
@@ -11,6 +12,8 @@ This is a docs-only consolidation map.
 No launchd plist/runtime behavior change is included here.
 
 Policy SSOT: [`docs/skills/global_red_lines.md`](/Users/hong/Projects/HONGSTR/docs/skills/global_red_lines.md)
+
+Canonical launchd template source: [`ops/launchagents/`](/Users/hong/Projects/HONGSTR/ops/launchagents)
 
 ## 3-Plane Model (Target)
 
@@ -91,11 +94,15 @@ Expected:
 - one active launchd service per label,
 - one expected runtime process per daemon.
 
+Template sync helper:
+- [`ops/launchagents/install_launchagents.sh`](/Users/hong/Projects/HONGSTR/ops/launchagents/install_launchagents.sh)
+
 ## Success Criteria
 
 - Only `scripts/state_snapshots.py` writes canonical `data/state/*` (invoked by `scripts/refresh_state.sh` orchestrator).
 - Consumers (dashboard/tg_cp and related status APIs) only read SSOT state and do not recompute top-level status.
 - Each launchd job has one explicit responsibility with no overlap in ownership.
+- Each `com.hongstr.*` label has exactly one canonical plist template under `ops/launchagents/`.
 
 ## Verification Commands (PR description copy-ready)
 

@@ -1,18 +1,22 @@
 # HONGSTR LaunchAgents
 
-This directory contains macOS `launchd` configuration files (plists) for automating local operations.
+This directory is the repository source-of-truth for `com.hongstr.*` macOS `launchd` plists.
 
 ## Plist Index
 
 | Label | Command | Schedule / Behavior |
 | :--- | :--- | :--- |
+| `com.hongstr.tg_cp` | `_local/telegram_cp/tg_cp_server.py` | RunAtLoad + KeepAlive |
 | `com.hongstr.dashboard` | `streamlit run scripts/dashboard.py --server.address 127.0.0.1 --server.port 8501` | RunAtLoad + KeepAlive |
 | `com.hongstr.realtime_ws` | `scripts/run_realtime_service.sh` | RunAtLoad + KeepAlive |
 | `com.hongstr.daily_etl` | `scripts/daily_etl.sh` | 02:00 Daily |
+| `com.hongstr.daily_backtest` | `scripts/daily_backtest.sh` | 05:00 Daily |
 | `com.hongstr.refresh_state` | `scripts/refresh_state.sh` | RunAtLoad + Every 60m |
 | `com.hongstr.daily_healthcheck` | `scripts/refresh_state.sh` (alias) | 02:30 Daily |
 | `com.hongstr.weekly_backfill` | `scripts/backfill_1m_from_2020.sh` | Sunday 03:30 |
 | `com.hongstr.retention_cleanup` | `scripts/retention_cleanup.sh` | 03:00 Daily |
+| `com.hongstr.research_poller` | `scripts/poll_research_loop.sh` | RunAtLoad + Every 10m |
+| `com.hongstr.research_loop` | `scripts/run_research_loop.sh --once` | 06:20 Daily |
 
 ## 3-Plane Ownership (Actionable)
 
@@ -31,14 +35,36 @@ This directory contains macOS `launchd` configuration files (plists) for automat
 | `com.hongstr.research_loop` | Control (runner) | Execute report-only research loop jobs only. |
 
 Notes:
-- `research_poller`/`research_loop` may be deployed as local LaunchAgents outside this template folder; they are still non-SSOT publishers.
 - No job outside State Plane should publish canonical `data/state/*` snapshots.
 
-## Deployment Note
+## Install / Uninstall SOP
 
 These files contain a `__REPO_ROOT__` placeholder. **Do not copy them directly to `~/Library/LaunchAgents`**.
 
-Use the deployment instructions in [`docs/ops_local.md`](../../docs/ops_local.md) to replace the placeholder with your absolute repository path.
+Preferred install path:
+
+```bash
+# Render templates with repo-root replacement and sync to ~/Library/LaunchAgents
+bash ops/launchagents/install_launchagents.sh
+
+# Optional: restart each synced job immediately
+bash ops/launchagents/install_launchagents.sh --restart
+```
+
+Dry run:
+
+```bash
+bash ops/launchagents/install_launchagents.sh --dry-run
+```
+
+Uninstall one label:
+
+```bash
+LABEL="com.hongstr.<job>"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
+rm -f "$PLIST"
+```
 
 ### Telegram via `.env`
 
