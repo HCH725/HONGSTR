@@ -1142,6 +1142,32 @@ def skill_execution_quality_report_readonly(args: dict) -> str:
     return payload["markdown"]
 
 
+def skill_signal_leakage_audit(args: dict) -> str:
+    artifact_path = str(args.get("artifact_path", "research/audit/tests/fixtures/clean.json"))
+    max_lookahead_ms = int(args.get("max_lookahead_ms", 0))
+    try:
+        from research.audit.lookahead import audit_from_artifact
+    except Exception as exc:
+        payload = {
+            "summary": "audit_loader_error",
+            "status": "UNKNOWN",
+            "report_only": True,
+            "issues": [
+                {
+                    "type": "import_error",
+                    "severity": "HIGH",
+                    "description": "Failed to import research.audit.lookahead",
+                    "evidence": str(exc),
+                }
+            ],
+            "refresh_hint": "Ensure research audit module is available",
+        }
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+    payload = audit_from_artifact(REPO, artifact_path=artifact_path, max_allowed_lookahead_ms=max_lookahead_ms)
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
 SKILL_IMPL = {
     "execution_quality_report_readonly": skill_execution_quality_report_readonly,
     "data_freshness_watchdog_report": skill_data_freshness_watchdog_report,
@@ -1154,6 +1180,7 @@ SKILL_IMPL = {
     "regime_status": lambda args: skill_regime_status(),
     "brake_status": lambda args: skill_brake_status(),
     "signal_leakage_audit": lambda args: skill_signal_leakage_audit(args),
+    "signal_leakage_and_lookahead_audit": lambda args: skill_signal_leakage_audit(args),
     "incident_timeline_builder": lambda args: skill_incident_timeline_builder(
         str(args.get("start", "")),
         str(args.get("end", "")),

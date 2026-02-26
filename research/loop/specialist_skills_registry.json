@@ -1,0 +1,16 @@
+{
+  "skills": [
+    {
+      "name": "signal_leakage_and_lookahead_audit",
+      "type": "report_only",
+      "description": "Audit leakage/lookahead from research/report artifacts only (no writes).",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {"name": "artifact_path", "type": "string", "required": false, "default": "research/audit/tests/fixtures/clean.json"},
+          {"name": "max_lookahead_ms", "type": "int", "required": false, "default": 0}
+        ]
+      }
+    }
+  ]
+}

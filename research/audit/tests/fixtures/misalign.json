@@ -1,0 +1,16 @@
+{
+  "panel": [
+    {"ts": "2026-01-01T00:00:00Z", "symbol": "BTCUSDT", "close": 100.0},
+    {"ts": "2026-01-01T01:00:00Z", "symbol": "BTCUSDT", "close": 101.0},
+    {"ts": "2026-01-01T02:00:00Z", "symbol": "BTCUSDT", "close": 100.5}
+  ],
+  "features": [
+    {"ts": "2026-01-01T00:00:00Z", "symbol": "BTCUSDT", "feat_1": 0.1, "source_ts": "2026-01-01T00:00:00Z"},
+    {"ts": "2026-01-01T01:00:00Z", "symbol": "BTCUSDT", "feat_1": 0.2, "source_ts": "2026-01-01T01:00:00Z"},
+    {"ts": "2026-01-01T02:00:00Z", "symbol": "BTCUSDT", "feat_1": -0.1, "source_ts": "2026-01-01T02:00:00Z"}
+  ],
+  "labels": [
+    {"ts": "2026-01-01T00:00:00Z", "symbol": "BTCUSDT", "direction": 1.0},
+    {"ts": "2026-01-01T01:00:00Z", "symbol": "BTCUSDT", "direction": 0.0}
+  ]
+}
