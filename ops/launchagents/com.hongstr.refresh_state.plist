@@ -4,6 +4,7 @@
 <dict>
     <key>Label</key>
     <string>com.hongstr.refresh_state</string>
+    <!-- Canonical State Plane scheduler: this is the SSOT publication entrypoint. -->
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>

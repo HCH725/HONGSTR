@@ -1,6 +1,6 @@
 # HONGSTR Launchd 3-Plane Responsibility Map
 
-Last updated (UTC): 2026-02-25T18:13:36Z  
+Last updated (UTC): 2026-02-26T09:36:21Z  
 Evidence:
 - `reports/slimdown_full_scan_2026-02-25T175644Z.log`
 - `~/Library/LaunchAgents/com.hongstr.*.plist` (`plutil -p`)
@@ -54,10 +54,40 @@ No launchd plist/runtime behavior change is included here.
 1. `daily_healthcheck` vs `refresh_state`
 - Concern: both are perceived as "health" jobs; ownership can be misunderstood.
 - Direction: `com.hongstr.refresh_state` = canonical SSOT scheduler/publisher; `daily_healthcheck` = legacy alias trigger only.
+- Deprecation path:
+  - Phase A (current): keep `daily_healthcheck` as alias-only trigger to `scripts/refresh_state.sh`.
+  - Phase B: stop adding any independent health/state logic under `daily_healthcheck`.
+  - Phase C: after stable observation window, disable/remove alias schedule and keep `refresh_state` as sole State Plane scheduler.
+  - Rollback: restore `daily_healthcheck` alias plist and `launchctl bootstrap` it.
 
 2. `research_poller` vs `research_loop`
 - Concern: two independent trigger paths can both produce report-only outputs.
 - Direction: lock responsibilities now: `research_poller` handles queue/de-dup/cooldown only, `research_loop` executes report-only runs only.
+
+## Migration SOP (plist rollout)
+
+Use this sequence whenever changing any `com.hongstr.*.plist` to avoid duplicate daemons and Telegram 409-style conflicts:
+
+```bash
+LABEL="com.hongstr.<job>"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+
+launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
+sleep 5
+launchctl bootstrap "gui/$(id -u)" "$PLIST"
+launchctl print "gui/$(id -u)/$LABEL" | rg 'state =|pid =|last exit|active count|program|ProgramArguments'
+```
+
+Single-instance verification:
+
+```bash
+launchctl print "gui/$(id -u)/com.hongstr.tg_cp" | rg 'state =|pid =|active count'
+pgrep -af "tg_cp_server.py"
+```
+
+Expected:
+- one active launchd service per label,
+- one expected runtime process per daemon.
 
 ## Success Criteria
 
