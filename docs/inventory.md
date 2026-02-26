@@ -17,7 +17,7 @@
 - scripts/ingest_historical.py
 - scripts/aggregate_data.py
 - scripts/check_data_coverage.sh
-- data/derived/<SYMBOL>/1m/klines.jsonl (canonical backtest source)
+- data/derived/SYMBOL/1m/klines.jsonl (canonical backtest source)
 
 ## Notifications
 
@@ -35,6 +35,15 @@
 - .github/CODEOWNERS
 - .github/workflows/guardrails.yml
 - .github/pull_request_template.md
+
+## Architecture
+
+- [Closed-Loop Flow Diagram](docs/architecture/closed_loop_flow.md)
+- [Artifacts Map (SSOT Locations)](docs/architecture/artifacts_map.md)
+
+## Operations (Quant Specialist)
+
+- [Strategy Triage & Overfit Governance](docs/ops/triage_strategy_and_overfit.md)
 
 ## State / Artifacts (expected)
 
