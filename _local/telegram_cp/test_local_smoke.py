@@ -1439,3 +1439,47 @@ def test_execution_quality_report_missing_ssot_returns_unknown(monkeypatch, tmp_
     assert res["status"] == "UNKNOWN"
     assert "Execution Quality SSOT missing" in res["markdown"]
     assert "data/state/execution_quality_latest.json" in res["markdown"]
+
+# ── Quant Specialist Skeletons (B1, B2, B5) ──
+
+def test_backtest_reproducibility_audit_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "reports/research").mkdir(parents=True)
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.backtest_reproducibility_audit import audit_backtest_reproducibility
+    res = audit_backtest_reproducibility(repo, "BT_123", "sha_xyz")
+    
+    assert res["status"] == "UNKNOWN"
+    assert "Artifact missing" in res["markdown"]
+
+def test_factor_health_and_drift_report_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "reports/research/factors").mkdir(parents=True)
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.factor_health_and_drift_report import get_factor_health_report
+    res = get_factor_health_report(repo, "factor_alpha")
+    
+    assert res["status"] == "UNKNOWN"
+    assert "Artifact missing" in res["markdown"]
+
+def test_strategy_regime_sensitivity_report_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "reports/research/sensitivity").mkdir(parents=True)
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.strategy_regime_sensitivity_report import get_strategy_sensitivity_report
+    res = get_strategy_sensitivity_report(repo, "strat_beta")
+    
+    assert res["status"] == "UNKNOWN"
+    assert "Artifact missing" in res["markdown"]

@@ -195,6 +195,56 @@
           }
         ]
       }
+    },
+    {
+      "name": "backtest_reproducibility_audit",
+      "type": "read_only",
+      "description": "Verify backtest reproducibility between baseline and current research manifests.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "backtest_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "baseline_sha",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "factor_health_and_drift_report",
+      "type": "read_only",
+      "description": "Report on factor health, decay, and drift from research artifacts.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "factor_id",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "strategy_regime_sensitivity_report",
+      "type": "read_only",
+      "description": "Analyze strategy sensitivity to regime changes based on research snapshots.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "strategy_id",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
     }
   ]
 }

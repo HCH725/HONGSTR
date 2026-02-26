@@ -60,6 +60,9 @@ except Exception:
     from config_drift_auditor import audit_config_drift
     from data_freshness_watchdog_report import get_freshness_report
     from execution_quality_report_readonly import get_execution_quality_report
+    from backtest_reproducibility_audit import audit_backtest_reproducibility
+    from factor_health_and_drift_report import get_factor_health_report
+    from strategy_regime_sensitivity_report import get_strategy_sensitivity_report
 
 # ────────────────────── paths ──────────────────────
 REPO = Path(os.environ.get("HONGSTR_REPO", "/Users/hong/Projects/HONGSTR"))
@@ -1142,6 +1145,37 @@ def skill_execution_quality_report_readonly(args: dict) -> str:
     return payload["markdown"]
 
 
+def skill_backtest_reproducibility_audit(args: dict) -> str:
+    backtest_id = str(args.get("backtest_id", ""))
+    baseline_sha = str(args.get("baseline_sha", ""))
+    try:
+        from _local.telegram_cp.skills.backtest_reproducibility_audit import audit_backtest_reproducibility
+    except ImportError:
+        from backtest_reproducibility_audit import audit_backtest_reproducibility
+    payload = audit_backtest_reproducibility(REPO, backtest_id, baseline_sha)
+    return payload["markdown"]
+
+
+def skill_factor_health_and_drift_report(args: dict) -> str:
+    factor_id = str(args.get("factor_id", ""))
+    try:
+        from _local.telegram_cp.skills.factor_health_and_drift_report import get_factor_health_report
+    except ImportError:
+        from factor_health_and_drift_report import get_factor_health_report
+    payload = get_factor_health_report(REPO, factor_id)
+    return payload["markdown"]
+
+
+def skill_strategy_regime_sensitivity_report(args: dict) -> str:
+    strategy_id = str(args.get("strategy_id", ""))
+    try:
+        from _local.telegram_cp.skills.strategy_regime_sensitivity_report import get_strategy_sensitivity_report
+    except ImportError:
+        from strategy_regime_sensitivity_report import get_strategy_sensitivity_report
+    payload = get_strategy_sensitivity_report(REPO, strategy_id)
+    return payload["markdown"]
+
+
 def skill_signal_leakage_audit(args: dict) -> str:
     artifact_path = str(args.get("artifact_path", "research/audit/tests/fixtures/clean.json"))
     max_lookahead_ms = int(args.get("max_lookahead_ms", 0))
@@ -1169,6 +1203,9 @@ def skill_signal_leakage_audit(args: dict) -> str:
 
 
 SKILL_IMPL = {
+    "backtest_reproducibility_audit": skill_backtest_reproducibility_audit,
+    "factor_health_and_drift_report": skill_factor_health_and_drift_report,
+    "strategy_regime_sensitivity_report": skill_strategy_regime_sensitivity_report,
     "execution_quality_report_readonly": skill_execution_quality_report_readonly,
     "data_freshness_watchdog_report": skill_data_freshness_watchdog_report,
     "config_drift_auditor": skill_config_drift_auditor,
