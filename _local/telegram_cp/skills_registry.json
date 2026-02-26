@@ -202,6 +202,16 @@
       "name": "backtest_reproducibility_audit",
       "type": "read_only",
       "description": "Verify backtest reproducibility between baseline and current research manifests.",
+      "allowed_keys": [
+        "backtest_id",
+        "baseline_sha",
+        "strategy_id",
+        "runs",
+        "report_only"
+      ],
+      "example_command": "/run backtest_reproducibility_audit strategy_id=trend_mvp_btc_1h runs=3 report_only=true",
+      "example_json": "/run backtest_reproducibility_audit {\"strategy_id\":\"trend_mvp_btc_1h\",\"runs\":3,\"report_only\":true}",
+      "refresh_hint": "bash scripts/refresh_state.sh",
       "args_schema": {
         "allow_extra": false,
         "fields": [
@@ -244,6 +254,13 @@
       "name": "factor_health_and_drift_report",
       "type": "read_only",
       "description": "Report on factor health, decay, and drift from research artifacts.",
+      "allowed_keys": [
+        "factor_id",
+        "report_only"
+      ],
+      "example_command": "/run factor_health_and_drift_report factor_id=factor_alpha report_only=true",
+      "example_json": "/run factor_health_and_drift_report {\"factor_id\":\"factor_alpha\",\"report_only\":true}",
+      "refresh_hint": "bash scripts/refresh_state.sh",
       "args_schema": {
         "allow_extra": false,
         "fields": [
@@ -265,6 +282,13 @@
       "name": "strategy_regime_sensitivity_report",
       "type": "read_only",
       "description": "Analyze strategy sensitivity to regime changes based on research snapshots.",
+      "allowed_keys": [
+        "strategy_id",
+        "report_only"
+      ],
+      "example_command": "/run strategy_regime_sensitivity_report strategy_id=trend_mvp_btc_1h report_only=true",
+      "example_json": "/run strategy_regime_sensitivity_report {\"strategy_id\":\"trend_mvp_btc_1h\",\"report_only\":true}",
+      "refresh_hint": "bash scripts/refresh_state.sh",
       "args_schema": {
         "allow_extra": false,
         "fields": [

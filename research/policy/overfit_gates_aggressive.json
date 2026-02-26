@@ -1,0 +1,79 @@
+{
+  "schema_version": "overfit_gates_policy_v1",
+  "policy_id": "overfit_gates_aggressive",
+  "mode": "report_only",
+  "profile": "aggressive_yield_first",
+  "scope": {
+    "layer": "research_only",
+    "core_semantics_immutable": true,
+    "target_paths": [
+      "research/**",
+      "docs/**",
+      "_local/**"
+    ]
+  },
+  "hard_gates": [
+    {
+      "name": "oos_sharpe_floor",
+      "metric": "oos_sharpe",
+      "op": ">=",
+      "threshold": 0.75,
+      "on_fail": "demote"
+    },
+    {
+      "name": "max_drawdown_ceiling",
+      "metric": "oos_mdd",
+      "op": ">=",
+      "threshold": -0.25,
+      "on_fail": "demote"
+    },
+    {
+      "name": "overfit_ratio_cap",
+      "metric": "is_sharpe_div_oos_sharpe",
+      "op": "<=",
+      "threshold": 2.2,
+      "on_fail": "demote"
+    }
+  ],
+  "soft_gates": [
+    {
+      "name": "yield_priority_score",
+      "formula": "(oos_sharpe*100) + (oos_return*100) - (abs(min(oos_mdd,0))*28) - (max(overfit_ratio-1,0)*35)",
+      "weights": {
+        "oos_sharpe": 100,
+        "oos_return": 100,
+        "drawdown_penalty": 28,
+        "overfit_penalty": 35
+      },
+      "bands": {
+        "promote": 82,
+        "watchlist": 60
+      }
+    }
+  ],
+  "weekly_outputs": {
+    "report_markdown_path": "reports/governance/overfit_weekly_<week_id>.md",
+    "specialist_schema": {
+      "skill": "overfit_governance_weekly_check",
+      "required_fields": [
+        "schema_version",
+        "week_id",
+        "generated_at",
+        "report_only",
+        "actions",
+        "summary",
+        "recommendations"
+      ],
+      "recommendation_values": [
+        "promote",
+        "demote",
+        "watchlist"
+      ]
+    }
+  },
+  "ops_rules": {
+    "auto_mutation": false,
+    "report_only_enforced": true,
+    "refresh_hint": "bash scripts/refresh_state.sh"
+  }
+}

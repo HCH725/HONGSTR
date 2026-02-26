@@ -2052,7 +2052,13 @@ def _parse_run_args(args_raw: str) -> dict:
     return out
 
 
-def _build_run_examples(skill_name: str, schema: object) -> tuple[str, str]:
+def _build_run_examples(skill_name: str, schema: object, skill_info: object = None) -> tuple[str, str]:
+    if isinstance(skill_info, dict):
+        cmd = str(skill_info.get("example_command", "")).strip()
+        jsn = str(skill_info.get("example_json", "")).strip()
+        if cmd and jsn:
+            return cmd, jsn
+
     fields = _schema_fields(schema)
     kv_parts: list[str] = []
     json_args: dict[str, object] = {}
@@ -2076,14 +2082,18 @@ def _build_run_examples(skill_name: str, schema: object) -> tuple[str, str]:
 
 def _format_run_arg_error(skill_name: str, schema: object, exc: Exception) -> str:
     allowed_keys = _schema_allowed_keys(schema)
-    example_command, example_json = _build_run_examples(skill_name, schema)
+    skill_info = SKILL_MAP.get(skill_name)
+    example_command, example_json = _build_run_examples(skill_name, schema, skill_info)
+    refresh_hint = _status_refresh_hint()
+    if isinstance(skill_info, dict):
+        refresh_hint = str(skill_info.get("refresh_hint") or refresh_hint)
     return "\n".join(
         [
             f"參數錯誤: {exc}",
             f"allowed_keys: {json.dumps(allowed_keys, ensure_ascii=False)}",
             f"example_command: {example_command}",
             f"example_json: {example_json}",
-            f"refresh_hint: {_status_refresh_hint()}",
+            f"refresh_hint: {refresh_hint}",
         ]
     )
 
@@ -2093,8 +2103,11 @@ def _run_help(skill_name: str) -> str:
     if not sk:
         return f"找不到技能: {skill_name}\n請先用 /skills 看可用技能"
     schema = sk.get("args_schema", {})
-    allowed_keys = _schema_allowed_keys(schema)
-    example_command, example_json = _build_run_examples(skill_name, schema)
+    allowed_keys = sk.get("allowed_keys")
+    if not isinstance(allowed_keys, list) or not allowed_keys:
+        allowed_keys = _schema_allowed_keys(schema)
+    example_command, example_json = _build_run_examples(skill_name, schema, sk)
+    refresh_hint = str(sk.get("refresh_hint") or _status_refresh_hint())
     return "\n".join(
         [
             f"技能: {sk.get('name')}",
@@ -2105,6 +2118,7 @@ def _run_help(skill_name: str) -> str:
             f"allowed_keys: {json.dumps(allowed_keys, ensure_ascii=False)}",
             f"example_command: {example_command}",
             f"example_json: {example_json}",
+            f"refresh_hint: {refresh_hint}",
         ]
     )
 
@@ -2155,9 +2169,23 @@ def _format_skill_help(skill_info: dict) -> str:
     else:
         lines.append("此技能不需要額外參數。")
         
+    allowed_keys = skill_info.get("allowed_keys")
+    if not isinstance(allowed_keys, list) or not allowed_keys:
+        allowed_keys = _schema_allowed_keys(schema)
+    lines.append(f"\n**allowed_keys:**\n`{json.dumps(allowed_keys, ensure_ascii=False)}`")
+    lines.append(f"\n**schema:**\n`{json.dumps(schema, ensure_ascii=False)}`")
+        
     example = skill_info.get("example_command")
+    if not example:
+        example, _ = _build_run_examples(str(name), schema, skill_info)
     if example:
         lines.append(f"\n**範例指令:**\n`{example}`")
+    
+    example_json = skill_info.get("example_json")
+    if not example_json:
+        _, example_json = _build_run_examples(str(name), schema, skill_info)
+    if example_json:
+        lines.append(f"\n**JSON 範例:**\n`{example_json}`")
         
     refresh = skill_info.get("refresh_hint")
     if refresh:

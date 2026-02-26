@@ -8,7 +8,9 @@ These skills can be invoked using the `/run <skill_name> <args>` pattern in the 
 Args support both formats:
 - key/value pairs: `/run <skill> key=value key2=value2`
 - JSON object: `/run <skill> {"key":"value","key2":2}`
-- Inspect exact schema/keys/examples: `/run help <skill>`
+- Inspect exact schema/keys/examples:
+  - `/run help <skill>`
+  - `/skills help <skill>`
 
 ### System Health & Monitoring (PR-A Series)
 
@@ -23,10 +25,23 @@ Args support both formats:
 These skills are currently skeletons that return `UNKNOWN` unless the required research artifacts are present.
 
 - **Backtest Reproducibility**:
-  - Preferred: `/run backtest_reproducibility_audit backtest_id="BT_20260226_A" baseline_sha="abcd123"`
-  - Compatibility: `/run backtest_reproducibility_audit strategy_id="BT_20260226_A" runs=3 report_only=true`
-- **Factor Health**: `/run factor_health_and_drift_report factor_id="alpha_trend_v1"`
-- **Strategy Sensitivity**: `/run strategy_regime_sensitivity_report strategy_id="trend_mvp_btc_1h"`
+  - key=value: `/run backtest_reproducibility_audit strategy_id=trend_mvp_btc_1h runs=3 report_only=true`
+  - JSON: `/run backtest_reproducibility_audit {"strategy_id":"trend_mvp_btc_1h","runs":3,"report_only":true}`
+- **Factor Health**:
+  - key=value: `/run factor_health_and_drift_report factor_id=factor_alpha report_only=true`
+  - JSON: `/run factor_health_and_drift_report {"factor_id":"factor_alpha","report_only":true}`
+- **Strategy Sensitivity**:
+  - key=value: `/run strategy_regime_sensitivity_report strategy_id=trend_mvp_btc_1h report_only=true`
+  - JSON: `/run strategy_regime_sensitivity_report {"strategy_id":"trend_mvp_btc_1h","report_only":true}`
+- **Schema Help**:
+  - `/run help backtest_reproducibility_audit`
+  - `/skills help backtest_reproducibility_audit`
+
+When args are invalid (for example unknown keys), tg_cp response includes:
+- `allowed_keys`
+- `example_command`
+- `example_json`
+- `refresh_hint`
 
 ---
 

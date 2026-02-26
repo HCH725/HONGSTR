@@ -475,6 +475,18 @@ def test_skills_help_refined(monkeypatch, tmp_path):
     assert "找不到技能" in resp_bad
 
 
+def test_skills_help_quant_includes_schema_allowed_keys_and_refresh(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+
+    resp = s._handle_command(52, "/skills help backtest_reproducibility_audit")
+    assert "allowed_keys" in resp
+    assert "schema" in resp
+    assert "範例指令" in resp
+    assert "JSON 範例" in resp
+    assert "refresh_state.sh" in resp
+
+
 def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
