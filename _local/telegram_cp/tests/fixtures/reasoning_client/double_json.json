@@ -1,0 +1,9 @@
+{
+  "model": "deepseek-r1:7b",
+  "created_at": "2026-02-26T00:00:00Z",
+  "message": {
+    "role": "assistant",
+    "content": "{\"status\":\"OK\",\"problem\":\"first-object\",\"key_findings\":[\"a\"],\"hypotheses\":[],\"recommended_next_steps\":[],\"risks\":[],\"actions\":[],\"citations\":[]}\n{\"status\":\"FAIL\",\"problem\":\"second-object\",\"key_findings\":[\"b\"],\"hypotheses\":[],\"recommended_next_steps\":[],\"risks\":[],\"actions\":[],\"citations\":[]}"
+  },
+  "done": true
+}

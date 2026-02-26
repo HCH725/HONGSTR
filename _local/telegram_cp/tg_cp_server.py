@@ -1145,7 +1145,7 @@ def skill_execution_quality_report_readonly(args: dict) -> str:
     return payload["markdown"]
 
 
-def skill_backtest_reproducibility_audit(args: dict) -> str:
+def skill_backtest_reproducibility_audit(args: dict) -> dict:
     backtest_id = str(args.get("backtest_id", ""))
     baseline_sha = str(args.get("baseline_sha", ""))
     try:
@@ -1153,27 +1153,27 @@ def skill_backtest_reproducibility_audit(args: dict) -> str:
     except ImportError:
         from backtest_reproducibility_audit import audit_backtest_reproducibility
     payload = audit_backtest_reproducibility(REPO, backtest_id, baseline_sha)
-    return payload["markdown"]
+    return payload
 
 
-def skill_factor_health_and_drift_report(args: dict) -> str:
+def skill_factor_health_and_drift_report(args: dict) -> dict:
     factor_id = str(args.get("factor_id", ""))
     try:
         from _local.telegram_cp.skills.factor_health_and_drift_report import get_factor_health_report
     except ImportError:
         from factor_health_and_drift_report import get_factor_health_report
     payload = get_factor_health_report(REPO, factor_id)
-    return payload["markdown"]
+    return payload
 
 
-def skill_strategy_regime_sensitivity_report(args: dict) -> str:
+def skill_strategy_regime_sensitivity_report(args: dict) -> dict:
     strategy_id = str(args.get("strategy_id", ""))
     try:
         from _local.telegram_cp.skills.strategy_regime_sensitivity_report import get_strategy_sensitivity_report
     except ImportError:
         from strategy_regime_sensitivity_report import get_strategy_sensitivity_report
     payload = get_strategy_sensitivity_report(REPO, strategy_id)
-    return payload["markdown"]
+    return payload
 
 
 def skill_signal_leakage_audit(args: dict) -> str:
@@ -1840,6 +1840,105 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
 
 
 # ────────────────────── commands ──────────────────────
+QUANT_REPORT_ONLY_SKILLS = {
+    "signal_leakage_audit",
+    "signal_leakage_and_lookahead_audit",
+    "backtest_reproducibility_audit",
+    "factor_health_and_drift_report",
+    "strategy_regime_sensitivity_report",
+}
+
+
+def _normalize_str_list(value: object) -> list[str]:
+    if isinstance(value, list):
+        out: list[str] = []
+        for item in value:
+            s = str(item).strip()
+            if s:
+                out.append(s)
+        return out
+    if isinstance(value, str):
+        s = value.strip()
+        return [s] if s else []
+    return []
+
+
+def _normalize_quant_status(status_raw: object) -> str:
+    status = str(status_raw or "UNKNOWN").upper().strip()
+    return status if status in {"OK", "WARN", "FAIL", "UNKNOWN"} else "UNKNOWN"
+
+
+def _normalize_quant_report_payload(skill_name: str, raw_output: object) -> dict:
+    payload: dict = {}
+    if isinstance(raw_output, dict):
+        payload = dict(raw_output)
+    elif isinstance(raw_output, str):
+        try:
+            decoded = json.loads(raw_output)
+        except Exception:
+            decoded = None
+        if isinstance(decoded, dict):
+            payload = decoded
+        else:
+            payload = {
+                "status": "WARN",
+                "summary": "quant skill returned non-json output; degraded to report-only contract",
+                "findings": [_clean_reply(raw_output)[:300]],
+            }
+    else:
+        payload = {
+            "status": "WARN",
+            "summary": "quant skill returned unsupported payload type; degraded to report-only contract",
+            "findings": [f"type={type(raw_output).__name__}"],
+        }
+
+    status = _normalize_quant_status(payload.get("status"))
+    missing_artifacts = _normalize_str_list(payload.get("missing_artifacts"))
+    evidence_refs = _normalize_str_list(payload.get("evidence_refs"))
+    findings = _normalize_str_list(payload.get("findings"))
+    refresh_hint = str(payload.get("refresh_hint") or _status_refresh_hint())
+
+    if missing_artifacts and status == "OK":
+        status = "WARN"
+    if missing_artifacts and status == "UNKNOWN":
+        findings.append("missing required artifacts; fallback evidence may be incomplete")
+    if missing_artifacts and status not in {"WARN", "UNKNOWN"}:
+        status = "WARN"
+
+    normalized = {
+        "skill": skill_name,
+        "status": status,
+        "report_only": True,
+        "actions": [],
+        "refresh_hint": refresh_hint,
+        "missing_artifacts": missing_artifacts,
+        "evidence_refs": evidence_refs,
+        "findings": findings,
+        "summary": str(payload.get("summary") or "quant report generated (report_only)"),
+        "inputs": payload.get("inputs", {}),
+    }
+    for key, value in payload.items():
+        if key in {"skill", "status", "report_only", "actions", "refresh_hint", "missing_artifacts", "evidence_refs", "findings", "summary", "inputs"}:
+            continue
+        normalized[key] = value
+
+    if missing_artifacts:
+        normalized["summary"] = str(
+            payload.get("summary")
+            or "required artifacts missing; returning degraded report_only payload"
+        )
+    return normalized
+
+
+def _format_run_output(skill_name: str, output: object) -> str:
+    if skill_name in QUANT_REPORT_ONLY_SKILLS:
+        normalized = _normalize_quant_report_payload(skill_name, output)
+        return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
+    if isinstance(output, (dict, list)):
+        return json.dumps(output, ensure_ascii=False, separators=(",", ":"))
+    return str(output)
+
+
 def _run_help(skill_name: str) -> str:
     sk = SKILL_MAP.get(skill_name)
     if not sk:
@@ -1868,14 +1967,16 @@ def _handle_run(text: str) -> tuple[str, bool]:
     skill_name = parts[0]
     args_raw = parts[1] if len(parts) > 1 else ""
     sk = SKILL_MAP.get(skill_name)
-    if not sk or sk.get("type") != "read_only" or skill_name not in SKILL_IMPL:
+    skill_type = str(sk.get("type", "")).strip().lower() if isinstance(sk, dict) else ""
+    if not sk or skill_type not in {"read_only", "report_only"} or skill_name not in SKILL_IMPL:
         return f"找不到技能: {skill_name}\n請先用 /skills", False
     try:
         parsed = parse_args(args_raw)
         valid_args = validate(sk.get("args_schema", {}), parsed)
     except Exception as exc:
         return f"參數錯誤: {exc}\n請用 /run help {skill_name}", False
-    return SKILL_IMPL[skill_name](valid_args), True
+    out = SKILL_IMPL[skill_name](valid_args)
+    return _format_run_output(skill_name, out), True
 
 
 def _handle_command(chat_id: int, text: str) -> str:

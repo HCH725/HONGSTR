@@ -1,0 +1,9 @@
+{
+  "model": "deepseek-r1:7b",
+  "created_at": "2026-02-26T00:00:00Z",
+  "message": {
+    "role": "assistant",
+    "content": "Here is my analysis:\n{\"status\":\"OK\",\"problem\":\"prose-first\",\"key_findings\":[\"f1\"],\"hypotheses\":[],\"recommended_next_steps\":[],\"risks\":[],\"actions\":[],\"citations\":[]}\nHope this helps."
+  },
+  "done": true
+}

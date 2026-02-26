@@ -1174,6 +1174,28 @@ def test_specialist_parser_codefence(monkeypatch, tmp_path):
     assert "WARN" in resp
     assert "p2" in resp
 
+def test_specialist_parser_double_json_uses_first(monkeypatch, tmp_path):
+    """Test parser extracts first JSON object when multiple objects appear."""
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+
+    double_content = (
+        "{\"status\": \"OK\", \"problem\": \"first\", \"key_findings\": [], \"hypotheses\": [], "
+        "\"recommended_next_steps\": [], \"risks\": [], \"actions\": [], \"citations\": []}\n"
+        "{\"status\": \"FAIL\", \"problem\": \"second\", \"key_findings\": [], \"hypotheses\": [], "
+        "\"recommended_next_steps\": [], \"risks\": [], \"actions\": [], \"citations\": []}"
+    )
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"message": {"content": double_content}}).encode("utf-8")
+    mock_resp.__enter__.return_value = mock_resp
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_resp)
+
+    resp, route = s.build_chat_reply(207, "Why?")
+    assert route == "SPECIALIST"
+    assert "OK" in resp
+    assert "first" in resp
+    assert "second" not in resp
+
 def test_specialist_parser_unparsable(monkeypatch, tmp_path):
     """Test fallback to WARN when content is completely unparsable."""
     s = _load_server()
@@ -1190,6 +1212,7 @@ def test_specialist_parser_unparsable(monkeypatch, tmp_path):
     assert route == "SPECIALIST"
     assert "WARN" in resp
     assert "failed" in resp or "invalid" in resp
+    assert "refresh_state.sh" in resp
 
 def test_specialist_parser_schema_normalization(monkeypatch, tmp_path):
     """Test schema normalization (missing status/actions)."""
@@ -1453,8 +1476,11 @@ def test_backtest_reproducibility_audit_unknown(monkeypatch, tmp_path):
     from _local.telegram_cp.skills.backtest_reproducibility_audit import audit_backtest_reproducibility
     res = audit_backtest_reproducibility(repo, "BT_123", "sha_xyz")
     
-    assert res["status"] == "UNKNOWN"
-    assert "Artifact missing" in res["markdown"]
+    assert res["status"] in {"UNKNOWN", "WARN"}
+    assert res["report_only"] is True
+    assert res["actions"] == []
+    assert res["missing_artifacts"]
+    assert "refresh_state.sh" in str(res.get("refresh_hint", ""))
 
 def test_factor_health_and_drift_report_unknown(monkeypatch, tmp_path):
     s = _load_server()
@@ -1467,8 +1493,11 @@ def test_factor_health_and_drift_report_unknown(monkeypatch, tmp_path):
     from _local.telegram_cp.skills.factor_health_and_drift_report import get_factor_health_report
     res = get_factor_health_report(repo, "factor_alpha")
     
-    assert res["status"] == "UNKNOWN"
-    assert "Artifact missing" in res["markdown"]
+    assert res["status"] in {"UNKNOWN", "WARN"}
+    assert res["report_only"] is True
+    assert res["actions"] == []
+    assert res["missing_artifacts"]
+    assert "refresh_state.sh" in str(res.get("refresh_hint", ""))
 
 def test_strategy_regime_sensitivity_report_unknown(monkeypatch, tmp_path):
     s = _load_server()
@@ -1481,5 +1510,28 @@ def test_strategy_regime_sensitivity_report_unknown(monkeypatch, tmp_path):
     from _local.telegram_cp.skills.strategy_regime_sensitivity_report import get_strategy_sensitivity_report
     res = get_strategy_sensitivity_report(repo, "strat_beta")
     
-    assert res["status"] == "UNKNOWN"
-    assert "Artifact missing" in res["markdown"]
+    assert res["status"] in {"UNKNOWN", "WARN"}
+    assert res["report_only"] is True
+    assert res["actions"] == []
+    assert res["missing_artifacts"]
+    assert "refresh_state.sh" in str(res.get("refresh_hint", ""))
+
+
+def test_run_quant_missing_artifacts_returns_json_contract(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run(
+        "/run backtest_reproducibility_audit backtest_id=BT_123 baseline_sha=sha_xyz"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["skill"] == "backtest_reproducibility_audit"
+    assert payload["status"] in {"WARN", "UNKNOWN"}
+    assert payload["report_only"] is True
+    assert payload["actions"] == []
+    assert payload["missing_artifacts"]
+    assert "refresh_state.sh" in str(payload.get("refresh_hint", ""))
