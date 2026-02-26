@@ -5,6 +5,10 @@ This guide provides a list of copy-pasteable commands for calling the newly impl
 ## 🟢 Telegram Control Plane (tg_cp) Skills
 
 These skills can be invoked using the `/run <skill_name> <args>` pattern in the Telegram Control Plane.
+Args support both formats:
+- key/value pairs: `/run <skill> key=value key2=value2`
+- JSON object: `/run <skill> {"key":"value","key2":2}`
+- Inspect exact schema/keys/examples: `/run help <skill>`
 
 ### System Health & Monitoring (PR-A Series)
 
@@ -18,7 +22,9 @@ These skills can be invoked using the `/run <skill_name> <args>` pattern in the 
 
 These skills are currently skeletons that return `UNKNOWN` unless the required research artifacts are present.
 
-- **Backtest Reproducibility**: `/run backtest_reproducibility_audit backtest_id="BT_20260226_A" baseline_sha="abcd123"`
+- **Backtest Reproducibility**:
+  - Preferred: `/run backtest_reproducibility_audit backtest_id="BT_20260226_A" baseline_sha="abcd123"`
+  - Compatibility: `/run backtest_reproducibility_audit strategy_id="BT_20260226_A" runs=3 report_only=true`
 - **Factor Health**: `/run factor_health_and_drift_report factor_id="alpha_trend_v1"`
 - **Strategy Sensitivity**: `/run strategy_regime_sensitivity_report strategy_id="trend_mvp_btc_1h"`
 

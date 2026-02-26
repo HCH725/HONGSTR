@@ -1535,3 +1535,66 @@ def test_run_quant_missing_artifacts_returns_json_contract(monkeypatch, tmp_path
     assert payload["actions"] == []
     assert payload["missing_artifacts"]
     assert "refresh_state.sh" in str(payload.get("refresh_hint", ""))
+
+
+def test_run_help_includes_schema_allowed_keys_and_examples(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    out, ok = s._handle_run("/run help backtest_reproducibility_audit")
+    assert ok is True
+    assert "schema:" in out
+    assert "allowed_keys:" in out
+    assert "example_command:" in out
+    assert "example_json:" in out
+    assert "strategy_id" in out
+    assert "report_only" in out
+
+
+def test_run_backtest_repro_compat_key_value_args(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run(
+        "/run backtest_reproducibility_audit strategy_id=BT_123 runs=3 report_only=true"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["skill"] == "backtest_reproducibility_audit"
+    assert payload["report_only"] is True
+    inputs = payload.get("inputs", {})
+    assert inputs.get("backtest_id") == "BT_123"
+    assert inputs.get("strategy_id") == "BT_123"
+    assert inputs.get("runs") == 3
+    assert inputs.get("report_only") is True
+
+
+def test_run_backtest_repro_compat_json_blob(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run(
+        '/run backtest_reproducibility_audit {"strategy_id":"BT_123","runs":2,"report_only":true}'
+    )
+    assert ok is True
+    payload = json.loads(out)
+    inputs = payload.get("inputs", {})
+    assert inputs.get("backtest_id") == "BT_123"
+    assert inputs.get("strategy_id") == "BT_123"
+    assert inputs.get("runs") == 2
+
+
+def test_run_schema_error_includes_allowed_keys_example_and_refresh(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    out, ok = s._handle_run("/run strategy_regime_sensitivity_report foo=bar")
+    assert ok is False
+    assert "allowed_keys:" in out
+    assert "example_command:" in out
+    assert "example_json:" in out
+    assert "refresh_hint:" in out

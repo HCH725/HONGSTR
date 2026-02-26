@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import sys
 import time
 import urllib.error
@@ -32,10 +33,10 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 try:
-    from _local.telegram_cp.args_schema import parse_args, validate  # type: ignore
+    from _local.telegram_cp.args_schema import validate  # type: ignore
 except Exception:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from args_schema import parse_args, validate  # type: ignore
+    from args_schema import validate  # type: ignore
 
 try:
     from _local.telegram_cp.guardrail import is_action_request, refusal_message, redact_secrets  # type: ignore
@@ -1146,13 +1147,27 @@ def skill_execution_quality_report_readonly(args: dict) -> str:
 
 
 def skill_backtest_reproducibility_audit(args: dict) -> dict:
-    backtest_id = str(args.get("backtest_id", ""))
+    backtest_id = str(args.get("backtest_id") or args.get("strategy_id") or "")
     baseline_sha = str(args.get("baseline_sha", ""))
+    runs = int(args.get("runs", 1))
+    report_only_requested = bool(args.get("report_only", True))
     try:
         from _local.telegram_cp.skills.backtest_reproducibility_audit import audit_backtest_reproducibility
     except ImportError:
         from backtest_reproducibility_audit import audit_backtest_reproducibility
     payload = audit_backtest_reproducibility(REPO, backtest_id, baseline_sha)
+    if isinstance(payload, dict):
+        inputs = payload.setdefault("inputs", {})
+        if isinstance(inputs, dict):
+            if args.get("strategy_id") is not None:
+                inputs["strategy_id"] = str(args.get("strategy_id", ""))
+            inputs["runs"] = runs
+            # tg_cp hard-guardrail: always report_only.
+            inputs["report_only"] = True
+        if not report_only_requested:
+            findings = payload.setdefault("findings", [])
+            if isinstance(findings, list):
+                findings.append("report_only=false ignored; tg_cp enforces report_only=true")
     return payload
 
 
@@ -1939,27 +1954,155 @@ def _format_run_output(skill_name: str, output: object) -> str:
     return str(output)
 
 
+def _schema_fields(schema: object) -> list[dict]:
+    if not isinstance(schema, dict):
+        return []
+    fields = schema.get("fields", [])
+    if not isinstance(fields, list):
+        return []
+    return [f for f in fields if isinstance(f, dict)]
+
+
+def _schema_allowed_keys(schema: object) -> list[str]:
+    out: list[str] = []
+    for field in _schema_fields(schema):
+        name = str(field.get("name", "")).strip()
+        if name:
+            out.append(name)
+    return out
+
+
+def _schema_example_value(field: dict) -> object:
+    if "default" in field:
+        return field.get("default")
+    enum = field.get("enum")
+    if isinstance(enum, list) and enum:
+        return enum[0]
+    typ = str(field.get("type", "string"))
+    name = str(field.get("name", "value")).strip() or "value"
+    if typ == "bool":
+        return True
+    if typ == "int":
+        min_v = field.get("min")
+        if isinstance(min_v, (int, float)):
+            return int(min_v)
+        return 1
+    if typ == "float":
+        min_v = field.get("min")
+        if isinstance(min_v, (int, float)):
+            return float(min_v)
+        return 1.0
+    if typ == "csv_string":
+        return "foo,bar"
+    return f"<{name}>"
+
+
+def _format_kv_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    text = str(value)
+    if not text:
+        return '""'
+    if any(ch.isspace() for ch in text):
+        return json.dumps(text, ensure_ascii=False)
+    return text
+
+
+def _parse_run_args(args_raw: str) -> dict:
+    args_raw = (args_raw or "").strip()
+    if not args_raw:
+        return {}
+    if args_raw.startswith("{"):
+        try:
+            payload = json.loads(args_raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid JSON args: {exc.msg}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("JSON args must be an object")
+        return payload
+
+    out: dict[str, object] = {}
+    try:
+        parts = shlex.split(args_raw)
+    except ValueError as exc:
+        raise ValueError(f"bad args: {exc}") from exc
+    for token in parts:
+        if "=" not in token:
+            raise ValueError(f"bad token: {token}")
+        key, value = token.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError(f"bad token: {token}")
+        out[key] = value.strip()
+    return out
+
+
+def _build_run_examples(skill_name: str, schema: object) -> tuple[str, str]:
+    fields = _schema_fields(schema)
+    kv_parts: list[str] = []
+    json_args: dict[str, object] = {}
+    for field in fields:
+        name = str(field.get("name", "")).strip()
+        if not name:
+            continue
+        required = bool(field.get("required", False))
+        if not required and "default" not in field:
+            continue
+        value = _schema_example_value(field)
+        kv_parts.append(f"{name}={_format_kv_value(value)}")
+        json_args[name] = value
+    if not kv_parts:
+        return f"/run {skill_name}", f"/run {skill_name} {{}}"
+    return (
+        f"/run {skill_name} " + " ".join(kv_parts),
+        f"/run {skill_name} " + json.dumps(json_args, ensure_ascii=False, separators=(",", ":")),
+    )
+
+
+def _format_run_arg_error(skill_name: str, schema: object, exc: Exception) -> str:
+    allowed_keys = _schema_allowed_keys(schema)
+    example_command, example_json = _build_run_examples(skill_name, schema)
+    return "\n".join(
+        [
+            f"參數錯誤: {exc}",
+            f"allowed_keys: {json.dumps(allowed_keys, ensure_ascii=False)}",
+            f"example_command: {example_command}",
+            f"example_json: {example_json}",
+            f"refresh_hint: {_status_refresh_hint()}",
+        ]
+    )
+
+
 def _run_help(skill_name: str) -> str:
     sk = SKILL_MAP.get(skill_name)
     if not sk:
         return f"找不到技能: {skill_name}\n請先用 /skills 看可用技能"
     schema = sk.get("args_schema", {})
-    return "\n".join([
-        f"技能: {sk.get('name')}",
-        f"類型: {sk.get('type')}",
-        f"說明: {sk.get('description')}",
-        f"參數: {json.dumps(schema, ensure_ascii=False)}",
-        f"範例: /run {skill_name} include_sources=true",
-    ])
+    allowed_keys = _schema_allowed_keys(schema)
+    example_command, example_json = _build_run_examples(skill_name, schema)
+    return "\n".join(
+        [
+            f"技能: {sk.get('name')}",
+            f"類型: {sk.get('type')}",
+            f"說明: {sk.get('description')}",
+            "輸入格式: key=value pairs 或 JSON object",
+            f"schema: {json.dumps(schema, ensure_ascii=False)}",
+            f"allowed_keys: {json.dumps(allowed_keys, ensure_ascii=False)}",
+            f"example_command: {example_command}",
+            f"example_json: {example_json}",
+        ]
+    )
 
 
 def _handle_run(text: str) -> tuple[str, bool]:
     m = re.match(r"^/run(?:@\w+)?\s*(.*)$", text)
     if not m:
-        return "用法：/run <skill> [k=v ...] 或 /run help <skill>", False
+        return "用法：/run <skill> [k=v ...] 或 /run <skill> {\"k\":\"v\"} 或 /run help <skill>", False
     tail = (m.group(1) or "").strip()
     if not tail:
-        return "用法：/run <skill> [k=v ...]，先用 /skills", False
+        return "用法：/run <skill> [k=v ...] 或 /run <skill> {\"k\":\"v\"}，先用 /skills", False
     if tail.startswith("help "):
         name = tail.split(None, 1)[1].strip()
         return _run_help(name), True
@@ -1970,11 +2113,12 @@ def _handle_run(text: str) -> tuple[str, bool]:
     skill_type = str(sk.get("type", "")).strip().lower() if isinstance(sk, dict) else ""
     if not sk or skill_type not in {"read_only", "report_only"} or skill_name not in SKILL_IMPL:
         return f"找不到技能: {skill_name}\n請先用 /skills", False
+    schema = sk.get("args_schema", {})
     try:
-        parsed = parse_args(args_raw)
-        valid_args = validate(sk.get("args_schema", {}), parsed)
+        parsed = _parse_run_args(args_raw)
+        valid_args = validate(schema, parsed)
     except Exception as exc:
-        return f"參數錯誤: {exc}\n請用 /run help {skill_name}", False
+        return _format_run_arg_error(skill_name, schema, exc), False
     out = SKILL_IMPL[skill_name](valid_args)
     return _format_run_output(skill_name, out), True
 
