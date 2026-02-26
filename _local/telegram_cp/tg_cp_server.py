@@ -56,6 +56,7 @@ try:
 except Exception:
     sys.path.insert(0, str(Path(__file__).resolve().parent / "skills"))
     from incident_timeline_builder import build_incident_timeline
+    from system_health_morning_brief import get_morning_brief
 
 # ────────────────────── paths ──────────────────────
 REPO = Path(os.environ.get("HONGSTR_REPO", "/Users/hong/Projects/HONGSTR"))
@@ -1096,7 +1097,19 @@ def skill_incident_timeline_builder(
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
+def skill_system_health_morning_brief(args: dict) -> str:
+    env = str(args.get("env", "prod"))
+    include_details = bool(args.get("include_details", False))
+    try:
+        from _local.telegram_cp.skills.system_health_morning_brief import get_morning_brief
+    except ImportError:
+        from system_health_morning_brief import get_morning_brief
+    payload = get_morning_brief(REPO, env, include_details)
+    return payload["markdown"]
+
+
 SKILL_IMPL = {
+    "system_health_morning_brief": skill_system_health_morning_brief,
     "status_overview": lambda args: skill_status_overview(bool(args.get("include_sources", False))),
     "logs_tail_hint": lambda args: skill_logs_tail_hint(int(args.get("lines", 60))),
     "freshness_detail": lambda args: skill_freshness_detail(),

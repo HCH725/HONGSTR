@@ -95,6 +95,27 @@
           }
         ]
       }
+    },
+    {
+      "name": "system_health_morning_brief",
+      "type": "read_only",
+      "description": "Provide a concise system health morning brief (SSOT-only).",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "include_details",
+            "type": "bool",
+            "required": false,
+            "default": false
+          }
+        ]
+      }
     }
   ]
 }

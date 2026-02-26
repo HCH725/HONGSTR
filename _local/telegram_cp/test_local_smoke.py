@@ -481,7 +481,44 @@ def test_incident_timeline_builder_run_missing_ssot_returns_unknown(monkeypatch,
     assert ok is True
     payload = json.loads(out)
     assert payload["summary"]["status"] == "UNKNOWN"
+    assert payload["summary"]["status"] == "UNKNOWN"
     assert "refresh_state.sh" in str(payload["summary"]["refresh_hint"])
+
+
+def test_incident_timeline_builder_run_fallback_only(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "fallback_only")
+
+    out, ok = s._handle_run(
+        "/run incident_timeline_builder "
+        "start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["summary"]["status"] in {"OK", "WARN"}
+    assert payload["summary"]["source_mode"] == "ssot_fallback"
+    assert len(payload["timeline"]) >= 4  # 4 component files
+
+
+def test_incident_timeline_builder_run_unreadable_ssot_returns_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True)
+    # Corrupt JSON
+    (state_dir / "system_health_latest.json").write_text("{corrupt", encoding="utf-8")
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run(
+        "/run incident_timeline_builder start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
+    )
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["summary"]["status"] == "UNKNOWN"
+    assert "freshness_table.json: missing" in str(payload["suspected_root_causes"])
 
 
 def test_unknown_command(monkeypatch, tmp_path):
@@ -1143,3 +1180,83 @@ def test_specialist_parser_schema_normalization(monkeypatch, tmp_path):
     assert route == "SPECIALIST"
     assert "WARN" in resp
     assert "missing fields" in resp
+
+# ── system_health_morning_brief ──
+
+def test_morning_brief_full_pack(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True)
+    
+    # Use fixture content
+    fixture_path = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/health_brief/system_health_latest_ok.json")
+    (state_dir / "system_health_latest.json").write_text(fixture_path.read_text())
+    
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    # Test via skill implementation directly
+    from _local.telegram_cp.skills.system_health_morning_brief import get_morning_brief
+    res = get_morning_brief(repo, "prod", include_details=True)
+    
+    assert res["status"] == "OK"
+    assert "Morning Brief" in res["markdown"]
+    assert "Coverage: OK" in res["markdown"]
+    assert "source_mode': 'system_health_latest" in str(res["data"])
+
+def test_morning_brief_fallback(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True)
+    
+    # Write component files only
+    (state_dir / "freshness_table.json").write_text(json.dumps({"rows": [{"status": "OK"}]}))
+    (state_dir / "coverage_matrix_latest.json").write_text(json.dumps({"totals": {"status": "PASS"}}))
+    (state_dir / "brake_health_latest.json").write_text(json.dumps({"status": "OK"}))
+    (state_dir / "regime_monitor_latest.json").write_text(json.dumps({"status": "OK"}))
+    
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.system_health_morning_brief import get_morning_brief
+    res = get_morning_brief(repo, "prod")
+    
+    assert res["status"] == "OK"
+    assert "Fallback" in res["markdown"]
+    assert "source_mode': 'ssot_fallback" in str(res["data"])
+
+def test_morning_brief_unknown(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    from _local.telegram_cp.skills.system_health_morning_brief import get_morning_brief
+    res = get_morning_brief(repo, "prod")
+    
+    assert res["status"] == "UNKNOWN"
+    assert "Issues: Missing" in res["markdown"]
+
+def test_morning_brief_integration(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True)
+    (state_dir / "system_health_latest.json").write_text(json.dumps({
+        "ssot_status": "OK",
+        "components": {"coverage_matrix": {"status": "PASS"}}
+    }))
+    monkeypatch.setattr(s, "REPO", repo)
+    
+    # Test via /run command
+    out, ok = s._handle_run("/run system_health_morning_brief env=prod")
+    assert ok is True
+    assert "Morning Brief" in out
+    assert "Status: OK" in out
