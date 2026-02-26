@@ -451,6 +451,28 @@ def test_skills_command(monkeypatch, tmp_path):
     assert "logs_tail_hint" in resp
     assert "signal_leakage_and_lookahead_audit" in resp
     assert "incident_timeline_builder" in resp
+    assert "用法提示" in resp
+
+
+def test_skills_help_refined(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    
+    # 1. /skills help
+    resp_help = s._handle_command(51, "/skills help")
+    assert "Skills Help Overview" in resp_help
+    assert "/skills help <skill_name>" in resp_help
+    
+    # 2. /skills help status_overview
+    resp_status = s._handle_command(51, "/skills help status_overview")
+    assert "Skill: status_overview" in resp_status
+    assert "include_sources" in resp_status
+    assert "範例指令" in resp_status
+    assert "scripts/refresh_state.sh" in resp_status
+    
+    # 3. /skills help non_existent
+    resp_bad = s._handle_command(51, "/skills help non_existent")
+    assert "找不到技能" in resp_bad
 
 
 def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):

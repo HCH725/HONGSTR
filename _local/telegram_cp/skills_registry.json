@@ -14,7 +14,9 @@
             "default": false
           }
         ]
-      }
+      },
+      "example_command": "/run status_overview include_sources=true",
+      "refresh_hint": "bash scripts/refresh_state.sh"
     },
     {
       "name": "logs_tail_hint",
