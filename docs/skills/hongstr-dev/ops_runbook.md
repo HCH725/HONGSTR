@@ -31,15 +31,17 @@ Policy SSOT: `docs/skills/global_red_lines.md`
 ## Data Freshness Profiles & Troubleshooting (SOP)
 
 ### Freshness Profiles
-Freshness thresholds are applied based on the data source path:
-1. **Realtime Feed** (`data/realtime/**`):
-   - **OK**: <= 0.1h (6m)
-   - **WARN**: <= 0.25h (15m)
-   - **FAIL**: > 1.0h
-2. **Backtest/Historical Feed** (`data/derived/**`):
-   - **OK**: <= 26.0h (Daily ETL cycle + buffer)
-   - **WARN**: <= 50.0h
-   - **FAIL**: > 72.0h
+Freshness profile selection is path-based and default is explicit:
+1. Path contains `data/realtime` => `profile=realtime`
+2. Path contains `data/derived` and ends with `klines.jsonl` => `profile=backtest`
+3. Otherwise => `profile=realtime` (default profile)
+
+Threshold sets emitted in `data/state/freshness_table.json`:
+- `realtime`: `ok_h=0.1`, `warn_h=0.25`, `fail_h=1.0`
+- `backtest`: `ok_h=26`, `warn_h=50`, `fail_h=72`
+
+Row schema includes:
+- `symbol`, `tf`, `source`, `age_h`, `status`, `reason`, `profile`
 
 ### Troubleshooting Freshness = WARN
 When `freshness` status is NOT OK, follow these steps to identify the root cause:

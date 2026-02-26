@@ -10,6 +10,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -18,6 +19,11 @@ ATOMIC_STATE_DIR = Path("reports/state_atomic")
 ATOMIC_COVERAGE_TABLE = ATOMIC_STATE_DIR / "coverage_table.jsonl"
 ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
 ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
+DEFAULT_FRESHNESS_PROFILE = "realtime"
+FRESHNESS_THRESHOLDS = {
+    "realtime": {"ok_h": 0.1, "warn_h": 0.25, "fail_h": 1.0},
+    "backtest": {"ok_h": 26.0, "warn_h": 50.0, "fail_h": 72.0},
+}
 
 
 def _normalize_simple_status(status_raw):
@@ -25,6 +31,37 @@ def _normalize_simple_status(status_raw):
     if status in {"OK", "PASS", "WARN", "FAIL", "UNKNOWN"}:
         return status
     return "UNKNOWN"
+
+
+def _freshness_profile_from_source(source: Optional[str], default_profile: str = DEFAULT_FRESHNESS_PROFILE) -> str:
+    src = str(source or "").replace("\\", "/")
+    if "data/realtime" in src:
+        return "realtime"
+    if "data/derived" in src and src.endswith("klines.jsonl"):
+        return "backtest"
+    return default_profile
+
+
+def _evaluate_freshness_status(age_h: Optional[float], profile: str, source_error: Optional[str] = None) -> tuple[str, Optional[str]]:
+    """
+    SSOT freshness evaluation.
+    FAIL is reserved for missing/unreadable source; stale snapshots degrade to WARN.
+    This preserves non-blocking SSOT behavior while exposing profile-specific thresholds.
+    """
+    profile_key = profile if profile in FRESHNESS_THRESHOLDS else DEFAULT_FRESHNESS_PROFILE
+    thresholds = FRESHNESS_THRESHOLDS[profile_key]
+
+    if source_error:
+        return "FAIL", source_error
+    if age_h is None:
+        return "FAIL", "unknown_age"
+    if age_h <= thresholds["ok_h"]:
+        return "OK", None
+    if age_h <= thresholds["warn_h"]:
+        return "WARN", f"exceeds {thresholds['ok_h']:.2f}h ({age_h:.1f}h)"
+    if age_h <= thresholds["fail_h"]:
+        return "WARN", f"exceeds {thresholds['warn_h']:.2f}h ({age_h:.1f}h)"
+    return "WARN", f"exceeds {thresholds['fail_h']:.2f}h ({age_h:.1f}h)"
 
 
 def _normalize_coverage_status(status_raw):
@@ -277,7 +314,6 @@ def main():
 
     # 7. Data Freshness 3x3
     freshness_matrix = []
-    thresholds = {"ok_h": 12.0, "warn_h": 48.0}
     symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
     timeframes = ["1m", "1h", "4h"]
 
@@ -287,31 +323,19 @@ def main():
             p = Path(".") / f"data/derived/{sym}/{tf}/klines.jsonl"
             
             age_h = None
-            reason = None
-            source = str(p.relative_to(Path("."))) if p.exists() else None
+            source_error = None
+            source = str(p.relative_to(Path(".")))
             
             if p.exists():
                 try:
                     age_h = (now_ts - p.stat().st_mtime) / 3600.0
                 except Exception as e:
-                    reason = f"stat_error: {str(e)}"
+                    source_error = f"stat_error: {str(e)}"
             else:
-                reason = "missing_source"
-            
-            status = "FAIL"
-            if reason:
-                status = "FAIL"
-            elif age_h is None:
-                status = "FAIL"
-                reason = "unknown_age"
-            elif age_h <= thresholds["ok_h"]:
-                status = "OK"
-            elif age_h <= thresholds["warn_h"]:
-                status = "WARN"
-                reason = f"exceeds 12h ({age_h:.1f}h)"
-            else:
-                status = "FAIL"
-                reason = f"exceeds 48h ({age_h:.1f}h)"
+                source_error = "missing_source"
+
+            profile = _freshness_profile_from_source(source, DEFAULT_FRESHNESS_PROFILE)
+            status, reason = _evaluate_freshness_status(age_h, profile, source_error)
             
             freshness_matrix.append({
                 "symbol": sym,
@@ -319,12 +343,14 @@ def main():
                 "age_h": round(age_h, 1) if age_h is not None else None,
                 "status": status,
                 "source": source,
-                "reason": reason
+                "reason": reason,
+                "profile": profile,
             })
 
     freshness_table = {
         "generated_utc": now_utc,
-        "thresholds": thresholds,
+        "default_profile": DEFAULT_FRESHNESS_PROFILE,
+        "thresholds": FRESHNESS_THRESHOLDS,
         "rows": freshness_matrix 
     }
     
