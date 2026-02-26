@@ -8,13 +8,10 @@ Scan evidence:
 - `reports/slimdown_fullscan_2026-02-25T173842Z.log`
 - `reports/slimdown_next_actions_2026-02-25T173842Z.md`
 
-## Red Lines (must hold every PR)
+## Policy SSOT (must hold every PR)
 
-- `src/hongstr/**` core diff = 0
-- `tg_cp` no exec (`subprocess` / `os.system` / `Popen` forbidden)
-- ML/Research defaults to `report_only`
-- no `data/**` runtime artifacts committed
-- GitHub SSOT flow only (commit + push + PR)
+- Canonical guardrails: [`docs/skills/global_red_lines.md`](/Users/hong/Projects/HONGSTR/docs/skills/global_red_lines.md)
+- This plan references the policy SSOT instead of restating full red-line text.
 
 ## A) Current P0 Status (from latest scans)
 

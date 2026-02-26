@@ -3,13 +3,10 @@
 Last updated (UTC): 2026-02-25  
 Scan evidence: `reports/slimdown_scan_20260225T161241Z.log`
 
-## Scope and Red Lines
+## Scope and Policy Reference
 
-- stability-first: `src/hongstr/**` core diff must remain `0`.
-- tg_cp remains read-only (no `subprocess` / `os.system` / `Popen` / shell execution).
-- ML/Research defaults to `report_only`.
-- no `data/**` artifacts are committed.
-- GitHub is SSOT: each change goes through commit + push + PR.
+- Canonical guardrails policy SSOT: [`docs/skills/global_red_lines.md`](/Users/hong/Projects/HONGSTR/docs/skills/global_red_lines.md)
+- This backlog only defines execution slices; policy semantics are inherited from the SSOT above.
 
 ## 1) Writers to `data/state` (current inventory)
 
@@ -161,4 +158,3 @@ rg -n 'subprocess|os\.system|Popen' _local/telegram_cp/tg_cp_server.py
 git diff --name-only origin/main...HEAD | rg '^src/hongstr/'
 git status --porcelain | rg '^.. data/'
 ```
-

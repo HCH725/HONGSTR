@@ -2,7 +2,12 @@
 
 Last updated (UTC): 2026-02-25T15:39:15Z
 
-## 1) Current Guardrail Sources (and overlap)
+## 1) Canonical Policy SSOT
+
+- Canonical policy file: [`docs/skills/global_red_lines.md`](/Users/hong/Projects/HONGSTR/docs/skills/global_red_lines.md)
+- Rule: all slimdown/runbook/plan docs should reference this file instead of copy-pasting red-line paragraphs.
+
+## 2) Current Guardrail Sources (and overlap)
 
 | Layer | Source | Evidence | Current role | Overlap / issue |
 |---|---|---|---|---|
@@ -13,7 +18,7 @@ Last updated (UTC): 2026-02-25T15:39:15Z
 | tg_cp runtime guard | `_local/telegram_cp/guardrail.py` + server pre/post check | `_local/telegram_cp/guardrail.py:33-49`, `_local/telegram_cp/tg_cp_server.py:1834-1843`, `:1905-1908` | Runtime refusal of action/execution intents in Telegram plane. | Strong runtime fence, but separate from git/CI checks. |
 | Planning docs | `docs/slimdown_inventory.md`, `docs/slimdown_plan.md` | `docs/slimdown_inventory.md:3-9`, `docs/slimdown_plan.md:90-93` | Process guidance and checklist. | Repeated rule text causes drift risk across documents. |
 
-## 2) Single-SSOT Guardrail Model
+## 3) Single-SSOT Guardrail Model
 
 ### Canonical source of truth
 - Keep **one policy source**: `docs/skills/global_red_lines.md`.
@@ -29,7 +34,20 @@ Last updated (UTC): 2026-02-25T15:39:15Z
 - Execution checks owner: `scripts/guardrail_check.sh` + CI gate
 - Runtime safety owner: `_local/telegram_cp/guardrail.py`
 
-## 3) Dedupe Actions (small, incremental)
+## 4) Dedupe Map (reference migration)
+
+| Document | Previous state | Current state |
+|---|---|---|
+| `docs/slimdown_inventory.md` | Repeated full red-line bullet list | Replaced with policy SSOT reference |
+| `docs/slimdown_phase3_backlog.md` | Repeated red-line scope block | Replaced with policy SSOT reference |
+| `docs/slimdown_next_round.md` | Repeated red-line checklist | Replaced with policy SSOT reference |
+| `docs/slimdown_launchd_planes.md` | Implicit policy assumptions | Added explicit policy SSOT reference |
+
+Update rule:
+- if policy wording changes, update only `docs/skills/global_red_lines.md`,
+- then update references/anchors in dependent docs if paths or sections move.
+
+## 5) Dedupe Actions (small, incremental)
 
 ### A. Docs (PR1, docs-only)
 - Add this file and `docs/slimdown_plan_v2.md`.
@@ -45,7 +63,7 @@ Last updated (UTC): 2026-02-25T15:39:15Z
 - Align `scripts/gate_all.sh` protected path logic with `global_red_lines` (`src/hongstr/**`, not only subfolders).
 - Keep PR template as declaration-only; treat script checks as source of pass/fail truth.
 
-## 4) Verification Commands
+## 6) Verification Commands
 
 ```bash
 # core unchanged
@@ -61,9 +79,8 @@ git status --porcelain | rg '^.. data/' && exit 1 || true
 ./.venv/bin/python -m pytest -q _local/telegram_cp/test_local_smoke.py
 ```
 
-## 5) Rollback
+## 7) Rollback
 
 ```bash
 git revert <merge_commit_sha>
 ```
-
