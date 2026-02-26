@@ -17,7 +17,7 @@
 - scripts/ingest_historical.py
 - scripts/aggregate_data.py
 - scripts/check_data_coverage.sh
-- data/derived/<SYMBOL>/1m/klines.jsonl (canonical backtest source)
+- data/derived/SYMBOL/1m/klines.jsonl (canonical backtest source)
 
 ## Notifications
 
@@ -35,6 +35,14 @@
 - .github/CODEOWNERS
 - .github/workflows/guardrails.yml
 - .github/pull_request_template.md
+
+## Architecture
+
+- [System Flow & Terminology Glossary](docs/architecture/flow_and_glossary.md)
+
+## Operations (Quant Specialist)
+
+- [Telegram Operator Manual](docs/ops/telegram_operator_manual.md)
 
 ## State / Artifacts (expected)
 
