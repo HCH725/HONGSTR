@@ -1,21 +1,27 @@
 # Repo Inventory (Dev)
 
-**MUST READ FIRST:** `docs/skills/global_red_lines.md`
+Policy SSOT: `docs/skills/global_red_lines.md`
 
-## Core (DO NOT CHANGE)
-- `src/hongstr/**` (core semantics must remain diff=0)
+## Core (stability-first)
+- `src/hongstr/**` is core engine scope and must remain unchanged for slimdown/ops/docs work.
 
-## Control plane / Telegram (read-only)
-- `_local/telegram_cp/` (tg_cp read-only broker; no exec)
+## State Plane (canonical SSOT publication)
+- Orchestrator: `scripts/refresh_state.sh`
+- Canonical writer: `scripts/state_snapshots.py`
+- Canonical runtime outputs (untracked): `data/state/*.json`
 
-## State producers (runtime snapshots; do not commit outputs)
-- `scripts/state_snapshots.py`
-- `scripts/refresh_state.sh`
-- Output: `data/state/*.json` (untracked)
+### Atomic producers (non-canonical outputs)
+- Atomic/intermediate producers should write under `reports/state_atomic/*`.
+- Canonical snapshots are published only through `scripts/state_snapshots.py`.
 
-## Ops scripts (scheduling / runbooks)
-- `scripts/gh_pr_merge.sh` (Plan B PR creation + auto-merge)
-- launchd plists under `~/Library/LaunchAgents/` (local machine)
+## Control Plane (SSOT-only consumers)
+- `_local/telegram_cp/` (`tg_cp_server.py`): read-only status/control interface.
+- `web/` dashboard/API status endpoints: read-only SSOT consumption for top-level status.
+- Top-level status must not be derived from logs/artifacts/derived scans.
 
-## Docs / SOP
-- `docs/` (inventory, brakes, ops_local, etc.)
+## Launchd ownership (3-plane summary)
+- Data Plane: ETL/backfill/retention/backtest jobs.
+- State Plane: `com.hongstr.refresh_state` (canonical), `com.hongstr.daily_healthcheck` (alias/deprecation path only).
+- Control Plane: dashboard/tg_cp/realtime_ws/research queue control.
+
+See also: `docs/slimdown_launchd_planes.md`.

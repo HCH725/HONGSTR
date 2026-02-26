@@ -1,23 +1,29 @@
 # Ops Runbook (Dev)
 
-**MUST READ FIRST:** `docs/skills/global_red_lines.md`
+Policy SSOT: `docs/skills/global_red_lines.md`
 
-## launchd restart pattern (avoid Telegram 409 / multi-instance)
-- Preferred: `bootout -> sleep -> bootstrap -> verify pid/active count`
+## Runtime invariant
+- Use `./.venv/bin/python` for all Python commands.
+- Do not assume `python` binary exists on `PATH`.
+
+## State Plane refresh
+- Canonical refresh command:
+  - `bash scripts/refresh_state.sh`
+- Canonical writer boundary:
+  - `scripts/state_snapshots.py` writes `data/state/*`
+
+## launchd ownership
+- Canonical State Plane scheduler: `com.hongstr.refresh_state`
+- Legacy alias/deprecation path: `com.hongstr.daily_healthcheck` (`02:30`) triggers refresh chain only.
+- `daily_healthcheck` must not own independent state computation/publishing.
+
+## SSOT-only status behavior
+- tg_cp/dashboard top-level status must read SSOT only.
+- If SSOT missing/unreadable, degrade to:
+  - `SSOT_STATUS: UNKNOWN`
+  - `refresh_hint: bash scripts/refresh_state.sh`
 
 ## tg_cp cache hygiene
-- If outputs look stale: remove cache files under `data/state/_tg_cp/` (keep session_state.json if desired)
-- Restart tg_cp via launchd pattern above.
-
-## SSOT state refresh
-- Run `bash scripts/refresh_state.sh`
-- Verify key SSOT files exist (untracked):
-  - `data/state/freshness_table.json`
-  - `data/state/coverage_matrix_latest.json`
-  - `data/state/brake_health_latest.json`
-  - `data/state/regime_monitor_latest.json`
-  - `data/state/execution_mode.json`
-  - `data/state/services_heartbeat.json`
-
-## Dashboard
-- Dashboard should read SSOT from `data/state/*` (not recompute dynamically).
+- If response looks stale, clear cache files under `data/state/_tg_cp/` (optional: keep `session_state.json`).
+- Restart tg_cp with launchd sequence:
+  - `bootout -> sleep -> bootstrap -> verify state/pid/active count`
