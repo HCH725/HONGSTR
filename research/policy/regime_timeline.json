@@ -1,0 +1,43 @@
+{
+    "schema_version": "regime_timeline.v1",
+    "generated_utc": "2026-02-27T14:15:00Z",
+    "timezone": "UTC",
+    "regimes": [
+        {
+            "name": "bull",
+            "start_utc": "2020-01-01T00:00:00Z",
+            "end_utc": "2021-11-10T00:00:00Z",
+            "source": "manual_seed",
+            "rationale": "BTC Post-halving bull market to ATH"
+        },
+        {
+            "name": "bear",
+            "start_utc": "2021-11-10T00:00:00Z",
+            "end_utc": "2023-01-01T00:00:00Z",
+            "source": "manual_seed",
+            "rationale": "Terra/FTX collapse and macro tightening"
+        },
+        {
+            "name": "sideways",
+            "start_utc": "2023-01-01T00:00:00Z",
+            "end_utc": "2023-10-01T00:00:00Z",
+            "source": "manual_seed",
+            "rationale": "Pre-ETF accumulation phase"
+        },
+        {
+            "name": "bull",
+            "start_utc": "2023-10-01T00:00:00Z",
+            "end_utc": "2025-01-01T00:00:00Z",
+            "source": "manual_seed",
+            "rationale": "Spot ETF approval and post-halving run"
+        }
+    ],
+    "invariants": {
+        "non_overlapping": true,
+        "sorted_by_start": true,
+        "end_exclusive": true
+    },
+    "notes": [
+        "Intervals must not overlap; gaps are allowed; default regime is ALL when no slicing is used."
+    ]
+}

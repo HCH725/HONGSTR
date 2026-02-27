@@ -1,0 +1,59 @@
+{
+  "generated_utc": "2026-02-27T13:32:02Z",
+  "as_of_utc": "2026-02-27T13:32:02Z",
+  "report_only": true,
+  "policy_path": "research/policy/regime_thresholds.json",
+  "candidate_policy_path": "research/policy/regime_thresholds_candidate.json",
+  "sample_period": {
+    "lookback_days": 90,
+    "start_utc": "2026-02-20T02:04:32Z",
+    "end_utc": "2026-02-26T21:04:35Z",
+    "sample_count": 371
+  },
+  "method": {
+    "metric": "max_drawdown",
+    "transform": "severity=abs(min(0,mdd))",
+    "warn_quantile": 0.9,
+    "fail_quantile": 0.97,
+    "min_samples": 30,
+    "no_lookahead_rule": "sample.timestamp <= as_of_utc",
+    "status": "OK",
+    "note": "calibrated_from_historical_distribution"
+  },
+  "current_thresholds": {
+    "warn": -0.08,
+    "fail": -0.14,
+    "policy_sha256": "d1325a1b60485eedee94c4cced1e15a75c0d0f14c05c5c507badd018b90b7972",
+    "last_calibrated_utc": null,
+    "calibration_status": "UNKNOWN"
+  },
+  "recommended_thresholds": {
+    "warn": -0.187319,
+    "fail": -0.304028
+  },
+  "diff_vs_current": {
+    "warn_delta": -0.107319,
+    "fail_delta": -0.164028
+  },
+  "impact": {
+    "sample_count": 371,
+    "current": {
+      "counts": {
+        "OK": 255,
+        "WARN": 36,
+        "FAIL": 80
+      },
+      "fail_ratio": 0.215633
+    },
+    "recommended": {
+      "counts": {
+        "OK": 334,
+        "WARN": 25,
+        "FAIL": 12
+      },
+      "fail_ratio": 0.032345
+    },
+    "delta_fail_ratio": -0.183288
+  },
+  "rationale": "Semi-dynamic weekly calibration proposes thresholds only; activation requires manual policy PR merge."
+}
