@@ -9,6 +9,7 @@ COOLDOWN_HOURS="${AUTO_PR_COOLDOWN_HOURS:-24}"
 ALLOW_DOCS_AUTOMERGE=0
 RUN_PREFLIGHT=1
 DRAFT_MODE=0
+NAMED_GENERATORS=()
 
 usage() {
   cat <<'EOF'
@@ -18,6 +19,7 @@ Options:
   --base <branch>              Base branch to sync and open PR against (default: main)
   --cooldown-hours <hours>     Cooldown window for same change class (default: 24)
   --allow-docs-automerge       Allow docs-only PR auto-merge (default: off)
+  --generator <name>           Run built-in generator (repeatable)
   --skip-preflight             Skip preflight checks
   --draft                      Create draft PR
   -h, --help                   Show this help
@@ -41,6 +43,10 @@ while [[ $# -gt 0 ]]; do
     --allow-docs-automerge)
       ALLOW_DOCS_AUTOMERGE=1
       shift
+      ;;
+    --generator)
+      NAMED_GENERATORS+=("$2")
+      shift 2
       ;;
     --skip-preflight)
       RUN_PREFLIGHT=0
@@ -81,16 +87,44 @@ git fetch origin
 git checkout "$BASE_BRANCH"
 git pull --ff-only origin "$BASE_BRANCH"
 
+run_generator_cmd() {
+  local run_cmd
+  run_cmd="$(echo "$1" | xargs)"
+  if [[ -z "$run_cmd" ]]; then
+    return 0
+  fi
+  echo "[auto_pr] generator: $run_cmd"
+  bash -lc "$run_cmd"
+}
+
+resolve_named_generator() {
+  local name="$1"
+  case "$name" in
+    regime_thresholds_calibration)
+      echo "bash scripts/calibrate_regime_thresholds.sh --pr-mode"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+if [[ "${#NAMED_GENERATORS[@]}" -gt 0 ]]; then
+  echo "[auto_pr] Running named generators ..."
+  for gen in "${NAMED_GENERATORS[@]}"; do
+    if ! cmd="$(resolve_named_generator "$gen")"; then
+      echo "[auto_pr] Unknown generator name: $gen" >&2
+      exit 2
+    fi
+    run_generator_cmd "$cmd"
+  done
+fi
+
 if [[ -n "${AUTO_PR_GENERATORS:-}" ]]; then
   echo "[auto_pr] Running generators ..."
   IFS=';' read -r -a generators <<< "$AUTO_PR_GENERATORS"
   for cmd in "${generators[@]}"; do
-    run_cmd="$(echo "$cmd" | xargs)"
-    if [[ -z "$run_cmd" ]]; then
-      continue
-    fi
-    echo "[auto_pr] generator: $run_cmd"
-    bash -lc "$run_cmd"
+    run_generator_cmd "$cmd"
   done
 fi
 

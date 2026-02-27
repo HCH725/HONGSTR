@@ -24,6 +24,9 @@ bash scripts/auto_pr.sh --draft
 # Allow docs-only auto-merge (explicit)
 bash scripts/auto_pr.sh --allow-docs-automerge
 
+# Run built-in weekly regime-threshold calibration generator and open PR
+bash scripts/auto_pr.sh --generator regime_thresholds_calibration
+
 # Skip preflight (not recommended)
 bash scripts/auto_pr.sh --skip-preflight
 ```

@@ -48,6 +48,8 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
                     "threshold_policy_sha": "abc123def456",
                     "threshold_rationale": "Max drawdown crossed warning baseline.",
+                    "calibration_status": "STALE",
+                    "last_calibrated_utc": "2026-02-20T00:00:00Z",
                 },
             },
         },
@@ -110,6 +112,8 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert "ssot_components.regime_signal.threshold_source_path" in payload["schema"]["field_labels_zh_en"]
     assert "ssot_components.regime_signal.threshold_policy_sha" in payload["schema"]["field_labels_zh_en"]
     assert "ssot_components.regime_signal.threshold_rationale" in payload["schema"]["field_labels_zh_en"]
+    assert "ssot_components.regime_signal.calibration_status" in payload["schema"]["field_labels_zh_en"]
+    assert "ssot_components.regime_signal.last_calibrated_utc" in payload["schema"]["field_labels_zh_en"]
 
     assert isinstance(payload["freshness_summary"]["profile_totals"], dict)
     assert payload["freshness_summary"]["profile_totals"]["realtime"] == 1
@@ -120,6 +124,8 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["ssot_components"]["regime_signal"]["threshold_source_path"] == "reports/strategy_research/phase3/phase3_results.json"
     assert payload["ssot_components"]["regime_signal"]["threshold_policy_sha"] == "abc123def456"
     assert payload["ssot_components"]["regime_signal"]["threshold_rationale"] == "Max drawdown crossed warning baseline."
+    assert payload["ssot_components"]["regime_signal"]["calibration_status"] == "STALE"
+    assert payload["ssot_components"]["regime_signal"]["last_calibrated_utc"] == "2026-02-20T00:00:00Z"
 
     top_row = payload["strategy_pool"]["leaderboard_top"][0]
     assert top_row["direction"] == "LONG"

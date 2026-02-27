@@ -218,6 +218,8 @@ def _write_daily_report_ssot(repo: Path) -> None:
                         "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
                         "threshold_policy_sha": "abc123def4567890",
                         "threshold_rationale": "最大回撤超過 p95 風險區間",
+                        "calibration_status": "STALE",
+                        "last_calibrated_utc": "2026-02-18T00:00:00Z",
                     },
                 },
                 "freshness_summary": {
@@ -535,9 +537,33 @@ def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
     assert "RegimeSignal（市場風險告警）=FAIL" in resp
     assert "來源=reports/strategy_research/phase3/phase3_results.json" in resp
     assert "版本=abc123def456" in resp
+    assert "校準狀態=STALE" in resp
+    assert "上次校準=2026-02-18T00:00:00Z" in resp
     assert "先降槓桿或降部位、暫停 promote" in resp
     assert "SHORT覆蓋" in resp
     assert "RefreshHint: bash scripts/refresh_state.sh" in resp
+
+
+def test_daily_command_regime_calibration_stale_sop(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    # Override fixture to simulate calibration stale with no immediate fail.
+    state_dir = repo / "data/state"
+    payload = json.loads((state_dir / "daily_report_latest.json").read_text(encoding="utf-8"))
+    payload["ssot_components"]["regime_signal"]["status"] = "OK"
+    payload["ssot_components"]["regime_signal"]["top_reason"] = "within range"
+    payload["ssot_components"]["regime_signal"]["calibration_status"] = "STALE"
+    payload["ssot_components"]["regime_signal"]["last_calibrated_utc"] = "2026-02-01T00:00:00Z"
+    (state_dir / "daily_report_latest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    resp = s._handle_command(381, "/daily")
+    assert "校準狀態=STALE" in resp
+    assert "Regime 門檻校準已過期；先跑 calibrate_regime_thresholds 並開 policy PR" in resp
 
 
 def test_daily_command_section_shape_is_three_lines(monkeypatch, tmp_path):

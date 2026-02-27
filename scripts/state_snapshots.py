@@ -62,6 +62,8 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
     "ssot_components.regime_signal.threshold_policy_sha": {"zh": "RegimeSignal門檻版本SHA", "en": "ssot_components.regime_signal.threshold_policy_sha"},
     "ssot_components.regime_signal.threshold_rationale": {"zh": "RegimeSignal門檻理由", "en": "ssot_components.regime_signal.threshold_rationale"},
+    "ssot_components.regime_signal.calibration_status": {"zh": "RegimeSignal校準狀態", "en": "ssot_components.regime_signal.calibration_status"},
+    "ssot_components.regime_signal.last_calibrated_utc": {"zh": "RegimeSignal上次校準時間", "en": "ssot_components.regime_signal.last_calibrated_utc"},
 }
 
 
@@ -1159,6 +1161,10 @@ def main():
     regime_threshold_policy_sha = regime_threshold_policy_sha_raw or None
     regime_threshold_rationale_raw = str(regime_data.get("threshold_rationale") or "").strip()
     regime_threshold_rationale = regime_threshold_rationale_raw or None
+    regime_calibration_status_raw = str(regime_data.get("calibration_status") or "").upper().strip()
+    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "STALE", "UNKNOWN"} else "UNKNOWN"
+    regime_last_calibrated_raw = regime_data.get("last_calibrated_utc")
+    regime_last_calibrated_utc = str(regime_last_calibrated_raw).strip() if isinstance(regime_last_calibrated_raw, str) and str(regime_last_calibrated_raw).strip() else None
 
     regime_age_h = None
     if regime_path.exists():
@@ -1211,6 +1217,8 @@ def main():
                 "threshold_source_path": regime_threshold_source_path,
                 "threshold_policy_sha": regime_threshold_policy_sha,
                 "threshold_rationale": regime_threshold_rationale,
+                "calibration_status": regime_calibration_status,
+                "last_calibrated_utc": regime_last_calibrated_utc,
             },
         },
         "sources": {

@@ -759,16 +759,28 @@ def _daily_compose_report(
     regime_threshold_policy_sha_raw = str(regime_signal_comp.get("threshold_policy_sha") or "").strip()
     regime_threshold_policy_sha = regime_threshold_policy_sha_raw[:12] if regime_threshold_policy_sha_raw else "資料不足/UNKNOWN"
     regime_threshold_rationale = str(regime_signal_comp.get("threshold_rationale") or "").strip() or "資料不足/UNKNOWN"
+    regime_calibration_status_raw = str(regime_signal_comp.get("calibration_status") or "").upper().strip()
+    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "STALE", "UNKNOWN"} else "UNKNOWN"
+    regime_last_calibrated_raw = regime_signal_comp.get("last_calibrated_utc")
+    regime_last_calibrated = str(regime_last_calibrated_raw).strip() if isinstance(regime_last_calibrated_raw, str) and str(regime_last_calibrated_raw).strip() else "資料不足/UNKNOWN"
     system_section_status = _status_max(ssot_status, regime_signal_status)
-    regime_signal_reason_short = _daily_trim(regime_signal_reason, limit=36)
+    if regime_calibration_status == "STALE":
+        system_section_status = _status_max(system_section_status, "WARN")
+    regime_signal_reason_short = _daily_trim(regime_signal_reason, limit=24)
     regime_threshold_source_short = _daily_trim(regime_threshold_source_path, limit=72)
-    regime_threshold_rationale_short = _daily_trim(regime_threshold_rationale, limit=48)
+    regime_threshold_rationale_short = _daily_trim(regime_threshold_rationale, limit=28)
     if regime_signal_status == "FAIL":
         regime_reason_zh_note = "口語補註=風險已越過紅線，代表短期回撤擴大。"
     elif regime_signal_status == "WARN":
         regime_reason_zh_note = "口語補註=風險正在升溫，需先收斂曝險。"
     else:
         regime_reason_zh_note = "口語補註=目前在風險舒適區。"
+    if regime_calibration_status == "OK":
+        regime_calibration_note = f"校準狀態=OK（週校準有效）；上次校準={regime_last_calibrated}。"
+    elif regime_calibration_status == "STALE":
+        regime_calibration_note = f"校準狀態=STALE（超過週期，建議重跑校準）；上次校準={regime_last_calibrated}。"
+    else:
+        regime_calibration_note = f"校準狀態=UNKNOWN（資料不足）；上次校準={regime_last_calibrated}。"
 
     freshness_summary = payload.get("freshness_summary", {})
     if not isinstance(freshness_summary, dict):
@@ -908,11 +920,15 @@ def _daily_compose_report(
 
     regime_signal_reason_cn = (
         f"RegimeSignal（市場風險告警）={regime_signal_status}；"
+        f"{regime_calibration_note}"
+        f"；"
+        f"來源={regime_threshold_source_short}；"
+        f"版本={regime_threshold_policy_sha}；"
+        f"門檻={regime_threshold_value}；"
         f"{regime_reason_zh_note}"
         f"；"
         f"原因={regime_signal_reason_short}；"
-        f"門檻={regime_threshold_value}；版本={regime_threshold_policy_sha}；"
-        f"來源={regime_threshold_source_short}；理由={regime_threshold_rationale_short}。"
+        f"理由={regime_threshold_rationale_short}。"
     )
     system_reason = (
         f"{regime_signal_reason_cn} "
@@ -982,6 +998,8 @@ def _daily_compose_report(
         system_next = "L3：RegimeSignal（市場風險告警）紅燈；先降槓桿或降部位、暫停 promote，改看 short 候選並重跑 gate。"
     elif regime_signal_status == "WARN":
         system_next = "L2：RegimeSignal（市場風險告警）轉黃；先小幅降槓桿、暫停 promote，優先檢查 short 候選。"
+    elif regime_calibration_status == "STALE":
+        system_next = "L2：Regime 門檻校準已過期；先跑 calibrate_regime_thresholds 並開 policy PR，審核後再生效。"
     else:
         system_next = system_next_default
 
