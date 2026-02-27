@@ -35,6 +35,7 @@ Top-level keys are fixed and ordered:
 - **DataFreshness**: `freshness_summary.counts`, `freshness_summary.profile_totals`, `freshness_summary.top_offenders`
 - **Backtest**: `latest_backtest_head.artifacts`, `latest_backtest_head.metrics`, `latest_backtest_head.gate`, `latest_backtest_head.metrics_status`
 - **StrategyPool + Leaderboard**: `strategy_pool.summary`, `strategy_pool.leaderboard_top[*].direction`, `strategy_pool.direction_coverage.short_coverage`
+- **StrategyPool + Leaderboard (B1 extension, optional)**: `research_leaderboard.entries[*].regime_slice` (`ALL|BULL|BEAR|SIDEWAYS`) and optional `regime_window_start_utc`/`regime_window_end_utc` for report-only regime timeline wiring.
 - **Governance(Overfit)**: `governance.overfit_gates_policy.name`, `governance.today_gate_summary`
 - **Guardrails summary**: `guardrails.checks`
 

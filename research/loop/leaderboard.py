@@ -48,11 +48,7 @@ def build_leaderboard(top_n: int = 10) -> list[dict[str, Any]]:
             seen_keys.add(key)
         entries.append(entry)
 
-    ranked = sorted(
-        entries,
-        key=lambda x: (float(x.get("final_score", 0.0)), float(x.get("oos_sharpe", 0.0))),
-        reverse=True,
-    )
+    ranked = sorted(entries, key=lambda x: (_sort_metric(x.get("final_score")), _sort_metric(x.get("oos_sharpe"))), reverse=True)
     return ranked[:top_n]
 
 
@@ -81,12 +77,19 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
         return None
 
     sharpe = _as_float(data.get("sharpe", data.get("oos_sharpe")), None)
-    if sharpe is None:
-        return None
 
     gate_payload = _load_gate(path.parent / "gate.json")
     gate_overall = gate_payload.get("overall") if gate_payload else "UNKNOWN"
-    final_score = _as_float(gate_payload.get("final_score") if gate_payload else data.get("final_score"), 0.0)
+    final_score = _as_float(gate_payload.get("final_score") if gate_payload else data.get("final_score"), None)
+    oos_mdd = _as_float(data.get("max_drawdown", data.get("oos_mdd")), None)
+    is_sharpe = _as_float(data.get("is_sharpe"), None)
+    trades_count = _as_int(data.get("trades_count"))
+
+    metrics_status = "OK"
+    metrics_reason = ""
+    if sharpe is None or oos_mdd is None:
+        metrics_status = "UNKNOWN"
+        metrics_reason = "missing_slice_metrics"
 
     return {
         "experiment_id": data.get("experiment_id") or data.get("candidate_id") or data.get("strategy_id") or path.parent.name,
@@ -95,13 +98,19 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
         "family": data.get("family", "unknown"),
         "direction": data.get("direction", "LONG"),
         "variant": data.get("variant", "base"),
+        "regime": data.get("regime", data.get("regime_slice", "ALL")),
+        "regime_slice": data.get("regime_slice", data.get("regime", "ALL")),
+        "regime_window_start_utc": data.get("regime_window_start_utc"),
+        "regime_window_end_utc": data.get("regime_window_end_utc"),
         "oos_sharpe": sharpe,
-        "oos_mdd": _as_float(data.get("max_drawdown", data.get("oos_mdd")), 0.0),
-        "is_sharpe": _as_float(data.get("is_sharpe"), 0.0),
-        "trades_count": int(_as_float(data.get("trades_count"), 0.0)),
+        "oos_mdd": oos_mdd,
+        "is_sharpe": is_sharpe,
+        "trades_count": trades_count,
         "final_score": final_score,
         "gate_overall": gate_overall,
         "status": data.get("status", "UNKNOWN"),
+        "metrics_status": metrics_status,
+        "metrics_reason": metrics_reason,
         "timestamp": data.get("timestamp", ""),
         "report_dir": str(path.parent),
     }
@@ -120,6 +129,17 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
         return None
 
     exp_id_stem = path.stem.replace("_results", "")
+    sharpe = _as_float(data.get("oos_sharpe"), None)
+    mdd = _as_float(data.get("oos_mdd"), None)
+    final_score = _as_float(data.get("final_score"), None)
+    is_sharpe = _as_float(data.get("is_sharpe"), None)
+    trades_count = _as_int(data.get("trades_count"))
+    metrics_status = "OK"
+    metrics_reason = ""
+    if sharpe is None or mdd is None:
+        metrics_status = "UNKNOWN"
+        metrics_reason = "missing_slice_metrics"
+
     return {
         "experiment_id": data.get("experiment_id", exp_id_stem),
         "candidate_id": data.get("candidate_id", exp_id_stem),
@@ -127,13 +147,19 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
         "family": data.get("family", "legacy"),
         "direction": data.get("direction", "LONG"),
         "variant": data.get("variant", "legacy"),
-        "oos_sharpe": _as_float(data.get("oos_sharpe"), 0.0),
-        "oos_mdd": _as_float(data.get("oos_mdd"), 0.0),
-        "is_sharpe": _as_float(data.get("is_sharpe"), 0.0),
-        "trades_count": int(_as_float(data.get("trades_count"), 0.0)),
-        "final_score": _as_float(data.get("final_score"), 0.0),
+        "regime": data.get("regime", data.get("regime_slice", "ALL")),
+        "regime_slice": data.get("regime_slice", data.get("regime", "ALL")),
+        "regime_window_start_utc": data.get("regime_window_start_utc"),
+        "regime_window_end_utc": data.get("regime_window_end_utc"),
+        "oos_sharpe": sharpe,
+        "oos_mdd": mdd,
+        "is_sharpe": is_sharpe,
+        "trades_count": trades_count,
+        "final_score": final_score,
         "gate_overall": data.get("gate_overall", "UNKNOWN"),
         "status": data.get("status", "UNKNOWN"),
+        "metrics_status": metrics_status,
+        "metrics_reason": metrics_reason,
         "timestamp": data.get("timestamp", ""),
         "report_dir": str(path.parent),
     }
@@ -158,6 +184,29 @@ def _as_float(value: Any, default: float | None = 0.0) -> float | None:
         return default
 
 
+def _as_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(float(value))
+    except Exception:
+        return None
+
+
+def _sort_metric(value: Any) -> float:
+    parsed = _as_float(value, None)
+    if parsed is None:
+        return float("-inf")
+    return float(parsed)
+
+
+def _fmt_metric(value: Any, *, pct: bool = False) -> str:
+    parsed = _as_float(value, None)
+    if parsed is None:
+        return "UNKNOWN"
+    return f"{parsed:.2%}" if pct else f"{parsed:.2f}"
+
+
 if __name__ == "__main__":
     import sys
 
@@ -166,8 +215,12 @@ if __name__ == "__main__":
     print(f"Leaderboard written to {path}")
     board = json.loads(path.read_text(encoding="utf-8"))
     for i, e in enumerate(board.get("entries", []), 1):
+        score = _fmt_metric(e.get("final_score"))
+        sharpe = _fmt_metric(e.get("oos_sharpe"))
+        mdd = _fmt_metric(e.get("oos_mdd"), pct=True)
         print(
-            f"#{i} {e['candidate_id']} score={e['final_score']:.2f} "
-            f"sharpe={e['oos_sharpe']:.2f} mdd={e['oos_mdd']:.2%}"
+            f"#{i} {e['candidate_id']} score={score} "
+            f"sharpe={sharpe} "
+            f"mdd={mdd} regime={e.get('regime_slice', 'ALL')}"
         )
     sys.exit(0)
