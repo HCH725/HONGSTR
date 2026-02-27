@@ -72,6 +72,10 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "family": "trend",
                     "direction": "LONG",
                     "variant": "baseline",
+                    "regime_slice": "BULL",
+                    "regime_window_start_utc": "2026-01-01T00:00:00Z",
+                    "regime_window_end_utc": "2026-04-01T00:00:00Z",
+                    "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
                     "last_score": 77.1,
                     "gate_overall": "PASS",
                     "recommendation": "PROMOTE",
@@ -88,6 +92,10 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "strategy_id": "trend_mvp_btc_1h",
                     "direction": "LONG",
                     "variant": "baseline",
+                    "regime_slice": "BULL",
+                    "regime_window_start_utc": "2026-01-01T00:00:00Z",
+                    "regime_window_end_utc": "2026-04-01T00:00:00Z",
+                    "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
                     "timestamp": "2026-02-27T00:00:00Z",
                     "report_dir": str(report_dir),
                     "gate_overall": "PASS",
@@ -114,12 +122,22 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert "ssot_components.regime_signal.threshold_rationale" in payload["schema"]["field_labels_zh_en"]
     assert "ssot_components.regime_signal.calibration_status" in payload["schema"]["field_labels_zh_en"]
     assert "ssot_components.regime_signal.last_calibrated_utc" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.regime_slice" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.regime_window_start_utc" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.regime_window_end_utc" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.regime_rationale_zh" in payload["schema"]["field_labels_zh_en"]
+    assert "strategy_pool.leaderboard_top.regime_slice" in payload["schema"]["field_labels_zh_en"]
+    assert "research_leaderboard.top_entries.regime_slice" in payload["schema"]["field_labels_zh_en"]
 
     assert isinstance(payload["freshness_summary"]["profile_totals"], dict)
     assert payload["freshness_summary"]["profile_totals"]["realtime"] == 1
     assert payload["freshness_summary"]["profile_totals"]["backtest"] == 1
     assert payload["latest_backtest_head"]["metrics"]["is_sharpe"] == 1.4
     assert payload["latest_backtest_head"]["metrics"]["trades_count"] == 37
+    assert payload["latest_backtest_head"]["regime_slice"] == "BULL"
+    assert payload["latest_backtest_head"]["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
+    assert payload["latest_backtest_head"]["regime_window_end_utc"] == "2026-04-01T00:00:00Z"
+    assert "BULL 切片" in payload["latest_backtest_head"]["regime_rationale_zh"]
     assert payload["ssot_components"]["regime_signal"]["threshold_value"] == -0.0353
     assert payload["ssot_components"]["regime_signal"]["threshold_source_path"] == "reports/strategy_research/phase3/phase3_results.json"
     assert payload["ssot_components"]["regime_signal"]["threshold_policy_sha"] == "abc123def456"
@@ -129,6 +147,9 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
 
     top_row = payload["strategy_pool"]["leaderboard_top"][0]
     assert top_row["direction"] == "LONG"
+    assert top_row["regime_slice"] == "BULL"
+    assert top_row["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
+    assert top_row["regime_window_end_utc"] == "2026-04-01T00:00:00Z"
     assert top_row["metrics_status"] in {"OK", "UNKNOWN"}
     direction_cov = payload["strategy_pool"]["direction_coverage"]
     assert direction_cov["counts"]["long"] == 1

@@ -209,6 +209,43 @@ class TestRegimeSliceMetadata(unittest.TestCase):
         self.assertEqual(selection["regime_window_start_utc"], "2026-01-01T00:00:00Z")
         self.assertEqual(selection["regime_window_end_utc"], "2026-04-01T00:00:00Z")
 
+    def test_summary_fallback_all_keeps_regime_rationale_zh(self):
+        candidate = {
+            "candidate_id": "cand_fallback",
+            "strategy_id": "trend_mvp_btc_1h",
+            "family": "trend",
+            "symbol": "BTCUSDT",
+            "timeframe": "1h",
+            "direction": "LONG",
+            "variant": "base",
+            "parameters": {},
+        }
+        metrics = {
+            "status": "SUCCESS",
+            "timestamp": "2026-02-27T00:00:00Z",
+            "oos_sharpe": 0.72,
+            "is_sharpe": 0.94,
+            "oos_mdd": -0.11,
+            "is_mdd": -0.09,
+            "trades_count": 19,
+            "pnl_mult": 1.01,
+            "total_cost_bps": 6.2,
+        }
+        regime_ctx = {
+            "requested": "BULL",
+            "applied": "ALL",
+            "window_start_utc": None,
+            "window_end_utc": None,
+            "status": "WARN",
+            "policy_path": "research/policy/regime_timeline.json",
+            "rationale": "window_not_found_fallback_all",
+            "rationale_zh": "指定切片在目前時點無可用窗口，已自動降級為 ALL。",
+        }
+        summary = rl._build_summary(candidate, metrics, regime_context=regime_ctx)
+        self.assertEqual(summary["regime_slice"], "ALL")
+        self.assertEqual(summary["regime_rationale"], "window_not_found_fallback_all")
+        self.assertIn("降級為 ALL", summary["regime_rationale_zh"])
+
 
 if __name__ == "__main__":
     unittest.main()

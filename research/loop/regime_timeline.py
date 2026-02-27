@@ -102,10 +102,7 @@ def resolve_regime_window(
     for iv in intervals:
         if iv["start_dt"] <= as_of < iv["end_dt"]:
             return (iv["start_utc"], iv["end_utc"])
-
-    history = [iv for iv in intervals if iv["start_dt"] <= as_of]
-    chosen = history[-1] if history else intervals[0]
-    return (chosen["start_utc"], chosen["end_utc"])
+    return None
 
 
 def resolve_regime_context(
@@ -119,6 +116,7 @@ def resolve_regime_context(
     policy = load_regime_timeline_policy(policy_path)
 
     if requested == "ALL":
+        rationale = "default_all_no_slice"
         return {
             "requested": "ALL",
             "applied": "ALL",
@@ -126,14 +124,15 @@ def resolve_regime_context(
             "window_end_utc": None,
             "window_end_exclusive": True,
             "status": "OK",
-            "rationale": "default_all_no_slice",
+            "rationale": rationale,
+            "rationale_zh": _rationale_zh(rationale),
             "policy_path": policy.get("policy_path"),
             "warnings": policy.get("warnings", []),
             "as_of_utc": _iso_utc(as_of),
         }
 
-    window = resolve_regime_window(requested, as_of, policy_payload=policy)
-    if window is None:
+    fallback = _resolve_policy_fallback_reason(policy, requested)
+    if fallback:
         return {
             "requested": requested,
             "applied": "ALL",
@@ -141,24 +140,88 @@ def resolve_regime_context(
             "window_end_utc": None,
             "window_end_exclusive": True,
             "status": "WARN",
-            "rationale": "slice_unavailable_fallback_all",
+            "rationale": fallback,
+            "rationale_zh": _rationale_zh(fallback),
             "policy_path": policy.get("policy_path"),
             "warnings": policy.get("warnings", []),
             "as_of_utc": _iso_utc(as_of),
         }
 
+    window = resolve_regime_window(requested, as_of, policy_payload=policy)
+    if window is None:
+        rationale = "window_not_found_fallback_all"
+        return {
+            "requested": requested,
+            "applied": "ALL",
+            "window_start_utc": None,
+            "window_end_utc": None,
+            "window_end_exclusive": True,
+            "status": "WARN",
+            "rationale": rationale,
+            "rationale_zh": _rationale_zh(rationale),
+            "policy_path": policy.get("policy_path"),
+            "warnings": policy.get("warnings", []),
+            "as_of_utc": _iso_utc(as_of),
+        }
+
+    rationale = "slice_applied"
     return {
         "requested": requested,
         "applied": requested,
         "window_start_utc": window[0],
         "window_end_utc": window[1],
         "window_end_exclusive": True,
-        "status": policy.get("status", "WARN"),
-        "rationale": "slice_applied",
+        "status": "OK",
+        "rationale": rationale,
+        "rationale_zh": _rationale_zh(rationale),
         "policy_path": policy.get("policy_path"),
         "warnings": policy.get("warnings", []),
         "as_of_utc": _iso_utc(as_of),
     }
+
+
+def _resolve_policy_fallback_reason(policy: dict[str, Any], requested: str) -> str | None:
+    warnings = policy.get("warnings") if isinstance(policy, dict) else []
+    if not isinstance(warnings, list):
+        warnings = []
+
+    if any(str(w) == "policy_missing" for w in warnings):
+        return "policy_missing_fallback_all"
+
+    invalid_markers = (
+        "policy_unreadable",
+        "policy_not_object",
+        "_not_list",
+        "_not_object",
+        "_invalid_timestamp",
+        "_invalid_range",
+        "_overlap",
+        "cross_regime_overlap",
+    )
+    if any(any(marker in str(w) for marker in invalid_markers) for w in warnings):
+        return "policy_invalid_fallback_all"
+
+    regimes = policy.get("regimes") if isinstance(policy, dict) else {}
+    if not isinstance(regimes, dict):
+        return "policy_invalid_fallback_all"
+    intervals = regimes.get(requested)
+    if not isinstance(intervals, list):
+        return "policy_invalid_fallback_all"
+    if not intervals:
+        return "window_not_found_fallback_all"
+
+    return None
+
+
+def _rationale_zh(code: str) -> str:
+    mapping = {
+        "default_all_no_slice": "未指定切片，維持 ALL（全時段）預設模式。",
+        "slice_applied": "已套用指定市場切片，僅使用該區間做回測。",
+        "policy_missing_fallback_all": "找不到 regime policy，已自動降級為 ALL。",
+        "policy_invalid_fallback_all": "regime policy 格式或區間不合法，已自動降級為 ALL。",
+        "window_not_found_fallback_all": "指定切片在 as_of 時點無可用窗口，已自動降級為 ALL。",
+    }
+    return mapping.get(str(code), "切片資訊不足，已使用 ALL。")
 
 
 def _parse_interval(

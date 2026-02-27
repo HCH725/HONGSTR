@@ -91,3 +91,47 @@ def test_resolve_context_missing_policy_graceful_fallback(tmp_path: Path):
     assert ctx["applied"] == "ALL"
     assert ctx["window_start_utc"] is None
     assert ctx["window_end_utc"] is None
+    assert ctx["rationale"] == "policy_missing_fallback_all"
+    assert "降級為 ALL" in ctx["rationale_zh"]
+
+
+def test_resolve_window_out_of_range_returns_none(tmp_path: Path):
+    policy_path = tmp_path / "regime_timeline.json"
+    _write_policy(
+        policy_path,
+        {
+            "regimes": {
+                "bull": [{"start": "2026-01-01T00:00:00Z", "end": "2026-02-01T00:00:00Z"}],
+                "bear": [],
+                "sideways": [],
+            }
+        },
+    )
+
+    window = resolve_regime_window("BULL", "2026-02-10T00:00:00Z", policy_path=policy_path)
+    assert window is None
+
+    ctx = resolve_regime_context("BULL", as_of_utc="2026-02-10T00:00:00Z", policy_path=policy_path)
+    assert ctx["applied"] == "ALL"
+    assert ctx["rationale"] == "window_not_found_fallback_all"
+    assert "無可用窗口" in ctx["rationale_zh"]
+
+
+def test_resolve_context_invalid_policy_fallback_all(tmp_path: Path):
+    policy_path = tmp_path / "regime_timeline.json"
+    _write_policy(
+        policy_path,
+        {
+            "regimes": {
+                "bull": [{"start": "2026-02-01T00:00:00Z", "end": "2026-01-01T00:00:00Z"}],
+                "bear": [],
+                "sideways": [],
+            }
+        },
+    )
+
+    ctx = resolve_regime_context("BULL", as_of_utc="2026-01-15T00:00:00Z", policy_path=policy_path)
+    assert ctx["status"] == "WARN"
+    assert ctx["applied"] == "ALL"
+    assert ctx["rationale"] == "policy_invalid_fallback_all"
+    assert "不合法" in ctx["rationale_zh"]
