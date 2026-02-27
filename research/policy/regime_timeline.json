@@ -1,0 +1,38 @@
+{
+  "schema": "regime_timeline.v1",
+  "timezone": "UTC",
+  "updated_utc": "2026-02-27T00:00:00Z",
+  "regimes": {
+    "bull": [
+      {
+        "label": "bull_2024_h1",
+        "start": "2024-01-01T00:00:00Z",
+        "end": "2024-07-01T00:00:00Z"
+      },
+      {
+        "label": "bull_2025_h2",
+        "start": "2025-07-01T00:00:00Z",
+        "end": "2026-01-01T00:00:00Z"
+      }
+    ],
+    "bear": [
+      {
+        "label": "bear_2024_h2",
+        "start": "2024-07-01T00:00:00Z",
+        "end": "2025-01-01T00:00:00Z"
+      }
+    ],
+    "sideways": [
+      {
+        "label": "sideways_2025_h1",
+        "start": "2025-01-01T00:00:00Z",
+        "end": "2025-07-01T00:00:00Z"
+      },
+      {
+        "label": "sideways_2026_h1",
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-07-01T00:00:00Z"
+      }
+    ]
+  }
+}

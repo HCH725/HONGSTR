@@ -1,9 +1,10 @@
-# Direction Variants Reporting (LONG / SHORT / LONGSHORT)
+# Direction Variants Reporting (LONG / SHORT / LONGSHORT + Regime Slice B1)
 
 > REFERENCE ONLY
 
 
 Research loop now evaluates direction variants from candidate catalog and keeps direction metadata through all report-only artifacts.
+Regime Timeline SSOT (B1) adds an optional regime slice label (`ALL|BULL|BEAR|SIDEWAYS`) without changing default behavior.
 
 ## Source of Truth
 
@@ -19,6 +20,13 @@ Direction and variant must appear in:
 - `selection.json`
 - `data/state/_research/leaderboard.json`
 
+Regime B1 metadata appears in the same artifacts:
+
+- `regime` / `regime_slice`
+- `regime_window_start_utc`
+- `regime_window_end_utc` (end-exclusive `[start,end)`)
+- `regime_rationale`
+
 ## Safety
 
 - report-only only
@@ -31,3 +39,17 @@ Direction and variant must appear in:
 ./.venv/bin/python -m pytest -q research/loop/tests/test_candidate_catalog.py
 ./.venv/bin/python -m pytest -q research/loop/tests/test_leaderboard_direction.py
 ```
+
+## How To Run (B1 Wiring)
+
+```bash
+# Default (unchanged)
+./.venv/bin/python research/loop/research_loop.py --dry-run
+
+# Optional regime slice (B1 wiring only)
+HONGSTR_REGIME_SLICE=BULL ./.venv/bin/python research/loop/research_loop.py --dry-run
+# or
+./.venv/bin/python research/loop/research_loop.py --dry-run --regime BULL
+```
+
+> B1 scope: wiring/metadata only. B2 will handle regime-aware leaderboard weighting/aggregation.

@@ -57,6 +57,7 @@ from research.loop.candidate_catalog import build_candidate_catalog, summarize_c
 from research.loop.dca1_executor import run_dca1_candidate
 from research.loop.gates import ResearchGate
 from research.loop.leaderboard import save_leaderboard
+from research.loop.regime_timeline import resolve_regime_context
 from research.loop.schemas_research import ResearchProposal
 from research.loop.weekly_governance import generate_weekly_quant_checklist
 
@@ -227,8 +228,36 @@ def run_backtest_simulated(
 
 
 # ── Artifact / Reporting helpers ─────────────────────────────────────────────
-def _build_summary(candidate: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
+def _regime_meta(regime_context: dict[str, Any] | None) -> dict[str, Any]:
+    ctx = regime_context or {}
+    applied = str(ctx.get("applied") or "ALL").upper()
+    requested = str(ctx.get("requested") or applied).upper()
     return {
+        "regime": applied,
+        "regime_slice": applied,
+        "regime_requested": requested,
+        "regime_window_start_utc": ctx.get("window_start_utc"),
+        "regime_window_end_utc": ctx.get("window_end_utc"),
+        "regime_window_end_exclusive": True,
+        "regime_policy_path": ctx.get("policy_path"),
+        "regime_status": str(ctx.get("status") or "UNKNOWN").upper(),
+        "regime_rationale": str(ctx.get("rationale") or "none"),
+    }
+
+
+def _with_regime_meta(payload: dict[str, Any], regime_context: dict[str, Any] | None) -> dict[str, Any]:
+    out = dict(payload)
+    out.update(_regime_meta(regime_context))
+    return out
+
+
+def _build_summary(
+    candidate: dict[str, Any],
+    metrics: dict[str, Any],
+    *,
+    regime_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    summary = {
         "experiment_id": candidate.get("experiment_id", candidate.get("candidate_id")),
         "candidate_id": candidate.get("candidate_id"),
         "strategy_id": candidate.get("strategy_id"),
@@ -250,26 +279,37 @@ def _build_summary(candidate: dict[str, Any], metrics: dict[str, Any]) -> dict[s
         "total_cost_bps": metrics.get("total_cost_bps", 0.0),
         "parameters": candidate.get("parameters", {}),
     }
+    return _with_regime_meta(summary, regime_context)
 
 
-def _build_selection(summary: dict[str, Any], gate_payload: dict[str, Any]) -> dict[str, Any]:
+def _build_selection(
+    summary: dict[str, Any],
+    gate_payload: dict[str, Any],
+    *,
+    regime_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     recommendation = str(gate_payload.get("recommendation", "WATCHLIST")).upper()
     decision = "SELECT" if recommendation == "PROMOTE" else "WATCHLIST" if recommendation == "WATCHLIST" else "DROP"
     return {
-        "decision": decision,
-        "selected_symbol": summary.get("symbol", "BTCUSDT"),
-        "candidate_id": summary.get("candidate_id"),
-        "strategy_id": summary.get("strategy_id"),
-        "direction": summary.get("direction", "LONG"),
-        "variant": summary.get("variant", "base"),
-        "gate": {
-            "overall": gate_payload.get("overall", "UNKNOWN"),
-            "reasons": gate_payload.get("reasons", []),
-            "final_score": gate_payload.get("final_score", 0.0),
-            "recommendation": recommendation,
-        },
-        "report_only": True,
-        "timestamp": summary.get("timestamp"),
+        **_with_regime_meta(
+            {
+                "decision": decision,
+                "selected_symbol": summary.get("symbol", "BTCUSDT"),
+                "candidate_id": summary.get("candidate_id"),
+                "strategy_id": summary.get("strategy_id"),
+                "direction": summary.get("direction", "LONG"),
+                "variant": summary.get("variant", "base"),
+                "gate": {
+                    "overall": gate_payload.get("overall", "UNKNOWN"),
+                    "reasons": gate_payload.get("reasons", []),
+                    "final_score": gate_payload.get("final_score", 0.0),
+                    "recommendation": recommendation,
+                },
+                "report_only": True,
+                "timestamp": summary.get("timestamp"),
+            },
+            regime_context,
+        )
     }
 
 
@@ -287,6 +327,9 @@ def _render_candidate_report(*, summary: dict[str, Any], gate_payload: dict[str,
         f"- Family: {summary.get('family')}\n"
         f"- Direction: {summary.get('direction')}\n"
         f"- Variant: {summary.get('variant')}\n"
+        f"- Regime Slice: {summary.get('regime_slice', 'ALL')}\n"
+        f"- Regime Window [start,end): {summary.get('regime_window_start_utc')} -> {summary.get('regime_window_end_utc')}\n"
+        f"- Regime Rationale: {summary.get('regime_rationale', 'none')}\n"
         f"- Symbol/TF: {summary.get('symbol')} {summary.get('timeframe')}\n\n"
         f"## Metrics\n"
         f"- OOS Sharpe: {summary.get('sharpe')}\n"
@@ -330,6 +373,10 @@ def _write_candidate_artifacts(
             "family": summary.get("family"),
             "direction": summary.get("direction"),
             "variant": summary.get("variant"),
+            "regime": summary.get("regime", "ALL"),
+            "regime_slice": summary.get("regime_slice", "ALL"),
+            "regime_window_start_utc": summary.get("regime_window_start_utc"),
+            "regime_window_end_utc": summary.get("regime_window_end_utc"),
             "final_score": gate_payload.get("final_score", 0.0),
             "gate_overall": gate_payload.get("overall", "UNKNOWN"),
         }
@@ -420,6 +467,11 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="Skip backtest, write DRY_RUN state")
     parser.add_argument("--max-candidates", type=int, default=0, help="Optional cap for candidate count")
     parser.add_argument(
+        "--regime",
+        default=os.getenv("HONGSTR_REGIME_SLICE", "ALL"),
+        help="Optional regime slice: ALL|BULL|BEAR|SIDEWAYS (default: env HONGSTR_REGIME_SLICE or ALL)",
+    )
+    parser.add_argument(
         "--disable-dca-family",
         action="store_true",
         help="Disable DCA candidate family for this run",
@@ -448,6 +500,24 @@ def main() -> None:
         cat_summary = summarize_catalog(catalog)
         logger.info("Candidate catalog loaded: %s", cat_summary)
 
+        regime_context = resolve_regime_context(args.regime)
+        if regime_context.get("status") == "WARN":
+            logger.warning(
+                "Regime slice WARN: requested=%s applied=%s rationale=%s warnings=%s",
+                regime_context.get("requested"),
+                regime_context.get("applied"),
+                regime_context.get("rationale"),
+                regime_context.get("warnings", []),
+            )
+        else:
+            logger.info(
+                "Regime slice: requested=%s applied=%s window=[%s,%s)",
+                regime_context.get("requested"),
+                regime_context.get("applied"),
+                regime_context.get("window_start_utc"),
+                regime_context.get("window_end_utc"),
+            )
+
         gate = ResearchGate()
         date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
         run_root = REPORTS_ROOT / date_str
@@ -458,8 +528,15 @@ def main() -> None:
 
         # 2~7. Propose/Validate/Run/Gate/Report for each candidate
         for idx, candidate in enumerate(catalog, start=1):
+            candidate = dict(candidate)
             exp_id = f"EXP_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}_{idx:03d}"
             candidate["experiment_id"] = exp_id
+            if regime_context.get("applied") != "ALL":
+                candidate["backtest_window"] = {
+                    "start_utc": regime_context.get("window_start_utc"),
+                    "end_utc": regime_context.get("window_end_utc"),
+                    "end_exclusive": True,
+                }
             proposal_data = {
                 "experiment_id": exp_id,
                 "priority": "MED",
@@ -474,17 +551,22 @@ def main() -> None:
                 "metrics_to_watch": ["oos_sharpe", "oos_mdd", "trades_count", "direction"],
                 "reasoning": "Generated by research loop candidate catalog (report_only).",
             }
+            proposal_data["parameters"] = dict(proposal_data["parameters"])
+            proposal_data["parameters"]["regime_slice"] = regime_context.get("applied", "ALL")
+            proposal_data["parameters"]["regime_window_start_utc"] = regime_context.get("window_start_utc")
+            proposal_data["parameters"]["regime_window_end_utc"] = regime_context.get("window_end_utc")
             proposal = ResearchProposal(**proposal_data)
             proposal.validate_registry(registry)
 
             if candidate.get("execution_model") == "dca1":
                 dca_out = run_dca1_candidate(candidate, snapshot=snapshot, dry_run=args.dry_run)
-                summary = dca_out["summary"]
-                metrics = dca_out["metrics"]
+                summary = _with_regime_meta(dca_out["summary"], regime_context)
+                metrics = _with_regime_meta(dca_out["metrics"], regime_context)
                 report_md = dca_out["report_md"]
             else:
                 metrics = run_backtest_simulated(proposal, dry_run=args.dry_run, candidate=candidate, snapshot=snapshot)
-                summary = _build_summary(candidate, metrics)
+                metrics = _with_regime_meta(metrics, regime_context)
+                summary = _build_summary(candidate, metrics, regime_context=regime_context)
                 report_md = ""
 
             gate_result = gate.evaluate_detailed(metrics)
@@ -499,11 +581,12 @@ def main() -> None:
                 "report_only": True,
                 "timestamp": summary.get("timestamp"),
             }
+            gate_payload = _with_regime_meta(gate_payload, regime_context)
 
             summary["final_score"] = gate_payload["final_score"]
             summary["gate_overall"] = gate_payload["overall"]
 
-            selection = _build_selection(summary, gate_payload)
+            selection = _build_selection(summary, gate_payload, regime_context=regime_context)
             if candidate.get("execution_model") == "dca1":
                 selection_from_dca = dca_out["selection"]
                 selection["decision"] = selection_from_dca.get("decision", selection["decision"])
@@ -529,6 +612,10 @@ def main() -> None:
                     "family": summary.get("family"),
                     "direction": summary.get("direction"),
                     "variant": summary.get("variant"),
+                    "regime": summary.get("regime", "ALL"),
+                    "regime_slice": summary.get("regime_slice", "ALL"),
+                    "regime_window_start_utc": summary.get("regime_window_start_utc"),
+                    "regime_window_end_utc": summary.get("regime_window_end_utc"),
                     "last_score": summary.get("final_score", 0.0),
                     "gate_overall": summary.get("gate_overall", "UNKNOWN"),
                     "recommendation": gate_payload.get("recommendation", "WATCHLIST"),
@@ -575,8 +662,9 @@ def main() -> None:
         notify_telegram(top, top_pass, representative_report or Path(weekly.get("outputs", {}).get("markdown", "report.md")), "OK" if not args.dry_run else "DRY_RUN")
 
         logger.info(
-            "Research Loop v2 completed: candidates=%s pool=%s board=%s weekly=%s",
+            "Research Loop v2 completed: candidates=%s regime=%s pool=%s board=%s weekly=%s",
             len(records),
+            regime_context.get("applied", "ALL"),
             pool_path,
             board_path,
             weekly.get("outputs", {}),
