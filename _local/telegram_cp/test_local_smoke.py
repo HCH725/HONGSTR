@@ -211,7 +211,14 @@ def _write_daily_report_ssot(repo: Path) -> None:
                     "coverage_matrix": {"status": "PASS"},
                     "brake": {"status": "OK"},
                     "regime_monitor": {"status": "OK"},
-                    "regime_signal": {"status": "WARN"},
+                    "regime_signal": {
+                        "status": "FAIL",
+                        "top_reason": "MDD 跌破保護線",
+                        "threshold_value": -0.0353,
+                        "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
+                        "threshold_policy_sha": "abc123def4567890",
+                        "threshold_rationale": "最大回撤超過 p95 風險區間",
+                    },
                 },
                 "freshness_summary": {
                     "counts": {"OK": 8, "WARN": 1, "FAIL": 0, "UNKNOWN": 0},
@@ -525,6 +532,10 @@ def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
     assert "SSOT(" in resp
     assert "MDD(" in resp
     assert "DCA(" in resp
+    assert "RegimeSignal（市場風險告警）=FAIL" in resp
+    assert "來源=reports/strategy_research/phase3/phase3_results.json" in resp
+    assert "版本=abc123def456" in resp
+    assert "先降槓桿或降部位、暫停 promote" in resp
     assert "SHORT覆蓋" in resp
     assert "RefreshHint: bash scripts/refresh_state.sh" in resp
 

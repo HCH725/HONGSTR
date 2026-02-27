@@ -58,6 +58,10 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "strategy_pool.direction_coverage": {"zh": "策略方向覆蓋摘要", "en": "strategy_pool.direction_coverage"},
     "strategy_pool.direction_coverage.short_coverage": {"zh": "空方覆蓋摘要", "en": "strategy_pool.direction_coverage.short_coverage"},
     "governance.today_gate_summary": {"zh": "今日Gate摘要", "en": "governance.today_gate_summary"},
+    "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
+    "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
+    "ssot_components.regime_signal.threshold_policy_sha": {"zh": "RegimeSignal門檻版本SHA", "en": "ssot_components.regime_signal.threshold_policy_sha"},
+    "ssot_components.regime_signal.threshold_rationale": {"zh": "RegimeSignal門檻理由", "en": "ssot_components.regime_signal.threshold_rationale"},
 }
 
 
@@ -1148,6 +1152,13 @@ def main():
             regime_top_reason = top_reason.strip()
     if regime_top_reason and len(regime_top_reason) > 120:
         regime_top_reason = regime_top_reason[:117] + "..."
+    regime_threshold_value = _as_float_opt(regime_data.get("threshold_value"))
+    regime_threshold_source_path_raw = str(regime_data.get("threshold_source_path") or "").strip()
+    regime_threshold_source_path = regime_threshold_source_path_raw or None
+    regime_threshold_policy_sha_raw = str(regime_data.get("threshold_policy_sha") or "").strip()
+    regime_threshold_policy_sha = regime_threshold_policy_sha_raw or None
+    regime_threshold_rationale_raw = str(regime_data.get("threshold_rationale") or "").strip()
+    regime_threshold_rationale = regime_threshold_rationale_raw or None
 
     regime_age_h = None
     if regime_path.exists():
@@ -1196,6 +1207,10 @@ def main():
             "regime_signal": {
                 "status": regime_signal,
                 "top_reason": regime_top_reason,
+                "threshold_value": regime_threshold_value,
+                "threshold_source_path": regime_threshold_source_path,
+                "threshold_policy_sha": regime_threshold_policy_sha,
+                "threshold_rationale": regime_threshold_rationale,
             },
         },
         "sources": {

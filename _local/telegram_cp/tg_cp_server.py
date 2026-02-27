@@ -547,7 +547,7 @@ def _daily_acronym_map() -> dict[str, str]:
     return defaults
 
 
-def _daily_trim(text: str, limit: int = 92) -> str:
+def _daily_trim(text: str, limit: int = 180) -> str:
     clean = " ".join(str(text or "").split())
     if len(clean) <= limit:
         return clean
@@ -750,6 +750,25 @@ def _daily_compose_report(
     brake_component_status = _daily_norm_status(brake_comp.get("status"))
     regime_monitor_status = _daily_norm_status(regime_comp.get("status"))
     regime_signal_status = _daily_norm_status(regime_signal_comp.get("status"))
+    regime_signal_reason_raw = regime_signal_comp.get("top_reason")
+    regime_signal_reason = "資料不足/UNKNOWN"
+    if isinstance(regime_signal_reason_raw, str) and regime_signal_reason_raw.strip():
+        regime_signal_reason = regime_signal_reason_raw.strip()
+    regime_threshold_value = _daily_unknown(regime_signal_comp.get("threshold_value"), digits=4)
+    regime_threshold_source_path = str(regime_signal_comp.get("threshold_source_path") or "").strip() or "資料不足/UNKNOWN"
+    regime_threshold_policy_sha_raw = str(regime_signal_comp.get("threshold_policy_sha") or "").strip()
+    regime_threshold_policy_sha = regime_threshold_policy_sha_raw[:12] if regime_threshold_policy_sha_raw else "資料不足/UNKNOWN"
+    regime_threshold_rationale = str(regime_signal_comp.get("threshold_rationale") or "").strip() or "資料不足/UNKNOWN"
+    system_section_status = _status_max(ssot_status, regime_signal_status)
+    regime_signal_reason_short = _daily_trim(regime_signal_reason, limit=36)
+    regime_threshold_source_short = _daily_trim(regime_threshold_source_path, limit=72)
+    regime_threshold_rationale_short = _daily_trim(regime_threshold_rationale, limit=48)
+    if regime_signal_status == "FAIL":
+        regime_reason_zh_note = "口語補註=風險已越過紅線，代表短期回撤擴大。"
+    elif regime_signal_status == "WARN":
+        regime_reason_zh_note = "口語補註=風險正在升溫，需先收斂曝險。"
+    else:
+        regime_reason_zh_note = "口語補註=目前在風險舒適區。"
 
     freshness_summary = payload.get("freshness_summary", {})
     if not isinstance(freshness_summary, dict):
@@ -887,9 +906,18 @@ def _daily_compose_report(
     while len(llm_notes) < 6:
         llm_notes.append("")
 
+    regime_signal_reason_cn = (
+        f"RegimeSignal（市場風險告警）={regime_signal_status}；"
+        f"{regime_reason_zh_note}"
+        f"；"
+        f"原因={regime_signal_reason_short}；"
+        f"門檻={regime_threshold_value}；版本={regime_threshold_policy_sha}；"
+        f"來源={regime_threshold_source_short}；理由={regime_threshold_rationale_short}。"
+    )
     system_reason = (
+        f"{regime_signal_reason_cn} "
         f"SSOT={ssot_status}；Freshness={fresh_component_status}、Coverage={coverage_component_status}、"
-        f"Brake={brake_component_status}、RegimeMonitor={regime_monitor_status}、RegimeSignal={regime_signal_status}。"
+        f"Brake={brake_component_status}、RegimeMonitor={regime_monitor_status}。"
     )
     offender_text = "資料不足/UNKNOWN"
     if isinstance(top_offender, dict) and top_offender:
@@ -943,19 +971,26 @@ def _daily_compose_report(
         f"core diff={core_diff_status}；tg_cp no-exec={no_exec_status}；"
         f"no data committed={no_data_status}。"
     )
+    system_next_default = _daily_next_step(
+        system_section_status,
+        ok="L1：維持排程，明天同一時間再看 /daily。",
+        warn="L2：先跑 refresh_state，再優先排查 DataFreshness 與 Guardrails。",
+        fail="L3：先停新增研究輸出，照 operator manual 逐項排查紅燈。",
+        unknown="L2：先確認 daily_report_latest.json 與 system_health_latest.json 可讀。",
+    )
+    if regime_signal_status == "FAIL":
+        system_next = "L3：RegimeSignal（市場風險告警）紅燈；先降槓桿或降部位、暫停 promote，改看 short 候選並重跑 gate。"
+    elif regime_signal_status == "WARN":
+        system_next = "L2：RegimeSignal（市場風險告警）轉黃；先小幅降槓桿、暫停 promote，優先檢查 short 候選。"
+    else:
+        system_next = system_next_default
 
     sections = [
         {
             "title": "SystemHealth",
-            "status": ssot_status,
+            "status": system_section_status,
             "reason": _daily_reason(system_reason, llm_notes[0]),
-            "next": _daily_next_step(
-                ssot_status,
-                ok="L1：維持排程，明天同一時間再看 /daily。",
-                warn="L2：先跑 refresh_state，再優先排查 DataFreshness 與 Guardrails。",
-                fail="L3：先停新增研究輸出，照 operator manual 逐項排查紅燈。",
-                unknown="L2：先確認 daily_report_latest.json 與 system_health_latest.json 可讀。",
-            ),
+            "next": system_next,
         },
         {
             "title": "DataFreshness",
