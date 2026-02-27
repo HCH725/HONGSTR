@@ -56,6 +56,7 @@ logger = logging.getLogger("research_loop")
 from research.loop.schemas_research import ResearchProposal
 from research.loop.gates import ResearchGate
 from research.loop.leaderboard import save_leaderboard
+from research.loop.weekly_governance import generate_weekly_quant_checklist
 
 
 # ── Lock ──────────────────────────────────────────────────────────────────────
@@ -133,9 +134,17 @@ def run_backtest_simulated(proposal: ResearchProposal, dry_run: bool = False) ->
     """Simulated OOS/WF backtest (report_only). dry_run skips all computation."""
     if dry_run:
         logger.info("DRY-RUN: skipping backtest.")
-        return {"status": "DRY_RUN", "is_sharpe": 0.0, "oos_sharpe": 0.0,
-                "is_mdd": 0.0, "oos_mdd": 0.0, "pnl_mult": 1.0,
-                "timestamp": datetime.now().isoformat()}
+        return {
+            "status": "DRY_RUN",
+            "is_sharpe": 0.0,
+            "oos_sharpe": 0.0,
+            "is_mdd": 0.0,
+            "oos_mdd": 0.0,
+            "pnl_mult": 1.0,
+            "trades_count": 0,
+            "total_cost_bps": 0.0,
+            "timestamp": datetime.now().isoformat(),
+        }
     logger.info(f"Running simulated backtest for {proposal.experiment_id}...")
     time.sleep(1)
     return {
@@ -145,13 +154,20 @@ def run_backtest_simulated(proposal: ResearchProposal, dry_run: bool = False) ->
         "is_mdd": -0.10,
         "oos_mdd": -0.12,
         "pnl_mult": 1.15,
+        "trades_count": 28,
+        "total_cost_bps": 8.0,
         "timestamp": datetime.now().isoformat(),
     }
 
 
 # ── Report ────────────────────────────────────────────────────────────────────
 
-def generate_report(proposal: ResearchProposal, results: Dict[str, Any], gate_passed: bool) -> Path:
+def generate_report(
+    proposal: ResearchProposal,
+    results: Dict[str, Any],
+    gate_passed: bool,
+    gate_details: Dict[str, Any] | None = None,
+) -> Path:
     date_str = datetime.now().strftime("%Y%m%d")
     daily_dir = REPORTS_ROOT / date_str
     daily_dir.mkdir(parents=True, exist_ok=True)
@@ -160,12 +176,18 @@ def generate_report(proposal: ResearchProposal, results: Dict[str, Any], gate_pa
     (daily_dir / f"{proposal.experiment_id}_results.json").write_text(json.dumps(results, indent=2))
 
     report_path = daily_dir / "report.md"
+    details = gate_details or {}
+    soft_penalties = details.get("soft_penalties", {})
+    hard_failures = details.get("hard_failures", [])
     content = f"""# Research Report: {proposal.experiment_id}
 Generated: {results['timestamp']}
 Gate Status: {"✅ PASSED" if gate_passed else "❌ FAILED"}
 
 ## Experiment Summary
 - **Strategy**: {proposal.strategy} | **Symbol**: {proposal.symbol} | **Timeframe**: {proposal.timeframe}
+- **Gate Policy**: {details.get("policy_name", "unknown")}
+- **Final Score**: {details.get("final_score", 0.0)}
+- **Recommendation**: {details.get("recommendation", "UNKNOWN")}
 
 ## Hypothesis
 {proposal.hypothesis}
@@ -175,6 +197,13 @@ Gate Status: {"✅ PASSED" if gate_passed else "❌ FAILED"}
 |--------|----|-----|
 | Sharpe | {results['is_sharpe']:.2f} | {results['oos_sharpe']:.2f} |
 | MDD    | {results['is_mdd']:.2%} | {results['oos_mdd']:.2%} |
+| Trades | - | {results.get('trades_count', 0)} |
+| PnL Mult | - | {results.get('pnl_mult', 1.0):.2f} |
+| Cost (bps) | - | {results.get('total_cost_bps', 0.0):.2f} |
+
+## Gate Detail
+- hard_failures: {hard_failures}
+- soft_penalties: {soft_penalties}
 
 ## Reasoning
 {proposal.reasoning}
@@ -271,13 +300,30 @@ def main():
         # 4. Run backtest
         results = run_backtest_simulated(proposal, dry_run=args.dry_run)
 
-        # 5. Gate (OOS/WF priority)
+        # 5. Gate (OOS/WF priority, config-driven hard+soft)
         gate = ResearchGate()
-        gate_result = gate.evaluate(results)
-        gate_passed = gate_result if not args.dry_run else False
+        gate_result = gate.evaluate_detailed(results)
+        gate_passed = bool(gate_result) if not args.dry_run else False
+        gate_details = gate_result.as_dict()
+        results["final_score"] = gate_details.get("final_score", 0.0)
+        results["gate_recommendation"] = gate_details.get("recommendation", "WATCHLIST")
+        results["policy_name"] = gate_details.get("policy_name", "unknown")
 
         # 6. Report
-        report_path = generate_report(proposal, results, gate_passed)
+        report_path = generate_report(proposal, results, gate_passed, gate_details=gate_details)
+
+        # 6b. Leaderboard + weekly governance checklist (report-only artifacts)
+        save_leaderboard(top_n=20)
+        generate_weekly_quant_checklist(
+            REPO_ROOT,
+            recent_results=[
+                {
+                    "id": proposal.experiment_id,
+                    "score": gate_details.get("final_score", 0.0),
+                    "recommendation": gate_details.get("recommendation", "WATCHLIST"),
+                }
+            ],
+        )
 
         # 7. Write enriched state
         write_state(
