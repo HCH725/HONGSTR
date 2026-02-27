@@ -1,0 +1,24 @@
+{
+  "name": "regime_thresholds_v1",
+  "metric": "max_drawdown",
+  "thresholds": {
+    "warn": -0.08,
+    "fail": -0.14
+  },
+  "calibration": {
+    "mode": "semi_dynamic_weekly_pr",
+    "lookback_days": 90,
+    "warn_quantile": 0.9,
+    "fail_quantile": 0.97,
+    "min_samples": 30,
+    "stale_after_days": 8,
+    "last_calibrated_utc": null,
+    "calibration_status": "STALE"
+  },
+  "provenance": {
+    "source_glob": "data/backtests/**/summary.json",
+    "calibrator_path": "research/loop/regime_threshold_calibrator.py",
+    "policy_review": "human_approved_via_pr"
+  },
+  "rationale": "Weekly calibration proposes candidate thresholds; active policy only changes after manual PR review."
+}
