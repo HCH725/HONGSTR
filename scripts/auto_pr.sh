@@ -125,7 +125,10 @@ run_named_or_inline_generator() {
 
 if [[ -n "${AUTO_PR_GENERATORS:-}" || "${#ONLY_GENERATORS[@]}" -gt 0 ]]; then
   echo "[auto_pr] Running generators ..."
-  mapfile -t RAW_GENERATORS < <(printf '%s' "${AUTO_PR_GENERATORS:-}" | tr ';' '\n')
+  RAW_GENERATORS=()
+  while IFS= read -r _line; do
+    RAW_GENERATORS+=("$_line")
+  done < <(printf '%s' "${AUTO_PR_GENERATORS:-}" | tr ';' '\n')
 
   if [[ "${#ONLY_GENERATORS[@]}" -eq 0 ]]; then
     for raw in "${RAW_GENERATORS[@]}"; do
@@ -174,7 +177,12 @@ if [[ -n "${AUTO_PR_GENERATORS:-}" || "${#ONLY_GENERATORS[@]}" -gt 0 ]]; then
   fi
 fi
 
-mapfile -t CHANGED < <(
+CHANGED=()
+while IFS= read -r _line; do
+  if [[ -n "$_line" ]]; then
+    CHANGED+=("$_line")
+  fi
+done < <(
   {
     git diff --name-only
     git diff --name-only --cached
