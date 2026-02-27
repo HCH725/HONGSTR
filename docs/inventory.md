@@ -17,7 +17,7 @@
 - scripts/ingest_historical.py
 - scripts/aggregate_data.py
 - scripts/check_data_coverage.sh
-- data/derived/<SYMBOL>/1m/klines.jsonl (canonical backtest source)
+- data/derived/SYMBOL/1m/klines.jsonl (canonical backtest source)
 
 ## Notifications
 
@@ -35,6 +35,10 @@
 - .github/CODEOWNERS
 - .github/workflows/guardrails.yml
 - .github/pull_request_template.md
+
+## Architecture & Lifecycle
+
+- [Lifecycle Flow & Glossary (SSOT)](docs/architecture/lifecycle_flow_and_glossary.md)
 
 ## State / Artifacts (expected)
 
