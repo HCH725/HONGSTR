@@ -242,6 +242,7 @@ def _regime_meta(regime_context: dict[str, Any] | None) -> dict[str, Any]:
         "regime_policy_path": ctx.get("policy_path"),
         "regime_status": str(ctx.get("status") or "UNKNOWN").upper(),
         "regime_rationale": str(ctx.get("rationale") or "none"),
+        "regime_rationale_zh": str(ctx.get("rationale_zh") or ""),
     }
 
 
@@ -644,6 +645,11 @@ def main() -> None:
                     "candidate_id": r.get("candidate_id"),
                     "score": r.get("last_score", 0.0),
                     "recommendation": r.get("recommendation", "WATCHLIST"),
+                    "regime_slice": r.get("regime_slice", r.get("regime", "ALL")),
+                    "regime_window_start_utc": r.get("regime_window_start_utc"),
+                    "regime_window_end_utc": r.get("regime_window_end_utc"),
+                    "regime_rationale": r.get("regime_rationale", ""),
+                    "regime_rationale_zh": r.get("regime_rationale_zh", ""),
                 }
                 for r in records[:20]
             ],

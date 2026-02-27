@@ -88,12 +88,16 @@ def generate_weekly_quant_checklist(
         f"- watchlist: {', '.join(watchlist) if watchlist else 'none'}",
         "",
         "## Top Candidates",
-        "| id | score | recommendation | reason |",
-        "|---|---:|---|---|",
+        "| id | score | recommendation | regime_slice | regime_window_utc | reason |",
+        "|---|---:|---|---|---|---|",
     ]
     for row in sorted_rows[:10]:
+        start = str(row.get("regime_window_start_utc") or "")
+        end = str(row.get("regime_window_end_utc") or "")
+        window = f"[{start},{end})" if start and end else "ALL/default"
         md_lines.append(
-            f"| {row.get('id')} | {float(row.get('score', 0.0)):.2f} | {row.get('recommendation')} | {row.get('reason')} |"
+            f"| {row.get('id')} | {float(row.get('score', 0.0)):.2f} | {row.get('recommendation')} | "
+            f"{row.get('regime_slice', 'ALL')} | {window} | {row.get('reason')} |"
         )
 
     md_path = out_dir / "weekly_quant_checklist.md"
@@ -126,6 +130,11 @@ def _extract_candidates(
                     "score": score,
                     "recommendation": recommendation,
                     "reason": "strategy_pool_summary",
+                    "regime_slice": _normalize_regime_slice(c.get("regime_slice") or c.get("regime")),
+                    "regime_window_start_utc": c.get("regime_window_start_utc"),
+                    "regime_window_end_utc": c.get("regime_window_end_utc"),
+                    "regime_rationale": str(c.get("regime_rationale") or "default_all_no_slice"),
+                    "regime_rationale_zh": str(c.get("regime_rationale_zh") or ""),
                 }
             )
 
@@ -142,6 +151,11 @@ def _extract_candidates(
                     "score": score,
                     "recommendation": recommendation,
                     "reason": "research_leaderboard",
+                    "regime_slice": _normalize_regime_slice(e.get("regime_slice") or e.get("regime")),
+                    "regime_window_start_utc": e.get("regime_window_start_utc"),
+                    "regime_window_end_utc": e.get("regime_window_end_utc"),
+                    "regime_rationale": str(e.get("regime_rationale") or "default_all_no_slice"),
+                    "regime_rationale_zh": str(e.get("regime_rationale_zh") or ""),
                 }
             )
 
@@ -151,7 +165,19 @@ def _extract_candidates(
             continue
         score = _as_float(e.get("score"), 0.0)
         recommendation = str(e.get("recommendation") or "WATCHLIST").upper()
-        rows.append({"id": cid, "score": score, "recommendation": recommendation, "reason": "recent_results"})
+        rows.append(
+            {
+                "id": cid,
+                "score": score,
+                "recommendation": recommendation,
+                "reason": "recent_results",
+                "regime_slice": _normalize_regime_slice(e.get("regime_slice") or e.get("regime")),
+                "regime_window_start_utc": e.get("regime_window_start_utc"),
+                "regime_window_end_utc": e.get("regime_window_end_utc"),
+                "regime_rationale": str(e.get("regime_rationale") or "default_all_no_slice"),
+                "regime_rationale_zh": str(e.get("regime_rationale_zh") or ""),
+            }
+        )
 
     return rows
 
@@ -182,6 +208,11 @@ def _as_int(v: Any, default: int) -> int:
         return int(v)
     except Exception:
         return int(default)
+
+
+def _normalize_regime_slice(v: Any) -> str:
+    value = str(v or "ALL").upper().strip()
+    return value if value in {"ALL", "BULL", "BEAR", "SIDEWAYS"} else "ALL"
 
 
 def _apply_watchlist_floor(rows: list[dict[str, Any]], floor: int) -> None:

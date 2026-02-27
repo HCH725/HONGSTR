@@ -596,6 +596,39 @@ def _daily_next_step(
     return unknown
 
 
+def _daily_regime_slice_note(
+    *,
+    regime_slice: object,
+    window_start_utc: object,
+    window_end_utc: object,
+    rationale: object,
+    rationale_zh: object,
+) -> str:
+    slice_norm = str(regime_slice or "ALL").upper().strip()
+    if slice_norm not in {"ALL", "BULL", "BEAR", "SIDEWAYS"}:
+        slice_norm = "ALL"
+
+    start_text = str(window_start_utc or "").strip()
+    end_text = str(window_end_utc or "").strip()
+    rationale_code = str(rationale or "").strip().lower()
+    rationale_cn = str(rationale_zh or "").strip()
+
+    if slice_norm != "ALL":
+        if start_text and end_text:
+            return f"本次回測切片={slice_norm}，期間=[{start_text},{end_text}) UTC（結束不含）。"
+        return f"本次回測切片={slice_norm}，但窗口資料不足（資料不足/UNKNOWN）。"
+
+    if rationale_cn:
+        return f"本次回測切片=ALL（{rationale_cn}）"
+    if "policy_missing" in rationale_code:
+        return "本次回測切片=ALL（policy 缺失，已自動降級）。"
+    if "policy_invalid" in rationale_code:
+        return "本次回測切片=ALL（policy 不合法，已自動降級）。"
+    if "window_not_found" in rationale_code or "slice_unavailable" in rationale_code:
+        return "本次回測切片=ALL（指定切片無可用窗口，已自動降級）。"
+    return "本次回測切片=ALL（預設行為，不切片）。"
+
+
 def _daily_acr_short(desc: str) -> str:
     text = str(desc or "").strip()
     for marker in ("（", "("):
@@ -824,6 +857,20 @@ def _daily_compose_report(
     bt_gate_status_raw = str(bt_gate.get("overall") or "UNKNOWN").upper()
     bt_gate_status = _daily_norm_status(bt_gate_status_raw)
     bt_metrics_status = _daily_norm_status(backtest.get("metrics_status"))
+    bt_regime_slice = str(backtest.get("regime_slice") or "ALL").upper().strip()
+    if bt_regime_slice not in {"ALL", "BULL", "BEAR", "SIDEWAYS"}:
+        bt_regime_slice = "ALL"
+    bt_regime_start = backtest.get("regime_window_start_utc")
+    bt_regime_end = backtest.get("regime_window_end_utc")
+    bt_regime_rationale = backtest.get("regime_rationale")
+    bt_regime_rationale_zh = backtest.get("regime_rationale_zh")
+    bt_regime_note = _daily_regime_slice_note(
+        regime_slice=bt_regime_slice,
+        window_start_utc=bt_regime_start,
+        window_end_utc=bt_regime_end,
+        rationale=bt_regime_rationale,
+        rationale_zh=bt_regime_rationale_zh,
+    )
     if bt_status == "FAIL" or bt_gate_status == "FAIL":
         backtest_status = "FAIL"
     elif bt_status == "UNKNOWN":
@@ -861,6 +908,9 @@ def _daily_compose_report(
     if not isinstance(short_best, dict):
         short_best = {}
     short_best_status = _daily_norm_status(short_best.get("metrics_status"))
+    short_best_regime = str(short_best.get("regime_slice") or "ALL").upper().strip()
+    if short_best_regime not in {"ALL", "BULL", "BEAR", "SIDEWAYS"}:
+        short_best_regime = "ALL"
     pool_candidates = _daily_int(pool_counts.get("candidates"))
     short_candidates = _daily_int(short_coverage.get("candidates"))
     if pool_candidates <= 0:
@@ -957,7 +1007,8 @@ def _daily_compose_report(
         f"gate={bt_gate_status_raw}；score={_daily_unknown(bt_metrics.get('final_score'))}；"
         f"OOS={_daily_unknown(bt_metrics.get('oos_sharpe'))}；MDD={_daily_unknown(bt_metrics.get('oos_mdd'))}；"
         f"IS={_daily_unknown(bt_metrics.get('is_sharpe'))}；Trades={_daily_int_or_unknown(bt_metrics.get('trades_count'))}；"
-        f"metrics={backtest.get('metrics_status','UNKNOWN')}。"
+        f"metrics={backtest.get('metrics_status','UNKNOWN')}；"
+        f"{bt_regime_note}"
     )
     short_best_name = short_best.get("strategy_id") or "資料不足/UNKNOWN"
     if short_best_name == "資料不足/UNKNOWN":
@@ -965,7 +1016,7 @@ def _daily_compose_report(
     else:
         short_best_summary = (
             f"{short_best_name}(score={_daily_unknown(short_best.get('score'))},"
-            f"metrics={short_best.get('metrics_status','UNKNOWN')})"
+            f"metrics={short_best.get('metrics_status','UNKNOWN')},regime={short_best_regime})"
         )
     strategy_reason = (
         f"SHORT覆蓋 候選={_daily_int_or_unknown(short_coverage.get('candidates'))}/"
@@ -975,6 +1026,7 @@ def _daily_compose_report(
         f"{_daily_int_or_unknown(pool_counts.get('promoted'))}/"
         f"{_daily_int_or_unknown(pool_counts.get('demoted'))}；"
         f"Top1={top_entry.get('strategy_id','UNKNOWN')}[{top_entry.get('direction','UNKNOWN')}]"
+        f"@{str(top_entry.get('regime_slice') or 'ALL').upper()}"
         f"(score={_daily_unknown(top_entry.get('score'))},m={top_entry.get('metrics_status','UNKNOWN')})。"
     )
     governance_reason = (
