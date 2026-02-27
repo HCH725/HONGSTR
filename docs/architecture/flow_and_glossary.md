@@ -41,4 +41,6 @@ flowchart TD
 - **DoD (Definition of Done)**: Mandatory requirements (DoD-1 to DoD-4) for research completion.
 - **Gates (G0-G6)**: Progressive compliance hurdles for strategy promotion.
 - **SSOT (Single Source of Truth)**: The canonical state stored in files (like system_health_latest.json) that all tools must read.
-
+- **Regime Timeline SSOT**: Canonical research policy (`research/policy/regime_timeline.json`) defining bull/bear/sideways slices.
+  - **End-Exclusive**: Intervals are defined as `[start, end)`, meaning the start is included but the end is not.
+  - **Default=ALL**: When no slice is specified, the system defaults to "ALL" time, ensuring no core results are mutated by the slicing logic.
