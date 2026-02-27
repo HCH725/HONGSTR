@@ -41,7 +41,14 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                 "coverage_matrix": {"status": "PASS"},
                 "brake": {"status": "OK"},
                 "regime_monitor": {"status": "OK"},
-                "regime_signal": {"status": "WARN"},
+                "regime_signal": {
+                    "status": "WARN",
+                    "top_reason": "MDD risk elevated",
+                    "threshold_value": -0.0353,
+                    "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
+                    "threshold_policy_sha": "abc123def456",
+                    "threshold_rationale": "Max drawdown crossed warning baseline.",
+                },
             },
         },
         freshness_table={
@@ -99,12 +106,20 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["schema"]["version"] == "daily_report.v1"
     assert isinstance(payload["schema"]["field_labels_zh_en"], dict)
     assert "generated_utc" in payload["schema"]["field_labels_zh_en"]
+    assert "ssot_components.regime_signal.threshold_value" in payload["schema"]["field_labels_zh_en"]
+    assert "ssot_components.regime_signal.threshold_source_path" in payload["schema"]["field_labels_zh_en"]
+    assert "ssot_components.regime_signal.threshold_policy_sha" in payload["schema"]["field_labels_zh_en"]
+    assert "ssot_components.regime_signal.threshold_rationale" in payload["schema"]["field_labels_zh_en"]
 
     assert isinstance(payload["freshness_summary"]["profile_totals"], dict)
     assert payload["freshness_summary"]["profile_totals"]["realtime"] == 1
     assert payload["freshness_summary"]["profile_totals"]["backtest"] == 1
     assert payload["latest_backtest_head"]["metrics"]["is_sharpe"] == 1.4
     assert payload["latest_backtest_head"]["metrics"]["trades_count"] == 37
+    assert payload["ssot_components"]["regime_signal"]["threshold_value"] == -0.0353
+    assert payload["ssot_components"]["regime_signal"]["threshold_source_path"] == "reports/strategy_research/phase3/phase3_results.json"
+    assert payload["ssot_components"]["regime_signal"]["threshold_policy_sha"] == "abc123def456"
+    assert payload["ssot_components"]["regime_signal"]["threshold_rationale"] == "Max drawdown crossed warning baseline."
 
     top_row = payload["strategy_pool"]["leaderboard_top"][0]
     assert top_row["direction"] == "LONG"

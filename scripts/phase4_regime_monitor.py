@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import hashlib
 import os
 import sys
 import time
@@ -11,6 +12,7 @@ REPO = Path(__file__).parent.parent
 PHASE3_RESULTS = REPO / "reports/strategy_research/phase3/phase3_results.json"
 ATOMIC_STATE_DIR = REPO / "reports/state_atomic"
 REPORT_DIR = REPO / "reports/strategy_research/phase4"
+THRESHOLD_POLICY_VERSION = "phase4_regime_monitor.thresholds.v1"
 
 def resolve_latest_run():
     """
@@ -77,54 +79,149 @@ def compute_thresholds(phase3_data):
         }
     }
 
+def compute_threshold_policy_sha(raw_bytes):
+    digest = hashlib.sha256()
+    digest.update(THRESHOLD_POLICY_VERSION.encode("utf-8"))
+    digest.update(b"\n")
+    digest.update(raw_bytes)
+    return digest.hexdigest()
+
+
+def _severity_rank(level):
+    if level == "FAIL":
+        return 2
+    if level == "WARN":
+        return 1
+    return 0
+
+
 def evaluate(current, thresholds):
     status = "OK"
-    reasons = []
-    
-    curr_sharpe = current.get("sharpe", 0.0)
-    curr_trades = current.get("trades_count", 0)
-    curr_mdd = current.get("max_drawdown", 0.0)
-    
+    reason_events = []
+    order_counter = 0
+
+    try:
+        curr_sharpe = float(current.get("sharpe", 0.0))
+    except Exception:
+        curr_sharpe = 0.0
+    try:
+        curr_trades = int(float(current.get("trades_count", 0)))
+    except Exception:
+        curr_trades = 0
+    try:
+        curr_mdd = float(current.get("max_drawdown", 0.0))
+    except Exception:
+        curr_mdd = 0.0
+
+    def add_event(level, message, metric, threshold_value, observed_value, comparator, rationale):
+        nonlocal status, order_counter
+        if level == "FAIL":
+            status = "FAIL"
+        elif status != "FAIL":
+            status = "WARN"
+        reason_events.append(
+            {
+                "level": level,
+                "message": message,
+                "metric": metric,
+                "threshold_value": threshold_value,
+                "observed_value": observed_value,
+                "comparator": comparator,
+                "rationale": rationale,
+                "order": order_counter,
+            }
+        )
+        order_counter += 1
+
     # 1. Sharpe Check
     s_warn = thresholds["sharpe"]["warn"]
     s_fail = thresholds["sharpe"]["fail"]
-    
+
     if curr_sharpe < s_fail:
-        status = "FAIL"
-        reasons.append(f"Sharpe ({curr_sharpe:.3f}) < FAIL threshold ({s_fail:.3f})")
+        add_event(
+            "FAIL",
+            f"Sharpe ({curr_sharpe:.3f}) < FAIL threshold ({s_fail:.3f})",
+            "sharpe",
+            s_fail,
+            curr_sharpe,
+            "<",
+            "Current OOS Sharpe dropped below FAIL line derived from Phase 3 distribution.",
+        )
     elif curr_sharpe < s_warn:
-        if status != "FAIL": status = "WARN"
-        reasons.append(f"Sharpe ({curr_sharpe:.3f}) < WARN threshold ({s_warn:.3f})")
-    
+        add_event(
+            "WARN",
+            f"Sharpe ({curr_sharpe:.3f}) < WARN threshold ({s_warn:.3f})",
+            "sharpe",
+            s_warn,
+            curr_sharpe,
+            "<",
+            "Current OOS Sharpe slipped below WARN line from Phase 3 IQR baseline.",
+        )
+
     # 2. Trade Count Gate
     t_gate = thresholds["trades"]["warn_gate"]
     if curr_trades < t_gate:
-        if status != "FAIL": status = "WARN"
-        reasons.append(f"Trade Count ({curr_trades}) < 50% of Phase 3 median ({t_gate:.0f}) - Possible regime shift or data gap")
-    
+        add_event(
+            "WARN",
+            f"Trade Count ({curr_trades}) < 50% of Phase 3 median ({t_gate:.0f}) - Possible regime shift or data gap",
+            "trades_count",
+            t_gate,
+            curr_trades,
+            "<",
+            "Trade frequency is below half of Phase 3 median; could indicate data gap or market regime shift.",
+        )
+
     # 3. MDD Risk Check (MDD is negative)
     m_p80 = thresholds["mdd"]["p80"]
     m_p95 = thresholds["mdd"]["p95"]
-    
+
     if curr_mdd < m_p95: # More negative than p95
-        status = "FAIL"
-        reasons.append(f"MDD ({curr_mdd:.2%}) < FAIL threshold ({m_p95:.2%}) - Extreme risk detected")
+        add_event(
+            "FAIL",
+            f"MDD ({curr_mdd:.2%}) < FAIL threshold ({m_p95:.2%}) - Extreme risk detected",
+            "max_drawdown",
+            m_p95,
+            curr_mdd,
+            "<",
+            "Max drawdown breached the extreme (p95 tail) risk threshold from Phase 3.",
+        )
     elif curr_mdd < m_p80: # More negative than p80
-        if status != "FAIL": status = "WARN"
-        reasons.append(f"MDD ({curr_mdd:.2%}) < WARN threshold ({m_p80:.2%}) - Risk elevated")
- 
-    if not reasons:
-        reasons.append("All metrics within Phase 3 comfort zone.")
-        
-    return status, reasons
+        add_event(
+            "WARN",
+            f"MDD ({curr_mdd:.2%}) < WARN threshold ({m_p80:.2%}) - Risk elevated",
+            "max_drawdown",
+            m_p80,
+            curr_mdd,
+            "<",
+            "Max drawdown is worse than the elevated-risk (p80) threshold from Phase 3.",
+        )
+
+    if not reason_events:
+        return status, ["All metrics within Phase 3 comfort zone."], None
+
+    sorted_events = sorted(reason_events, key=lambda r: (-_severity_rank(r["level"]), r["order"]))
+    reasons = [event["message"] for event in sorted_events]
+    primary = sorted_events[0]
+    primary_threshold = {
+        "metric": primary["metric"],
+        "level": primary["level"],
+        "threshold_value": primary["threshold_value"],
+        "observed_value": primary["observed_value"],
+        "comparator": primary["comparator"],
+        "rationale": primary["rationale"],
+    }
+    return status, reasons, primary_threshold
  
 def main():
     if not PHASE3_RESULTS.exists():
         print(f"Error: {PHASE3_RESULTS} not found.")
         sys.exit(0) # report_only, exit 0
-        
+
+    phase3_raw = PHASE3_RESULTS.read_bytes()
     with open(PHASE3_RESULTS, "r") as f:
         phase3_data = json.load(f)
+    threshold_policy_sha = compute_threshold_policy_sha(phase3_raw)
+    threshold_source_path = str(PHASE3_RESULTS.relative_to(REPO))
         
     thresholds = compute_thresholds(phase3_data)
     if not thresholds:
@@ -138,13 +235,36 @@ def main():
         
     with open(latest_summary_p, "r") as f:
         current_data = json.load(f)
-        
-    status, reasons = evaluate(current_data, thresholds)
+
+    status, reasons, primary_threshold = evaluate(current_data, thresholds)
+
+    threshold_value = None
+    threshold_metric = None
+    threshold_level = "OK"
+    threshold_comparator = None
+    threshold_observed_value = None
+    threshold_rationale = "All metrics within Phase 3 comfort zone; no threshold breach."
+    if isinstance(primary_threshold, dict):
+        threshold_value = primary_threshold.get("threshold_value")
+        threshold_metric = primary_threshold.get("metric")
+        threshold_level = primary_threshold.get("level") or "WARN"
+        threshold_comparator = primary_threshold.get("comparator")
+        threshold_observed_value = primary_threshold.get("observed_value")
+        threshold_rationale = primary_threshold.get("rationale") or threshold_rationale
     
     snapshot = {
         "ts_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "overall": status,
         "reason": reasons,
+        "threshold_value": threshold_value,
+        "threshold_metric": threshold_metric,
+        "threshold_level": threshold_level,
+        "threshold_comparator": threshold_comparator,
+        "threshold_observed_value": threshold_observed_value,
+        "threshold_source_path": threshold_source_path,
+        "threshold_policy_sha": threshold_policy_sha,
+        "threshold_policy_version": THRESHOLD_POLICY_VERSION,
+        "threshold_rationale": threshold_rationale,
         "phase3_baseline": {
             "oos_sharpe_median": thresholds["sharpe"]["median"],
             "p20": thresholds["sharpe"]["p20"],
