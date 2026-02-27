@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # Overfit Governance (Aggressive, Yield-First)
 
 This policy is the research-loop governance standard for report-only evaluation.

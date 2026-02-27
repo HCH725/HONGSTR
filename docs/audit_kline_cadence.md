@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # Audit Report: Kline Refresh Cadence & Split Feeds Recommendation
 
 ## 1) Job Distribution & Cadence

@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # HONGSTR Local Operations Guide (macOS)
 
 This guide covers how to set up HONGSTR as background services on a local Mac mini using macOS `launchd`.

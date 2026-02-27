@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # ML Operations 每日維運手冊 (SOP)
 
 這是一份針對 HONGSTR 機器學習分析輔助模組 (Phase 5&6) 的維運手冊。

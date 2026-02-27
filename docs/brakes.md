@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # HONGSTR Brake System Inventory (v1.1)
 
 > Purpose: Make all "brakes" explicit and auditable: gates, OOS/WF splits, needs_rebase, anti-churn, and SOP.

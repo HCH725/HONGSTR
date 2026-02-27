@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # HONGSTR Brakes Audit Report (R3-A)
 
 > This report verifies docs/brakes.md against the repository.

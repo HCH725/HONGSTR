@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # Research Poller SOP (v1.1)
 
 每 10 分鐘由 launchd 自動觸發，檢查 `trigger_queue.jsonl` 是否有待處理事件。

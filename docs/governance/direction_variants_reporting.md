@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # Direction Variants Reporting (LONG / SHORT / LONGSHORT)
 
 Research loop now evaluates direction variants from candidate catalog and keeps direction metadata through all report-only artifacts.

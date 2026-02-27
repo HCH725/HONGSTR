@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # Ops Checklist — Kline Freshness (Realtime vs Backtest)
 
 ## Why

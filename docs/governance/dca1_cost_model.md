@@ -1,3 +1,5 @@
+> [!IMPORTANT] REFERENCE ONLY - Please see [Daily Report & Glossary](docs/ops/daily_report_zh.md) for current entry point.
+
 # DCA-1 Cost-Aware Research Executor (Report-Only)
 
 This module is research-only and does not change production trading behavior.
