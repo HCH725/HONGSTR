@@ -126,7 +126,7 @@ run_named_or_inline_generator() {
 if [[ -n "${AUTO_PR_GENERATORS:-}" || "${#ONLY_GENERATORS[@]}" -gt 0 ]]; then
   echo "[auto_pr] Running generators ..."
   RAW_GENERATORS=()
-  while IFS= read -r _line; do
+  while IFS= read -r _line || [[ -n "${_line:-}" ]]; do
     RAW_GENERATORS+=("$_line")
   done < <(printf '%s' "${AUTO_PR_GENERATORS:-}" | tr ';' '\n')
 
@@ -178,7 +178,7 @@ if [[ -n "${AUTO_PR_GENERATORS:-}" || "${#ONLY_GENERATORS[@]}" -gt 0 ]]; then
 fi
 
 CHANGED=()
-while IFS= read -r _line; do
+while IFS= read -r _line || [[ -n "${_line:-}" ]]; do
   if [[ -n "$_line" ]]; then
     CHANGED+=("$_line")
   fi
