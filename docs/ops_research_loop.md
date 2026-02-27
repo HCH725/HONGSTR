@@ -36,5 +36,7 @@ The loop is intended to run daily at 06:20 via `launchd` (using `scripts/run_res
 ## Governance Standard
 
 - Policy file: `research/policy/overfit_gates_aggressive.json`
+- Candidate catalog: `research/policy/candidate_catalog.json`
 - Ops docs: `docs/governance/overfit_gates_aggressive.md`
 - Weekly checklist template: `docs/governance/overfit_weekly_checklist.md`
+- Direction variants reporting: `docs/governance/direction_variants_reporting.md`

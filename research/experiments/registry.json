@@ -2,7 +2,14 @@
     "allowed_strategies": [
         "trend_follower_v1",
         "mean_reversion_v2",
-        "dca1_supertrend"
+        "dca1_supertrend",
+        "trend_mvp_btc_1h",
+        "supertrend_v2",
+        "ema_cross_v3",
+        "rsi_mean_revert_v1",
+        "bollinger_revert_v2",
+        "breakout_atr_v1",
+        "vol_compression_v1"
     ],
     "allowed_symbols": [
         "BTCUSDT",
@@ -49,6 +56,22 @@
         "trailing_pct": [
             0.0,
             4.0
+        ],
+        "atr_len": [
+            5,
+            100
+        ],
+        "atr_mult": [
+            1.0,
+            8.0
+        ],
+        "fast": [
+            5,
+            80
+        ],
+        "slow": [
+            20,
+            400
         ]
     },
     "forbidden_keywords": [
