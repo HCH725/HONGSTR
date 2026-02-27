@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import time
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -14,6 +15,18 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from research.loop import research_loop as rl
+
+
+def _fake_snapshot_module(*, raise_exc: Exception | None = None, payload: dict | None = None):
+    module = types.SimpleNamespace()
+
+    def _collect_snapshot():
+        if raise_exc is not None:
+            raise raise_exc
+        return payload or {}
+
+    module._collect_snapshot = _collect_snapshot
+    return module
 
 
 class TestLockMechanism(unittest.TestCase):
@@ -96,12 +109,12 @@ class TestTimeoutFallback(unittest.TestCase):
     def test_ollama_timeout_exits_zero_and_writes_warn(self):
         """If any step raises (simulating Ollama timeout), loop writes WARN state and exits 0."""
         # Simulate a failure in _collect_snapshot (which would be an Ollama call)
-        with patch("research.loop.research_loop.acquire_lock", return_value=True), \
+        fake_mod = _fake_snapshot_module(raise_exc=TimeoutError("Simulated Ollama timeout"))
+        with patch.dict(sys.modules, {"_local.telegram_cp.tg_cp_server": fake_mod}), \
+             patch("research.loop.research_loop.acquire_lock", return_value=True), \
              patch("research.loop.research_loop.release_lock"), \
              patch("research.loop.research_loop.write_state") as mock_state, \
-             patch("research.loop.research_loop.notify_telegram_warn") as mock_notify, \
-             patch("_local.telegram_cp.tg_cp_server._collect_snapshot",
-                   side_effect=TimeoutError("Simulated Ollama timeout")):
+             patch("research.loop.research_loop.notify_telegram_warn") as mock_notify:
             with self.assertRaises(SystemExit) as ctx:
                 rl.main()
             self.assertEqual(ctx.exception.code, 0)
@@ -119,19 +132,20 @@ class TestSchemaInvalidFallback(unittest.TestCase):
             "experiment_id": "EXP_BAD",
             # Missing required fields: hypothesis, strategy, symbol, etc.
         }
-        with patch("research.loop.research_loop.acquire_lock", return_value=True), \
+        fake_mod = _fake_snapshot_module(payload={})
+        with patch.dict(sys.modules, {"_local.telegram_cp.tg_cp_server": fake_mod}), \
+             patch("research.loop.research_loop.acquire_lock", return_value=True), \
              patch("research.loop.research_loop.release_lock"), \
              patch("research.loop.research_loop.write_state") as mock_state, \
              patch("research.loop.research_loop.notify_telegram_warn"), \
              patch("research.loop.research_loop.load_registry", return_value={"allowed_strategies": []}), \
-             patch("_local.telegram_cp.tg_cp_server._collect_snapshot", return_value={}):
+             patch("research.loop.research_loop.ResearchProposal", side_effect=ValueError("Missing fields")):
             # Patch proposal creation to inject a bad dict
-            with patch("research.loop.research_loop.ResearchProposal", side_effect=ValueError("Missing fields")):
-                with self.assertRaises(SystemExit) as ctx:
-                    rl.main()
-                self.assertEqual(ctx.exception.code, 0)
-                warn_calls = [c for c in mock_state.call_args_list if c.args[0] == "WARN"]
-                self.assertGreater(len(warn_calls), 0)
+            with self.assertRaises(SystemExit) as ctx:
+                rl.main()
+            self.assertEqual(ctx.exception.code, 0)
+            warn_calls = [c for c in mock_state.call_args_list if c.args[0] == "WARN"]
+            self.assertGreater(len(warn_calls), 0)
 
 
 if __name__ == "__main__":

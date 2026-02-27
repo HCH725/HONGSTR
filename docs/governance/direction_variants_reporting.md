@@ -16,6 +16,11 @@ Direction and variant must appear in:
 - `selection.json`
 - `data/state/_research/leaderboard.json`
 
+Metrics availability rule:
+
+- If metrics are unavailable (for example `status=DRY_RUN`), emit `null` + an `UNKNOWN` reason field.
+- Never coerce unavailable metrics to `0.00` in report-only artifacts.
+
 ## Safety
 
 - report-only only

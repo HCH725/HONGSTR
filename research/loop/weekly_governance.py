@@ -25,7 +25,7 @@ def generate_weekly_quant_checklist(
     leaderboard = _load_json(root / "data/state/_research/leaderboard.json")
 
     candidate_rows = _extract_candidates(pool_summary, leaderboard, recent_results or [])
-    sorted_rows = sorted(candidate_rows, key=lambda x: float(x.get("score", 0.0)), reverse=True)
+    sorted_rows = sorted(candidate_rows, key=lambda x: _score_sort_value(x.get("score")), reverse=True)
 
     policy = _load_json(root / "research/policy/overfit_gates_aggressive.json") or {}
     watch_floor = max(1, _as_int((policy.get("watchlist", {}) or {}).get("min_candidates"), 1))
@@ -93,7 +93,7 @@ def generate_weekly_quant_checklist(
     ]
     for row in sorted_rows[:10]:
         md_lines.append(
-            f"| {row.get('id')} | {float(row.get('score', 0.0)):.2f} | {row.get('recommendation')} | {row.get('reason')} |"
+            f"| {row.get('id')} | {_fmt_score(row.get('score'))} | {row.get('recommendation')} | {row.get('reason')} |"
         )
 
     md_path = out_dir / "weekly_quant_checklist.md"
@@ -118,14 +118,14 @@ def _extract_candidates(
             cid = str(c.get("id") or "").strip()
             if not cid:
                 continue
-            score = _as_float(c.get("score"), 0.0)
-            recommendation = "PROMOTE" if score >= 90.0 else "WATCHLIST" if score >= 55.0 else "DEMOTE"
+            score = _as_optional_float(c.get("score"))
+            recommendation = _recommend_from_score(score)
             rows.append(
                 {
                     "id": cid,
                     "score": score,
                     "recommendation": recommendation,
-                    "reason": "strategy_pool_summary",
+                    "reason": "strategy_pool_summary" if score is not None else "strategy_pool_summary+missing_score",
                 }
             )
 
@@ -134,14 +134,17 @@ def _extract_candidates(
             cid = str(e.get("candidate_id") or e.get("experiment_id") or "").strip()
             if not cid or any(r["id"] == cid for r in rows):
                 continue
-            score = _as_float(e.get("final_score"), _as_float(e.get("oos_sharpe"), 0.0) * 40.0)
-            recommendation = "PROMOTE" if score >= 90.0 else "WATCHLIST" if score >= 55.0 else "DEMOTE"
+            score = _as_optional_float(e.get("final_score"))
+            if score is None:
+                oos_sharpe = _as_optional_float(e.get("oos_sharpe"))
+                score = (oos_sharpe * 40.0) if oos_sharpe is not None else None
+            recommendation = _recommend_from_score(score)
             rows.append(
                 {
                     "id": cid,
                     "score": score,
                     "recommendation": recommendation,
-                    "reason": "research_leaderboard",
+                    "reason": "research_leaderboard" if score is not None else "research_leaderboard+missing_score",
                 }
             )
 
@@ -149,9 +152,16 @@ def _extract_candidates(
         cid = str(e.get("id") or e.get("candidate_id") or e.get("experiment_id") or "").strip()
         if not cid or any(r["id"] == cid for r in rows):
             continue
-        score = _as_float(e.get("score"), 0.0)
+        score = _as_optional_float(e.get("score"))
         recommendation = str(e.get("recommendation") or "WATCHLIST").upper()
-        rows.append({"id": cid, "score": score, "recommendation": recommendation, "reason": "recent_results"})
+        rows.append(
+            {
+                "id": cid,
+                "score": score,
+                "recommendation": recommendation if score is not None else "WATCHLIST",
+                "reason": "recent_results" if score is not None else "recent_results+missing_score",
+            }
+        )
 
     return rows
 
@@ -182,6 +192,39 @@ def _as_int(v: Any, default: int) -> int:
         return int(v)
     except Exception:
         return int(default)
+
+
+def _as_optional_float(v: Any) -> float | None:
+    try:
+        if v is None:
+            return None
+        return float(v)
+    except Exception:
+        return None
+
+
+def _score_sort_value(score: Any) -> float:
+    s = _as_optional_float(score)
+    if s is None:
+        return float("-inf")
+    return s
+
+
+def _recommend_from_score(score: float | None) -> str:
+    if score is None:
+        return "WATCHLIST"
+    if score >= 90.0:
+        return "PROMOTE"
+    if score >= 55.0:
+        return "WATCHLIST"
+    return "DEMOTE"
+
+
+def _fmt_score(score: Any) -> str:
+    s = _as_optional_float(score)
+    if s is None:
+        return "UNKNOWN"
+    return f"{s:.2f}"
 
 
 def _apply_watchlist_floor(rows: list[dict[str, Any]], floor: int) -> None:

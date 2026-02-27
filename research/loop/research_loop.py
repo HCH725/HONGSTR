@@ -153,13 +153,14 @@ def run_backtest_simulated(
         now = datetime.now(timezone.utc).isoformat()
         return {
             "status": "DRY_RUN",
-            "is_sharpe": 0.0,
-            "oos_sharpe": 0.0,
-            "is_mdd": 0.0,
-            "oos_mdd": 0.0,
-            "pnl_mult": 1.0,
-            "trades_count": 0,
-            "total_cost_bps": 0.0,
+            "is_sharpe": None,
+            "oos_sharpe": None,
+            "is_mdd": None,
+            "oos_mdd": None,
+            "pnl_mult": None,
+            "trades_count": None,
+            "total_cost_bps": None,
+            "metrics_unavailable_reason": "dry_run_artifact",
             "timestamp": now,
             "direction": (candidate or {}).get("direction", "LONG"),
             "variant": (candidate or {}).get("variant", "base"),
@@ -228,6 +229,21 @@ def run_backtest_simulated(
 
 # ── Artifact / Reporting helpers ─────────────────────────────────────────────
 def _build_summary(candidate: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
+    status = str(metrics.get("status", "UNKNOWN")).upper()
+    sharpe = _as_optional_float(metrics.get("oos_sharpe"))
+    is_sharpe = _as_optional_float(metrics.get("is_sharpe"))
+    max_drawdown = _as_optional_float(metrics.get("oos_mdd"))
+    is_mdd = _as_optional_float(metrics.get("is_mdd"))
+    trades_count = _as_optional_int(metrics.get("trades_count"))
+    pnl_mult = _as_optional_float(metrics.get("pnl_mult"))
+    total_cost_bps = _as_optional_float(metrics.get("total_cost_bps"))
+    total_return = round((pnl_mult - 1.0) * 100.0, 6) if pnl_mult is not None else None
+    metrics_status, metrics_reason = _metric_status(
+        status=status,
+        sharpe=sharpe,
+        max_drawdown=max_drawdown,
+        pnl_mult=pnl_mult,
+    )
     return {
         "experiment_id": candidate.get("experiment_id", candidate.get("candidate_id")),
         "candidate_id": candidate.get("candidate_id"),
@@ -237,17 +253,19 @@ def _build_summary(candidate: dict[str, Any], metrics: dict[str, Any]) -> dict[s
         "timeframe": candidate.get("timeframe"),
         "direction": candidate.get("direction"),
         "variant": candidate.get("variant"),
-        "status": metrics.get("status", "UNKNOWN"),
+        "status": status,
         "report_only": True,
         "timestamp": metrics.get("timestamp"),
-        "sharpe": metrics.get("oos_sharpe", 0.0),
-        "is_sharpe": metrics.get("is_sharpe", 0.0),
-        "max_drawdown": metrics.get("oos_mdd", 0.0),
-        "is_mdd": metrics.get("is_mdd", 0.0),
-        "trades_count": metrics.get("trades_count", 0),
-        "total_return": round((metrics.get("pnl_mult", 1.0) - 1.0) * 100.0, 6),
-        "pnl_mult": metrics.get("pnl_mult", 1.0),
-        "total_cost_bps": metrics.get("total_cost_bps", 0.0),
+        "sharpe": sharpe,
+        "is_sharpe": is_sharpe,
+        "max_drawdown": max_drawdown,
+        "is_mdd": is_mdd,
+        "trades_count": trades_count,
+        "total_return": total_return,
+        "pnl_mult": pnl_mult,
+        "total_cost_bps": total_cost_bps,
+        "metrics_status": metrics_status,
+        "metrics_unavailable_reason": metrics_reason,
         "parameters": candidate.get("parameters", {}),
     }
 
@@ -289,12 +307,12 @@ def _render_candidate_report(*, summary: dict[str, Any], gate_payload: dict[str,
         f"- Variant: {summary.get('variant')}\n"
         f"- Symbol/TF: {summary.get('symbol')} {summary.get('timeframe')}\n\n"
         f"## Metrics\n"
-        f"- OOS Sharpe: {summary.get('sharpe')}\n"
-        f"- OOS MaxDD: {summary.get('max_drawdown')}\n"
-        f"- Trades: {summary.get('trades_count')}\n"
-        f"- PnL Mult: {summary.get('pnl_mult')}\n"
-        f"- Cost (bps): {summary.get('total_cost_bps')}\n"
-        f"- Final Score: {gate_payload.get('final_score', 0.0)}\n"
+        f"- OOS Sharpe: {_fmt_metric(summary.get('sharpe'))}\n"
+        f"- OOS MaxDD: {_fmt_metric(summary.get('max_drawdown'))}\n"
+        f"- Trades: {_fmt_metric(summary.get('trades_count'))}\n"
+        f"- PnL Mult: {_fmt_metric(summary.get('pnl_mult'))}\n"
+        f"- Cost (bps): {_fmt_metric(summary.get('total_cost_bps'))}\n"
+        f"- Final Score: {_fmt_metric(gate_payload.get('final_score'))}\n"
         f"- Recommendation: {gate_payload.get('recommendation', 'WATCHLIST')}\n\n"
         f"## Proposal\n"
         f"{proposal.hypothesis}\n\n"
@@ -342,7 +360,7 @@ def _write_candidate_artifacts(
 
 
 def _write_strategy_pool(records: list[dict[str, Any]]) -> Path:
-    ranked = sorted(records, key=lambda x: float(x.get("last_score", 0.0)), reverse=True)
+    ranked = sorted(records, key=lambda x: _score_for_sort(x.get("last_score")), reverse=True)
     promoted = [r["candidate_id"] for r in ranked if r.get("recommendation") == "PROMOTE"][:3]
     demoted = [r["candidate_id"] for r in ranked if r.get("recommendation") == "DEMOTE"]
     payload = {
@@ -500,8 +518,34 @@ def main() -> None:
                 "timestamp": summary.get("timestamp"),
             }
 
-            summary["final_score"] = gate_payload["final_score"]
-            summary["gate_overall"] = gate_payload["overall"]
+            if "metrics_status" not in summary:
+                summary["metrics_status"], summary["metrics_unavailable_reason"] = _metric_status(
+                    status=str(summary.get("status", "UNKNOWN")),
+                    sharpe=summary.get("sharpe"),
+                    max_drawdown=summary.get("max_drawdown"),
+                    pnl_mult=summary.get("pnl_mult"),
+                )
+            metrics_status = str(summary.get("metrics_status", "")).upper()
+            if metrics_status == "UNKNOWN":
+                for field in (
+                    "sharpe",
+                    "is_sharpe",
+                    "max_drawdown",
+                    "is_mdd",
+                    "trades_count",
+                    "total_return",
+                    "pnl_mult",
+                    "total_cost_bps",
+                ):
+                    if field in summary:
+                        summary[field] = None
+                summary["final_score"] = None
+                summary["gate_overall"] = "UNKNOWN"
+                gate_payload["overall"] = "UNKNOWN"
+                gate_payload["final_score"] = None
+            else:
+                summary["final_score"] = gate_payload["final_score"]
+                summary["gate_overall"] = gate_payload["overall"]
 
             selection = _build_selection(summary, gate_payload)
             if candidate.get("execution_model") == "dca1":
@@ -529,14 +573,16 @@ def main() -> None:
                     "family": summary.get("family"),
                     "direction": summary.get("direction"),
                     "variant": summary.get("variant"),
-                    "last_score": summary.get("final_score", 0.0),
+                    "last_score": summary.get("final_score"),
                     "gate_overall": summary.get("gate_overall", "UNKNOWN"),
                     "recommendation": gate_payload.get("recommendation", "WATCHLIST"),
                     "last_oos_metrics": {
-                        "sharpe": summary.get("sharpe", 0.0),
-                        "return": summary.get("total_return", 0.0),
-                        "mdd": summary.get("max_drawdown", 0.0),
+                        "sharpe": summary.get("sharpe"),
+                        "return": summary.get("total_return"),
+                        "mdd": summary.get("max_drawdown"),
                     },
+                    "metrics_status": summary.get("metrics_status", "UNKNOWN"),
+                    "metrics_unavailable_reason": summary.get("metrics_unavailable_reason"),
                     "report_dir": str(run_dir),
                     "report_only": True,
                 }
@@ -555,14 +601,14 @@ def main() -> None:
             recent_results=[
                 {
                     "candidate_id": r.get("candidate_id"),
-                    "score": r.get("last_score", 0.0),
+                    "score": r.get("last_score"),
                     "recommendation": r.get("recommendation", "WATCHLIST"),
                 }
                 for r in records[:20]
             ],
         )
 
-        top = sorted(records, key=lambda r: float(r.get("last_score", 0.0)), reverse=True)[0]
+        top = sorted(records, key=lambda r: _score_for_sort(r.get("last_score")), reverse=True)[0]
         top_pass = bool(str(top.get("gate_overall", "")).upper() == "PASS")
 
         write_state(
@@ -610,6 +656,44 @@ def _safe_float(value: Any, default: float) -> float:
         return float(value)
     except Exception:
         return default
+
+
+def _as_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _as_optional_int(value: Any) -> int | None:
+    fval = _as_optional_float(value)
+    if fval is None:
+        return None
+    return int(fval)
+
+
+def _metric_status(status: str, **metrics: Any) -> tuple[str, str | None]:
+    if str(status).upper() == "DRY_RUN":
+        return "UNKNOWN", "dry_run_artifact"
+    missing = [k for k, v in metrics.items() if _as_optional_float(v) is None]
+    if not missing:
+        return "OK", None
+    return "UNKNOWN", "missing_metrics:" + ",".join(sorted(missing))
+
+
+def _score_for_sort(value: Any) -> float:
+    score = _as_optional_float(value)
+    if score is None:
+        return float("-inf")
+    return score
+
+
+def _fmt_metric(value: Any) -> str:
+    if value is None:
+        return "UNKNOWN"
+    return str(value)
 
 
 if __name__ == "__main__":

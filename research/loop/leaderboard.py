@@ -48,11 +48,7 @@ def build_leaderboard(top_n: int = 10) -> list[dict[str, Any]]:
             seen_keys.add(key)
         entries.append(entry)
 
-    ranked = sorted(
-        entries,
-        key=lambda x: (float(x.get("final_score", 0.0)), float(x.get("oos_sharpe", 0.0))),
-        reverse=True,
-    )
+    ranked = sorted(entries, key=_rank_key, reverse=True)
     return ranked[:top_n]
 
 
@@ -80,28 +76,43 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
     if not isinstance(data, dict):
         return None
 
-    sharpe = _as_float(data.get("sharpe", data.get("oos_sharpe")), None)
-    if sharpe is None:
-        return None
-
+    status = str(data.get("status", "UNKNOWN")).upper()
+    sharpe = _as_optional_float(data.get("sharpe", data.get("oos_sharpe")))
+    oos_mdd = _as_optional_float(data.get("max_drawdown", data.get("oos_mdd")))
+    is_sharpe = _as_optional_float(data.get("is_sharpe"))
+    trades_count = _as_optional_int(data.get("trades_count"))
     gate_payload = _load_gate(path.parent / "gate.json")
-    gate_overall = gate_payload.get("overall") if gate_payload else "UNKNOWN"
-    final_score = _as_float(gate_payload.get("final_score") if gate_payload else data.get("final_score"), 0.0)
+    gate_overall = str(gate_payload.get("overall") if gate_payload else data.get("gate_overall", "UNKNOWN")).upper()
+    final_score = _as_optional_float(gate_payload.get("final_score") if gate_payload else data.get("final_score"))
+    if status == "DRY_RUN":
+        sharpe = None
+        oos_mdd = None
+        is_sharpe = None
+        trades_count = None
+        final_score = None
+    metrics_status, metrics_reason = _metric_status(
+        status=status,
+        final_score=final_score,
+        oos_sharpe=sharpe,
+        oos_mdd=oos_mdd,
+    )
 
     return {
         "experiment_id": data.get("experiment_id") or data.get("candidate_id") or data.get("strategy_id") or path.parent.name,
         "candidate_id": data.get("candidate_id") or path.parent.name,
         "strategy_id": data.get("strategy_id", "unknown"),
         "family": data.get("family", "unknown"),
-        "direction": data.get("direction", "LONG"),
+        "direction": _direction_label(data.get("direction")),
         "variant": data.get("variant", "base"),
         "oos_sharpe": sharpe,
-        "oos_mdd": _as_float(data.get("max_drawdown", data.get("oos_mdd")), 0.0),
-        "is_sharpe": _as_float(data.get("is_sharpe"), 0.0),
-        "trades_count": int(_as_float(data.get("trades_count"), 0.0)),
+        "oos_mdd": oos_mdd,
+        "is_sharpe": is_sharpe,
+        "trades_count": trades_count,
         "final_score": final_score,
         "gate_overall": gate_overall,
-        "status": data.get("status", "UNKNOWN"),
+        "status": status,
+        "metrics_status": metrics_status,
+        "metrics_unavailable_reason": metrics_reason,
         "timestamp": data.get("timestamp", ""),
         "report_dir": str(path.parent),
     }
@@ -116,24 +127,42 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
 
     if not isinstance(data, dict):
         return None
-    if "oos_sharpe" not in data:
-        return None
 
     exp_id_stem = path.stem.replace("_results", "")
+    status = str(data.get("status", "UNKNOWN")).upper()
+    final_score = _as_optional_float(data.get("final_score"))
+    oos_sharpe = _as_optional_float(data.get("oos_sharpe"))
+    oos_mdd = _as_optional_float(data.get("oos_mdd"))
+    is_sharpe = _as_optional_float(data.get("is_sharpe"))
+    trades_count = _as_optional_int(data.get("trades_count"))
+    if status == "DRY_RUN":
+        final_score = None
+        oos_sharpe = None
+        oos_mdd = None
+        is_sharpe = None
+        trades_count = None
+    metrics_status, metrics_reason = _metric_status(
+        status=status,
+        final_score=final_score,
+        oos_sharpe=oos_sharpe,
+        oos_mdd=oos_mdd,
+    )
     return {
         "experiment_id": data.get("experiment_id", exp_id_stem),
         "candidate_id": data.get("candidate_id", exp_id_stem),
         "strategy_id": data.get("strategy_id", exp_id_stem),
         "family": data.get("family", "legacy"),
-        "direction": data.get("direction", "LONG"),
+        "direction": _direction_label(data.get("direction")),
         "variant": data.get("variant", "legacy"),
-        "oos_sharpe": _as_float(data.get("oos_sharpe"), 0.0),
-        "oos_mdd": _as_float(data.get("oos_mdd"), 0.0),
-        "is_sharpe": _as_float(data.get("is_sharpe"), 0.0),
-        "trades_count": int(_as_float(data.get("trades_count"), 0.0)),
-        "final_score": _as_float(data.get("final_score"), 0.0),
-        "gate_overall": data.get("gate_overall", "UNKNOWN"),
-        "status": data.get("status", "UNKNOWN"),
+        "oos_sharpe": oos_sharpe,
+        "oos_mdd": oos_mdd,
+        "is_sharpe": is_sharpe,
+        "trades_count": trades_count,
+        "final_score": final_score,
+        "gate_overall": str(data.get("gate_overall", "UNKNOWN")).upper(),
+        "status": status,
+        "metrics_status": metrics_status,
+        "metrics_unavailable_reason": metrics_reason,
         "timestamp": data.get("timestamp", ""),
         "report_dir": str(path.parent),
     }
@@ -158,6 +187,49 @@ def _as_float(value: Any, default: float | None = 0.0) -> float | None:
         return default
 
 
+def _as_optional_float(value: Any) -> float | None:
+    return _as_float(value, None)
+
+
+def _as_optional_int(value: Any) -> int | None:
+    fval = _as_optional_float(value)
+    if fval is None:
+        return None
+    return int(fval)
+
+
+def _direction_label(value: Any) -> str:
+    direction = str(value or "UNKNOWN").strip().upper()
+    return direction if direction else "UNKNOWN"
+
+
+def _metric_status(status: str, **metrics: float | None) -> tuple[str, str | None]:
+    missing = [k for k, v in metrics.items() if v is None]
+    if not missing:
+        return "OK", None
+    if status == "DRY_RUN":
+        return "UNKNOWN", "dry_run_artifact"
+    return "UNKNOWN", "missing_metrics:" + ",".join(sorted(missing))
+
+
+def _rank_number(value: Any) -> float:
+    val = _as_optional_float(value)
+    if val is None:
+        return float("-inf")
+    return val
+
+
+def _rank_key(entry: dict[str, Any]) -> tuple[float, float]:
+    return (_rank_number(entry.get("final_score")), _rank_number(entry.get("oos_sharpe")))
+
+
+def _fmt_number(value: Any, fmt: str = ".2f") -> str:
+    val = _as_optional_float(value)
+    if val is None:
+        return "UNKNOWN"
+    return format(val, fmt)
+
+
 if __name__ == "__main__":
     import sys
 
@@ -167,7 +239,9 @@ if __name__ == "__main__":
     board = json.loads(path.read_text(encoding="utf-8"))
     for i, e in enumerate(board.get("entries", []), 1):
         print(
-            f"#{i} {e['candidate_id']} score={e['final_score']:.2f} "
-            f"sharpe={e['oos_sharpe']:.2f} mdd={e['oos_mdd']:.2%}"
+            f"#{i} {e['candidate_id']} score={_fmt_number(e.get('final_score'))} "
+            f"sharpe={_fmt_number(e.get('oos_sharpe'))} "
+            f"mdd={_fmt_number(e.get('oos_mdd'), '.2%')} "
+            f"metrics_status={e.get('metrics_status', 'UNKNOWN')}"
         )
     sys.exit(0)

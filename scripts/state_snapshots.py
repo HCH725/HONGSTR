@@ -252,6 +252,29 @@ def write_jsonl(path: Path, rows: list):
         logging.error(f"Failed to write snapshot {path}: {e}")
 
 
+def _as_optional_number(value):
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _metric_status_from_row(row: dict) -> tuple[str, str | None]:
+    missing = [k for k in ("score", "sharpe", "return", "mdd") if row.get(k) is None]
+    if not missing:
+        return "OK", None
+    return "UNKNOWN", "missing_metrics:" + ",".join(missing)
+
+
+def _score_sort_value(value) -> float:
+    parsed = _as_optional_number(value)
+    if parsed is None:
+        return float("-inf")
+    return parsed
+
+
 def main():
     now_utc_obj = datetime.now(timezone.utc)
     now_utc = now_utc_obj.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -309,17 +332,29 @@ def main():
     promoted = pool_data.get("promoted", [])
     demoted = pool_data.get("demoted", [])
 
-    leaderboard = [
-        {
+    leaderboard = []
+    for c in candidates:
+        oos = c.get("last_oos_metrics", {}) if isinstance(c.get("last_oos_metrics"), dict) else {}
+        candidate_metrics_status = str(c.get("metrics_status", "")).upper()
+        candidate_reason = c.get("metrics_unavailable_reason")
+        row = {
             "id": c.get("strategy_id", "unknown"),
-            "score": c.get("last_score", 0),
-            "sharpe": c.get("last_oos_metrics", {}).get("sharpe", 0),
-            "return": c.get("last_oos_metrics", {}).get("return", 0),
-            "mdd": c.get("last_oos_metrics", {}).get("mdd", 0),
+            "score": _as_optional_number(c.get("last_score")),
+            "sharpe": _as_optional_number(oos.get("sharpe")),
+            "return": _as_optional_number(oos.get("return")),
+            "mdd": _as_optional_number(oos.get("mdd")),
         }
-        for c in candidates
-    ]
-    leaderboard = sorted(leaderboard, key=lambda x: x["score"], reverse=True)[:10]
+        if candidate_metrics_status == "UNKNOWN":
+            row["score"] = None
+            row["sharpe"] = None
+            row["return"] = None
+            row["mdd"] = None
+            row["metrics_status"] = "UNKNOWN"
+            row["metrics_unavailable_reason"] = candidate_reason or "unknown_metrics_source"
+        else:
+            row["metrics_status"], row["metrics_unavailable_reason"] = _metric_status_from_row(row)
+        leaderboard.append(row)
+    leaderboard = sorted(leaderboard, key=lambda x: _score_sort_value(x.get("score")), reverse=True)[:10]
 
     pool_summary = {
         "counts": {

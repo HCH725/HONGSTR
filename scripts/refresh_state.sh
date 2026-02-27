@@ -75,7 +75,17 @@ if [ -f data/state/strategy_pool_summary.json ]; then
     echo "Strategy Pool Leaders: "
     # Basic bash parsing to show Top 5 if available
     python3 -c '
-import json, sys
+import json, math, sys
+def fmt_metric(v):
+    if v is None:
+        return "UNKNOWN"
+    try:
+        fv = float(v)
+        if math.isnan(fv) or math.isinf(fv):
+            return "UNKNOWN"
+        return f"{fv:.2f}"
+    except Exception:
+        return "UNKNOWN"
 try:
     with open("data/state/strategy_pool_summary.json") as f:
         data = json.load(f)
@@ -85,10 +95,15 @@ try:
         else:
             for idx, c in enumerate(leaders[:5]):
                 cid = c.get("id")
-                cscore = c.get("score", 0)
-                csharpe = c.get("sharpe", 0)
-                creturn = c.get("return", 0)
-                print(f"  {idx+1}. {cid}: Score {cscore:.2f} | Sharpe {csharpe:.2f} | Return {creturn:.2f}")
+                cscore = fmt_metric(c.get("score"))
+                csharpe = fmt_metric(c.get("sharpe"))
+                creturn = fmt_metric(c.get("return"))
+                status = str(c.get("metrics_status", "UNKNOWN"))
+                reason = c.get("metrics_unavailable_reason")
+                suffix = f" | Metrics {status}"
+                if reason:
+                    suffix += f" ({reason})"
+                print(f"  {idx+1}. {cid}: Score {cscore} | Sharpe {csharpe} | Return {creturn}{suffix}")
 except Exception as e:
     print(f"  Error reading pool summary: {e}")
 '
