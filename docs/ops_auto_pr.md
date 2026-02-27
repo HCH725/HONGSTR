@@ -26,7 +26,7 @@ bash scripts/auto_pr.sh --allow-docs-automerge
 
 # Run named generator via AUTO_PR_GENERATORS mapping + --only selector
 AUTO_PR_GENERATORS='regime_thresholds_calibration:bash scripts/calibrate_regime_thresholds.sh --pr-mode --as-of-utc "$(date -u +%Y-%m-%dT%H:%M:%SZ)"' \
-  bash scripts/auto_pr.sh --only regime_thresholds_calibration
+  bash scripts/auto_pr.sh --draft --only regime_thresholds_calibration --print-next-steps
 
 # Skip preflight (not recommended)
 bash scripts/auto_pr.sh --skip-preflight
@@ -37,10 +37,25 @@ bash scripts/auto_pr.sh --skip-preflight
 - State file: `_local/auto_pr/state.json`
 - Behavior:
   - if same change class + same fingerprint is seen within cooldown window, auto_pr exits 0 without opening another PR.
+  - cooldown skip log now includes:
+    - human-readable remaining time (`Xd Xh Xm Xs`)
+    - latest open PR URL for the same class prefix (`codex/auto-pr-<kind>-*`) when found via `gh pr list`
+    - fallback hint when no open PR is found:
+      - `No open PR found; rerun after cooldown or use --cooldown-hours 0 (if operator chooses).`
 - Cooldown setting:
 
 ```bash
 AUTO_PR_COOLDOWN_HOURS=24 bash scripts/auto_pr.sh
+```
+
+## Operator Next Steps (Printed Only)
+
+Use `--print-next-steps` to print suggested follow-up commands without executing them:
+
+```bash
+gh pr ready <n>                # printed only when PR is draft
+gh pr checks <n> --watch
+gh pr merge <n> --squash --delete-branch
 ```
 
 ## Example Transcript

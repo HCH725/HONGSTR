@@ -6,7 +6,7 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 DEFAULT_ALLOW_PREFIXES = ["docs/", "_local/", "research/", "scripts/"]
 DEFAULT_BLOCK_PREFIXES = ["src/hongstr/", "data/"]
@@ -83,6 +83,54 @@ def classify_changes(paths: Iterable[str]) -> Classification:
 
 def read_paths_from_stdin() -> list[str]:
     return normalize_paths(sys.stdin.read().splitlines())
+
+
+def format_duration_human(total_seconds: int) -> str:
+    seconds = max(0, int(total_seconds))
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, secs = divmod(rem, 60)
+
+    parts: list[str] = []
+    if days:
+        parts.append(f"{days}d")
+    if days or hours:
+        parts.append(f"{hours}h")
+    if days or hours or minutes:
+        parts.append(f"{minutes}m")
+    parts.append(f"{secs}s")
+    return " ".join(parts)
+
+
+def _select_latest_open_pr(open_pr_rows: Iterable[dict[str, Any]]) -> dict[str, Any] | None:
+    rows = [row for row in open_pr_rows if isinstance(row, dict)]
+    if not rows:
+        return None
+
+    def _number(row: dict[str, Any]) -> int:
+        try:
+            return int(row.get("number", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    return sorted(rows, key=_number, reverse=True)[0]
+
+
+def render_cooldown_message(kind: str, remaining_seconds: int, open_pr_rows: Iterable[dict[str, Any]]) -> str:
+    remaining_human = format_duration_human(remaining_seconds)
+    lines = [
+        f"[auto_pr] Skip due to cooldown/dedupe: kind={kind} remaining={remaining_human} ({int(remaining_seconds)}s)"
+    ]
+    latest = _select_latest_open_pr(open_pr_rows)
+    if latest and str(latest.get("url", "")).strip():
+        number = latest.get("number")
+        title = str(latest.get("title", "")).strip()
+        head_ref = str(latest.get("headRefName", "")).strip()
+        lines.append(f"[auto_pr] Open PR for class '{kind}': {latest['url']}")
+        lines.append(f"[auto_pr] Latest open PR details: #{number} | {title} | {head_ref}")
+    else:
+        lines.append("[auto_pr] No open PR found; rerun after cooldown or use --cooldown-hours 0 (if operator chooses).")
+    return "\n".join(lines)
 
 
 def render_pr_body(title: str, paths: Iterable[str], preflight_transcript: str) -> str:
@@ -163,6 +211,17 @@ def cmd_render_pr_body(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_render_cooldown_message(args: argparse.Namespace) -> int:
+    try:
+        payload = json.loads(args.open_pr_json or "[]")
+    except json.JSONDecodeError:
+        payload = []
+    if not isinstance(payload, list):
+        payload = []
+    print(render_cooldown_message(args.kind, int(args.remaining_s), payload), end="")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Auto-PR allowlist and title classification helpers")
     sub = p.add_subparsers(dest="command", required=True)
@@ -184,6 +243,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_render.add_argument("--preflight-text", default="")
     p_render.add_argument("paths", nargs="*")
     p_render.set_defaults(func=cmd_render_pr_body)
+
+    p_cooldown = sub.add_parser(
+        "render-cooldown-message",
+        help="Render cooldown/dedupe message with operator-friendly hint and optional open PR details",
+    )
+    p_cooldown.add_argument("--kind", required=True)
+    p_cooldown.add_argument("--remaining-s", type=int, required=True)
+    p_cooldown.add_argument("--open-pr-json", default="[]")
+    p_cooldown.set_defaults(func=cmd_render_cooldown_message)
     return p
 
 

@@ -57,3 +57,54 @@ def test_render_pr_body_never_executes_path_like_tokens():
     assert "is a directory" not in out
     assert "Permission denied" not in out
     assert "command not found" not in out
+
+
+def test_render_cooldown_message_includes_open_pr_url_from_mock_json():
+    pr_rows = [
+        {
+            "number": 114,
+            "url": "https://github.com/HCH725/HONGSTR/pull/114",
+            "title": "older pr",
+            "headRefName": "codex/auto-pr-research-docs-20260227_010000",
+        },
+        {
+            "number": 116,
+            "url": "https://github.com/HCH725/HONGSTR/pull/116",
+            "title": "latest pr",
+            "headRefName": "codex/auto-pr-research-docs-20260227_020000",
+        },
+    ]
+    rc, out, err = _run(
+        [
+            "render-cooldown-message",
+            "--kind",
+            "research-docs",
+            "--remaining-s",
+            "3661",
+            "--open-pr-json",
+            json.dumps(pr_rows),
+        ]
+    )
+    assert rc == 0
+    assert err == ""
+    assert "remaining=1h 1m 1s (3661s)" in out
+    assert "https://github.com/HCH725/HONGSTR/pull/116" in out
+    assert "No open PR found" not in out
+
+
+def test_render_cooldown_message_no_open_pr_hint():
+    rc, out, err = _run(
+        [
+            "render-cooldown-message",
+            "--kind",
+            "research-docs",
+            "--remaining-s",
+            "30",
+            "--open-pr-json",
+            "[]",
+        ]
+    )
+    assert rc == 0
+    assert err == ""
+    assert "remaining=30s (30s)" in out
+    assert "No open PR found; rerun after cooldown or use --cooldown-hours 0 (if operator chooses)." in out

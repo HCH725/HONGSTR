@@ -9,6 +9,7 @@ COOLDOWN_HOURS="${AUTO_PR_COOLDOWN_HOURS:-24}"
 ALLOW_DOCS_AUTOMERGE=0
 RUN_PREFLIGHT=1
 DRAFT_MODE=1
+PRINT_NEXT_STEPS=0
 ONLY_GENERATORS=()
 
 usage() {
@@ -20,6 +21,7 @@ Options:
   --cooldown-hours <hours>     Cooldown window for same change class (default: 24)
   --allow-docs-automerge       Allow docs-only PR auto-merge (default: off)
   --only <name>                Run only the named generator(s) from AUTO_PR_GENERATORS
+  --print-next-steps           Print follow-up PR commands (ready/checks/merge) without executing them
   --skip-preflight             Skip preflight checks
   --draft                      Create draft PR (default)
   -h, --help                   Show this help
@@ -50,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       ONLY_GENERATORS+=("$2")
       shift 2
       ;;
+    --print-next-steps)
+      PRINT_NEXT_STEPS=1
+      shift
+      ;;
     --skip-preflight)
       RUN_PREFLIGHT=0
       shift
@@ -78,9 +84,73 @@ fi
 STATE_FILE="${AUTO_PR_STATE_FILE:-_local/auto_pr/state.json}"
 mkdir -p "$(dirname "$STATE_FILE")"
 
-if [[ -n "$(git status --porcelain)" ]]; then
+sanitize_for_branch() {
+  echo "$1" | tr -cs 'a-zA-Z0-9' '-'
+}
+
+is_expected_generator_output() {
+  case "$1" in
+    research/policy/regime_thresholds_candidate.json|docs/audits/regime_thresholds_calibration_*.json|docs/audits/regime_thresholds_calibration_*.md)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+print_dirty_tree_abort() {
+  local dirty_raw="$1"
+  local -a tracked_dirty=()
+  local -a candidate_outputs=()
+  local -a other_untracked=()
+  local printed=0
+
   echo "[auto_pr] Working tree is dirty; aborting." >&2
-  git status --short
+  echo "[auto_pr] Dirty files (from git status --porcelain):" >&2
+  while IFS= read -r line || [[ -n "${line:-}" ]]; do
+    [[ -z "${line:-}" ]] && continue
+    local status="${line:0:2}"
+    local path="${line:3}"
+    printf '  - %s\n' "$line" >&2
+    printed=$((printed + 1))
+    if [[ "$status" == "??" ]]; then
+      if is_expected_generator_output "$path"; then
+        candidate_outputs+=("$path")
+      else
+        other_untracked+=("$path")
+      fi
+    else
+      tracked_dirty+=("$path")
+    fi
+  done <<< "$dirty_raw"
+
+  if [[ "$printed" -eq 0 ]]; then
+    echo "  - (none)" >&2
+  fi
+
+  if [[ "${#candidate_outputs[@]}" -gt 0 ]]; then
+    echo "[auto_pr] Expected generator candidate outputs detected; safe cleanup commands:" >&2
+    for path in "${candidate_outputs[@]}"; do
+      echo "  rm -f \"$path\"" >&2
+    done
+  fi
+
+  if [[ "${#tracked_dirty[@]}" -gt 0 ]]; then
+    echo "[auto_pr] Tracked files changed; if unintended, restore selectively:" >&2
+    for path in "${tracked_dirty[@]}"; do
+      echo "  git checkout -- \"$path\"" >&2
+    done
+  fi
+
+  if [[ "${#other_untracked[@]}" -gt 0 ]]; then
+    echo "[auto_pr] Additional untracked files exist; review/remove manually before rerun." >&2
+  fi
+}
+
+DIRTY_STATUS="$(git status --porcelain)"
+if [[ -n "$DIRTY_STATUS" ]]; then
+  print_dirty_tree_abort "$DIRTY_STATUS"
   exit 3
 fi
 
@@ -250,11 +320,35 @@ PY
 )
 
 if [[ -n "$SKIP_REASON" ]]; then
-  echo "[auto_pr] Skip due to cooldown/dedupe: $SKIP_REASON"
+  SKIP_KIND="$KIND"
+  SKIP_REMAINING_S=0
+  if [[ "$SKIP_REASON" =~ kind=([^[:space:]]+) ]]; then
+    SKIP_KIND="${BASH_REMATCH[1]}"
+  fi
+  if [[ "$SKIP_REASON" =~ remaining_s=([0-9]+) ]]; then
+    SKIP_REMAINING_S="${BASH_REMATCH[1]}"
+  fi
+
+  OPEN_PR_JSON="[]"
+  CLASS_PREFIX="codex/auto-pr-$(sanitize_for_branch "$SKIP_KIND")"
+  if command -v gh >/dev/null 2>&1; then
+    if GH_OUTPUT=$(GH_PROMPT_DISABLED=1 GIT_TERMINAL_PROMPT=0 gh pr list \
+      --state open \
+      --search "head:${CLASS_PREFIX}" \
+      --json number,url,title,headRefName \
+      --limit 20 2>/dev/null); then
+      OPEN_PR_JSON="$GH_OUTPUT"
+    fi
+  fi
+
+  "$PY_BIN" scripts/auto_pr_utils.py render-cooldown-message \
+    --kind "$SKIP_KIND" \
+    --remaining-s "$SKIP_REMAINING_S" \
+    --open-pr-json "$OPEN_PR_JSON"
   exit 0
 fi
 
-sanitize_kind=$(echo "$KIND" | tr -cs 'a-zA-Z0-9' '-')
+sanitize_kind="$(sanitize_for_branch "$KIND")"
 BRANCH="codex/auto-pr-${sanitize_kind}-$(date -u +%Y%m%d_%H%M%S)"
 
 git checkout -b "$BRANCH"
@@ -304,6 +398,29 @@ fi
 
 PR_URL=$(GH_PROMPT_DISABLED=1 GIT_TERMINAL_PROMPT=0 gh pr create "${PR_ARGS[@]}")
 echo "[auto_pr] PR created: $PR_URL"
+
+if [[ "$PRINT_NEXT_STEPS" -eq 1 ]]; then
+  PR_NUMBER=$("$PY_BIN" - <<PY
+import re
+url = "$PR_URL"
+match = re.search(r"/pull/(\\d+)", url)
+print(match.group(1) if match else "")
+PY
+)
+  echo "[auto_pr] Next steps (semi-auto; not executed):"
+  if [[ "$DRAFT_MODE" -eq 1 && -n "$PR_NUMBER" ]]; then
+    echo "  gh pr ready $PR_NUMBER"
+  elif [[ "$DRAFT_MODE" -eq 1 ]]; then
+    echo "  gh pr ready <pr_number>"
+  fi
+  if [[ -n "$PR_NUMBER" ]]; then
+    echo "  gh pr checks $PR_NUMBER --watch"
+    echo "  gh pr merge $PR_NUMBER --squash --delete-branch"
+  else
+    echo "  gh pr checks <pr_number> --watch"
+    echo "  gh pr merge <pr_number> --squash --delete-branch"
+  fi
+fi
 
 if [[ "$ALLOW_DOCS_AUTOMERGE" -eq 1 && "$KIND" == "docs-only" ]]; then
   echo "[auto_pr] docs-only auto-merge requested; enabling squash auto-merge"
