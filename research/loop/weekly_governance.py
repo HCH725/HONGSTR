@@ -88,16 +88,14 @@ def generate_weekly_quant_checklist(
         f"- watchlist: {', '.join(watchlist) if watchlist else 'none'}",
         "",
         "## Top Candidates",
-        "| id | score | recommendation | regime_slice | regime_window_utc | reason |",
-        "|---|---:|---|---|---|---|",
+        "| id | score | recommendation | regime_slice | regime_window_utc | slice_key | reason |",
+        "|---|---:|---|---|---|---|---|",
     ]
     for row in sorted_rows[:10]:
-        start = str(row.get("regime_window_start_utc") or "")
-        end = str(row.get("regime_window_end_utc") or "")
-        window = f"[{start},{end})" if start and end else "ALL/default"
+        window = str(row.get("regime_window_utc") or "ALL/default")
         md_lines.append(
             f"| {row.get('id')} | {float(row.get('score', 0.0)):.2f} | {row.get('recommendation')} | "
-            f"{row.get('regime_slice', 'ALL')} | {window} | {row.get('reason')} |"
+            f"{row.get('regime_slice', 'ALL')} | {window} | {row.get('slice_comparison_key', '')} | {row.get('reason')} |"
         )
 
     md_path = out_dir / "weekly_quant_checklist.md"
@@ -122,6 +120,7 @@ def _extract_candidates(
             cid = str(c.get("id") or "").strip()
             if not cid:
                 continue
+            regime_slice = _normalize_regime_slice(c.get("regime_slice") or c.get("regime"))
             score = _as_float(c.get("score"), 0.0)
             recommendation = "PROMOTE" if score >= 90.0 else "WATCHLIST" if score >= 55.0 else "DEMOTE"
             rows.append(
@@ -130,18 +129,34 @@ def _extract_candidates(
                     "score": score,
                     "recommendation": recommendation,
                     "reason": "strategy_pool_summary",
-                    "regime_slice": _normalize_regime_slice(c.get("regime_slice") or c.get("regime")),
+                    "regime_slice": regime_slice,
                     "regime_window_start_utc": c.get("regime_window_start_utc"),
                     "regime_window_end_utc": c.get("regime_window_end_utc"),
+                    "regime_window_utc": c.get("regime_window_utc") or _regime_window_utc(
+                        c.get("regime_window_start_utc"),
+                        c.get("regime_window_end_utc"),
+                    ),
+                    "slice_rationale": str(c.get("slice_rationale") or c.get("regime_rationale") or "default_all_no_slice"),
+                    "fallback_reason": c.get("fallback_reason"),
                     "regime_rationale": str(c.get("regime_rationale") or "default_all_no_slice"),
                     "regime_rationale_zh": str(c.get("regime_rationale_zh") or ""),
+                    "slice_comparison_key": str(
+                        c.get("slice_comparison_key")
+                        or _slice_comparison_key(
+                            strategy_id=c.get("id") or cid,
+                            direction=c.get("direction"),
+                            variant=c.get("variant"),
+                            regime_slice=regime_slice,
+                        )
+                    ),
                 }
             )
 
     if isinstance(leaderboard, dict):
         for e in leaderboard.get("entries", []) or []:
             cid = str(e.get("candidate_id") or e.get("experiment_id") or "").strip()
-            if not cid or any(r["id"] == cid for r in rows):
+            regime_slice = _normalize_regime_slice(e.get("regime_slice") or e.get("regime"))
+            if not cid or any(_row_key(r) == _row_key({"id": cid, "regime_slice": regime_slice}) for r in rows):
                 continue
             score = _as_float(e.get("final_score"), _as_float(e.get("oos_sharpe"), 0.0) * 40.0)
             recommendation = "PROMOTE" if score >= 90.0 else "WATCHLIST" if score >= 55.0 else "DEMOTE"
@@ -151,17 +166,33 @@ def _extract_candidates(
                     "score": score,
                     "recommendation": recommendation,
                     "reason": "research_leaderboard",
-                    "regime_slice": _normalize_regime_slice(e.get("regime_slice") or e.get("regime")),
+                    "regime_slice": regime_slice,
                     "regime_window_start_utc": e.get("regime_window_start_utc"),
                     "regime_window_end_utc": e.get("regime_window_end_utc"),
+                    "regime_window_utc": e.get("regime_window_utc") or _regime_window_utc(
+                        e.get("regime_window_start_utc"),
+                        e.get("regime_window_end_utc"),
+                    ),
+                    "slice_rationale": str(e.get("slice_rationale") or e.get("regime_rationale") or "default_all_no_slice"),
+                    "fallback_reason": e.get("fallback_reason"),
                     "regime_rationale": str(e.get("regime_rationale") or "default_all_no_slice"),
                     "regime_rationale_zh": str(e.get("regime_rationale_zh") or ""),
+                    "slice_comparison_key": str(
+                        e.get("slice_comparison_key")
+                        or _slice_comparison_key(
+                            strategy_id=e.get("strategy_id"),
+                            direction=e.get("direction"),
+                            variant=e.get("variant"),
+                            regime_slice=regime_slice,
+                        )
+                    ),
                 }
             )
 
     for e in recent_results:
         cid = str(e.get("id") or e.get("candidate_id") or e.get("experiment_id") or "").strip()
-        if not cid or any(r["id"] == cid for r in rows):
+        regime_slice = _normalize_regime_slice(e.get("regime_slice") or e.get("regime"))
+        if not cid or any(_row_key(r) == _row_key({"id": cid, "regime_slice": regime_slice}) for r in rows):
             continue
         score = _as_float(e.get("score"), 0.0)
         recommendation = str(e.get("recommendation") or "WATCHLIST").upper()
@@ -171,11 +202,26 @@ def _extract_candidates(
                 "score": score,
                 "recommendation": recommendation,
                 "reason": "recent_results",
-                "regime_slice": _normalize_regime_slice(e.get("regime_slice") or e.get("regime")),
+                "regime_slice": regime_slice,
                 "regime_window_start_utc": e.get("regime_window_start_utc"),
                 "regime_window_end_utc": e.get("regime_window_end_utc"),
+                "regime_window_utc": e.get("regime_window_utc") or _regime_window_utc(
+                    e.get("regime_window_start_utc"),
+                    e.get("regime_window_end_utc"),
+                ),
+                "slice_rationale": str(e.get("slice_rationale") or e.get("regime_rationale") or "default_all_no_slice"),
+                "fallback_reason": e.get("fallback_reason"),
                 "regime_rationale": str(e.get("regime_rationale") or "default_all_no_slice"),
                 "regime_rationale_zh": str(e.get("regime_rationale_zh") or ""),
+                "slice_comparison_key": str(
+                    e.get("slice_comparison_key")
+                    or _slice_comparison_key(
+                        strategy_id=e.get("strategy_id") or cid,
+                        direction=e.get("direction"),
+                        variant=e.get("variant"),
+                        regime_slice=regime_slice,
+                    )
+                ),
             }
         )
 
@@ -213,6 +259,28 @@ def _as_int(v: Any, default: int) -> int:
 def _normalize_regime_slice(v: Any) -> str:
     value = str(v or "ALL").upper().strip()
     return value if value in {"ALL", "BULL", "BEAR", "SIDEWAYS"} else "ALL"
+
+
+def _regime_window_utc(start_utc: Any, end_utc: Any) -> str | None:
+    start = str(start_utc or "").strip()
+    end = str(end_utc or "").strip()
+    if start and end:
+        return f"[{start},{end})"
+    return None
+
+
+def _slice_comparison_key(*, strategy_id: Any, direction: Any, variant: Any, regime_slice: Any) -> str:
+    sid = str(strategy_id or "unknown").strip() or "unknown"
+    d = str(direction or "UNKNOWN").upper().strip() or "UNKNOWN"
+    v = str(variant or "base").strip() or "base"
+    s = _normalize_regime_slice(regime_slice)
+    return f"{sid}|{d}|{v}|{s}"
+
+
+def _row_key(row: dict[str, Any]) -> str:
+    cid = str(row.get("id") or "").strip()
+    slice_norm = _normalize_regime_slice(row.get("regime_slice"))
+    return f"{cid}::{slice_norm}"
 
 
 def _apply_watchlist_floor(rows: list[dict[str, Any]], floor: int) -> None:

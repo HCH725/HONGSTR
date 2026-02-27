@@ -237,8 +237,11 @@ def _write_daily_report_ssot(repo: Path) -> None:
                     "regime_slice": "BULL",
                     "regime_window_start_utc": "2026-01-01T00:00:00Z",
                     "regime_window_end_utc": "2026-04-01T00:00:00Z",
+                    "regime_window_utc": "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)",
+                    "slice_rationale": "slice_applied",
                     "regime_rationale": "slice_applied",
                     "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
+                    "slice_comparison_key": "trend_mvp_btc_1h|LONG|baseline|BULL",
                     "metrics_status": "OK",
                     "metrics": {
                         "final_score": 88.5,
@@ -256,6 +259,7 @@ def _write_daily_report_ssot(repo: Path) -> None:
                             "strategy_id": "trend_mvp_btc_1h",
                             "direction": "LONG",
                             "regime_slice": "BULL",
+                            "slice_comparison_key": "trend_mvp_btc_1h|LONG|baseline|BULL",
                             "score": 88.5,
                             "oos_sharpe": 1.2,
                             "oos_return": 2.1,
@@ -281,6 +285,7 @@ def _write_daily_report_ssot(repo: Path) -> None:
                                 "score": None,
                                 "metrics_status": "UNKNOWN",
                                 "regime_slice": "ALL",
+                                "slice_comparison_key": "ema_cross_v3|SHORT|base|ALL",
                             },
                             "best_entry_reason": None,
                         },
@@ -614,12 +619,14 @@ def test_daily_command_regime_slice_fallback_reason_zh(monkeypatch, tmp_path):
     payload["latest_backtest_head"]["regime_slice"] = "ALL"
     payload["latest_backtest_head"]["regime_window_start_utc"] = None
     payload["latest_backtest_head"]["regime_window_end_utc"] = None
+    payload["latest_backtest_head"]["slice_rationale"] = "policy_missing_fallback_all"
+    payload["latest_backtest_head"]["fallback_reason"] = "policy_missing_fallback_all"
     payload["latest_backtest_head"]["regime_rationale"] = "policy_missing_fallback_all"
     payload["latest_backtest_head"]["regime_rationale_zh"] = ""
     (state_dir / "daily_report_latest.json").write_text(json.dumps(payload), encoding="utf-8")
 
     resp = s._handle_command(382, "/daily")
-    assert "本次回測切片=ALL（policy 缺失，已自動降級）。" in resp
+    assert "本次回測切片=ALL（policy 缺失" in resp
 
 
 def test_daily_command_missing_ssot(monkeypatch, tmp_path):

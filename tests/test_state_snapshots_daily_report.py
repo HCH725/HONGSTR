@@ -75,6 +75,9 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "regime_slice": "BULL",
                     "regime_window_start_utc": "2026-01-01T00:00:00Z",
                     "regime_window_end_utc": "2026-04-01T00:00:00Z",
+                    "regime_window_utc": "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)",
+                    "slice_rationale": "slice_applied",
+                    "slice_comparison_key": "trend_mvp_btc_1h|LONG|baseline|BULL",
                     "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
                     "last_score": 77.1,
                     "gate_overall": "PASS",
@@ -95,6 +98,9 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "regime_slice": "BULL",
                     "regime_window_start_utc": "2026-01-01T00:00:00Z",
                     "regime_window_end_utc": "2026-04-01T00:00:00Z",
+                    "regime_window_utc": "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)",
+                    "slice_rationale": "slice_applied",
+                    "slice_comparison_key": "trend_mvp_btc_1h|LONG|baseline|BULL",
                     "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
                     "timestamp": "2026-02-27T00:00:00Z",
                     "report_dir": str(report_dir),
@@ -126,8 +132,14 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert "latest_backtest_head.regime_window_start_utc" in payload["schema"]["field_labels_zh_en"]
     assert "latest_backtest_head.regime_window_end_utc" in payload["schema"]["field_labels_zh_en"]
     assert "latest_backtest_head.regime_rationale_zh" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.regime_window_utc" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.slice_rationale" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.fallback_reason" in payload["schema"]["field_labels_zh_en"]
+    assert "latest_backtest_head.slice_comparison_key" in payload["schema"]["field_labels_zh_en"]
     assert "strategy_pool.leaderboard_top.regime_slice" in payload["schema"]["field_labels_zh_en"]
     assert "research_leaderboard.top_entries.regime_slice" in payload["schema"]["field_labels_zh_en"]
+    assert "strategy_pool.leaderboard_top.slice_comparison_key" in payload["schema"]["field_labels_zh_en"]
+    assert "research_leaderboard.top_entries.slice_comparison_key" in payload["schema"]["field_labels_zh_en"]
 
     assert isinstance(payload["freshness_summary"]["profile_totals"], dict)
     assert payload["freshness_summary"]["profile_totals"]["realtime"] == 1
@@ -137,6 +149,10 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["latest_backtest_head"]["regime_slice"] == "BULL"
     assert payload["latest_backtest_head"]["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
     assert payload["latest_backtest_head"]["regime_window_end_utc"] == "2026-04-01T00:00:00Z"
+    assert payload["latest_backtest_head"]["regime_window_utc"] == "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)"
+    assert payload["latest_backtest_head"]["slice_rationale"] == "slice_applied"
+    assert payload["latest_backtest_head"]["fallback_reason"] is None
+    assert payload["latest_backtest_head"]["slice_comparison_key"] == "trend_mvp_btc_1h|LONG|baseline|BULL"
     assert "BULL 切片" in payload["latest_backtest_head"]["regime_rationale_zh"]
     assert payload["ssot_components"]["regime_signal"]["threshold_value"] == -0.0353
     assert payload["ssot_components"]["regime_signal"]["threshold_source_path"] == "reports/strategy_research/phase3/phase3_results.json"
@@ -150,6 +166,7 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert top_row["regime_slice"] == "BULL"
     assert top_row["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
     assert top_row["regime_window_end_utc"] == "2026-04-01T00:00:00Z"
+    assert top_row["slice_comparison_key"] == "trend_mvp_btc_1h|LONG|baseline|BULL"
     assert top_row["metrics_status"] in {"OK", "UNKNOWN"}
     direction_cov = payload["strategy_pool"]["direction_coverage"]
     assert direction_cov["counts"]["long"] == 1

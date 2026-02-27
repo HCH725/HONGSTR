@@ -57,16 +57,28 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "latest_backtest_head.regime_slice": {"zh": "最新回測切片", "en": "latest_backtest_head.regime_slice"},
     "latest_backtest_head.regime_window_start_utc": {"zh": "最新回測切片起點(UTC)", "en": "latest_backtest_head.regime_window_start_utc"},
     "latest_backtest_head.regime_window_end_utc": {"zh": "最新回測切片終點(UTC,不含)", "en": "latest_backtest_head.regime_window_end_utc"},
+    "latest_backtest_head.regime_window_utc": {"zh": "最新回測切片區間(UTC)", "en": "latest_backtest_head.regime_window_utc"},
+    "latest_backtest_head.slice_rationale": {"zh": "最新回測切片理由", "en": "latest_backtest_head.slice_rationale"},
+    "latest_backtest_head.fallback_reason": {"zh": "最新回測降級原因", "en": "latest_backtest_head.fallback_reason"},
+    "latest_backtest_head.slice_comparison_key": {"zh": "最新回測比較鍵", "en": "latest_backtest_head.slice_comparison_key"},
     "latest_backtest_head.regime_rationale_zh": {"zh": "最新回測切片原因(中文)", "en": "latest_backtest_head.regime_rationale_zh"},
     "strategy_pool.leaderboard_top": {"zh": "策略池排行前列", "en": "strategy_pool.leaderboard_top"},
     "strategy_pool.leaderboard_top.regime_slice": {"zh": "策略池排行切片", "en": "strategy_pool.leaderboard_top.regime_slice"},
     "strategy_pool.leaderboard_top.regime_window_start_utc": {"zh": "策略池排行切片起點(UTC)", "en": "strategy_pool.leaderboard_top.regime_window_start_utc"},
     "strategy_pool.leaderboard_top.regime_window_end_utc": {"zh": "策略池排行切片終點(UTC,不含)", "en": "strategy_pool.leaderboard_top.regime_window_end_utc"},
+    "strategy_pool.leaderboard_top.regime_window_utc": {"zh": "策略池排行切片區間(UTC)", "en": "strategy_pool.leaderboard_top.regime_window_utc"},
+    "strategy_pool.leaderboard_top.slice_rationale": {"zh": "策略池排行切片理由", "en": "strategy_pool.leaderboard_top.slice_rationale"},
+    "strategy_pool.leaderboard_top.fallback_reason": {"zh": "策略池排行降級原因", "en": "strategy_pool.leaderboard_top.fallback_reason"},
+    "strategy_pool.leaderboard_top.slice_comparison_key": {"zh": "策略池排行比較鍵", "en": "strategy_pool.leaderboard_top.slice_comparison_key"},
     "strategy_pool.direction_coverage": {"zh": "策略方向覆蓋摘要", "en": "strategy_pool.direction_coverage"},
     "strategy_pool.direction_coverage.short_coverage": {"zh": "空方覆蓋摘要", "en": "strategy_pool.direction_coverage.short_coverage"},
     "research_leaderboard.top_entries.regime_slice": {"zh": "研究排行切片", "en": "research_leaderboard.top_entries.regime_slice"},
     "research_leaderboard.top_entries.regime_window_start_utc": {"zh": "研究排行切片起點(UTC)", "en": "research_leaderboard.top_entries.regime_window_start_utc"},
     "research_leaderboard.top_entries.regime_window_end_utc": {"zh": "研究排行切片終點(UTC,不含)", "en": "research_leaderboard.top_entries.regime_window_end_utc"},
+    "research_leaderboard.top_entries.regime_window_utc": {"zh": "研究排行切片區間(UTC)", "en": "research_leaderboard.top_entries.regime_window_utc"},
+    "research_leaderboard.top_entries.slice_rationale": {"zh": "研究排行切片理由", "en": "research_leaderboard.top_entries.slice_rationale"},
+    "research_leaderboard.top_entries.fallback_reason": {"zh": "研究排行降級原因", "en": "research_leaderboard.top_entries.fallback_reason"},
+    "research_leaderboard.top_entries.slice_comparison_key": {"zh": "研究排行比較鍵", "en": "research_leaderboard.top_entries.slice_comparison_key"},
     "governance.today_gate_summary": {"zh": "今日Gate摘要", "en": "governance.today_gate_summary"},
     "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
     "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
@@ -354,6 +366,35 @@ def _regime_rationale_zh(rationale: Any, explicit_zh: Any = None) -> str:
     return mapping.get(code, "")
 
 
+def _regime_window_utc(start_utc: Any, end_utc: Any, explicit_window: Any = None) -> str | None:
+    explicit = str(explicit_window or "").strip()
+    if explicit:
+        return explicit
+    start = str(start_utc or "").strip()
+    end = str(end_utc or "").strip()
+    if start and end:
+        return f"[{start},{end})"
+    return None
+
+
+def _slice_fallback_reason(
+    *,
+    regime_slice: Any,
+    fallback_reason: Any,
+    slice_rationale: Any,
+) -> str | None:
+    explicit = str(fallback_reason or "").strip()
+    if explicit:
+        return explicit
+    slice_norm = str(regime_slice or "ALL").upper().strip()
+    if slice_norm != "ALL":
+        return None
+    rationale = str(slice_rationale or "").strip()
+    if rationale and rationale != "default_all_no_slice":
+        return rationale
+    return None
+
+
 def _safe_rel_path(path_like: Any, root: Path) -> str:
     if not path_like:
         return ""
@@ -450,7 +491,16 @@ def _strategy_pool_top_entries(pool_data: dict[str, Any], top_n: int = 5) -> lis
         metrics_status, reason = _metrics_status(
             {"score": score, "oos_sharpe": sharpe, "oos_return": ret}
         )
+        regime_slice = str(row.get("regime_slice") or row.get("regime") or "ALL").upper()
+        start_utc = row.get("regime_window_start_utc")
+        end_utc = row.get("regime_window_end_utc")
         regime_rationale = row.get("regime_rationale") or ""
+        slice_rationale = row.get("slice_rationale") or regime_rationale or "default_all_no_slice"
+        fallback_reason = _slice_fallback_reason(
+            regime_slice=regime_slice,
+            fallback_reason=row.get("fallback_reason"),
+            slice_rationale=slice_rationale,
+        )
         out.append(
             {
                 "strategy_id": row.get("strategy_id") or "unknown",
@@ -458,11 +508,16 @@ def _strategy_pool_top_entries(pool_data: dict[str, Any], top_n: int = 5) -> lis
                 "family": row.get("family") or "unknown",
                 "direction": row.get("direction") or "UNKNOWN",
                 "variant": row.get("variant") or "base",
-                "regime_slice": str(row.get("regime_slice") or row.get("regime") or "ALL").upper(),
-                "regime_window_start_utc": row.get("regime_window_start_utc"),
-                "regime_window_end_utc": row.get("regime_window_end_utc"),
+                "regime_slice": regime_slice,
+                "regime_window_start_utc": start_utc,
+                "regime_window_end_utc": end_utc,
+                "regime_window_utc": _regime_window_utc(start_utc, end_utc, row.get("regime_window_utc")),
+                "slice_rationale": slice_rationale,
+                "fallback_reason": fallback_reason,
                 "regime_rationale": regime_rationale,
                 "regime_rationale_zh": _regime_rationale_zh(regime_rationale, row.get("regime_rationale_zh")),
+                "slice_comparison_key": row.get("slice_comparison_key")
+                or f"{row.get('strategy_id') or 'unknown'}|{str(row.get('direction') or 'UNKNOWN').upper()}|{row.get('variant') or 'base'}|{regime_slice}",
                 "score": score,
                 "oos_sharpe": sharpe,
                 "oos_return": ret,
@@ -509,17 +564,31 @@ def _strategy_pool_direction_coverage(pool_data: dict[str, Any]) -> dict[str, An
         metrics_status, reason = _metrics_status(
             {"score": score, "oos_sharpe": oos_sharpe, "oos_return": oos_return}
         )
+        regime_slice = str(row.get("regime_slice") or row.get("regime") or "ALL").upper()
+        start_utc = row.get("regime_window_start_utc")
+        end_utc = row.get("regime_window_end_utc")
         regime_rationale = row.get("regime_rationale") or ""
+        slice_rationale = row.get("slice_rationale") or regime_rationale or "default_all_no_slice"
+        fallback_reason = _slice_fallback_reason(
+            regime_slice=regime_slice,
+            fallback_reason=row.get("fallback_reason"),
+            slice_rationale=slice_rationale,
+        )
         short_rows.append(
             {
                 "strategy_id": row.get("strategy_id") or "unknown",
                 "candidate_id": row.get("candidate_id") or "",
                 "direction": "SHORT",
-                "regime_slice": str(row.get("regime_slice") or row.get("regime") or "ALL").upper(),
-                "regime_window_start_utc": row.get("regime_window_start_utc"),
-                "regime_window_end_utc": row.get("regime_window_end_utc"),
+                "regime_slice": regime_slice,
+                "regime_window_start_utc": start_utc,
+                "regime_window_end_utc": end_utc,
+                "regime_window_utc": _regime_window_utc(start_utc, end_utc, row.get("regime_window_utc")),
+                "slice_rationale": slice_rationale,
+                "fallback_reason": fallback_reason,
                 "regime_rationale": regime_rationale,
                 "regime_rationale_zh": _regime_rationale_zh(regime_rationale, row.get("regime_rationale_zh")),
+                "slice_comparison_key": row.get("slice_comparison_key")
+                or f"{row.get('strategy_id') or 'unknown'}|SHORT|{row.get('variant') or 'base'}|{regime_slice}",
                 "gate_overall": _normalize_gate_status(row.get("gate_overall")),
                 "score": score,
                 "oos_sharpe": oos_sharpe,
@@ -569,7 +638,16 @@ def _research_top_entries(leaderboard: dict[str, Any], top_n: int = 5) -> list[d
         metrics_status, reason = _metrics_status(
             {"final_score": score, "oos_sharpe": sharpe, "oos_mdd": mdd}
         )
+        regime_slice = str(row.get("regime_slice") or row.get("regime") or "ALL").upper()
+        start_utc = row.get("regime_window_start_utc")
+        end_utc = row.get("regime_window_end_utc")
         regime_rationale = row.get("regime_rationale") or ""
+        slice_rationale = row.get("slice_rationale") or regime_rationale or "default_all_no_slice"
+        fallback_reason = _slice_fallback_reason(
+            regime_slice=regime_slice,
+            fallback_reason=row.get("fallback_reason"),
+            slice_rationale=slice_rationale,
+        )
         out.append(
             {
                 "candidate_id": row.get("candidate_id") or row.get("experiment_id") or "unknown",
@@ -577,11 +655,16 @@ def _research_top_entries(leaderboard: dict[str, Any], top_n: int = 5) -> list[d
                 "family": row.get("family") or "unknown",
                 "direction": row.get("direction") or "UNKNOWN",
                 "variant": row.get("variant") or "base",
-                "regime_slice": str(row.get("regime_slice") or row.get("regime") or "ALL").upper(),
-                "regime_window_start_utc": row.get("regime_window_start_utc"),
-                "regime_window_end_utc": row.get("regime_window_end_utc"),
+                "regime_slice": regime_slice,
+                "regime_window_start_utc": start_utc,
+                "regime_window_end_utc": end_utc,
+                "regime_window_utc": _regime_window_utc(start_utc, end_utc, row.get("regime_window_utc")),
+                "slice_rationale": slice_rationale,
+                "fallback_reason": fallback_reason,
                 "regime_rationale": regime_rationale,
                 "regime_rationale_zh": _regime_rationale_zh(regime_rationale, row.get("regime_rationale_zh")),
+                "slice_comparison_key": row.get("slice_comparison_key")
+                or f"{row.get('strategy_id') or 'unknown'}|{str(row.get('direction') or 'UNKNOWN').upper()}|{row.get('variant') or 'base'}|{regime_slice}",
                 "status": str(row.get("status") or "UNKNOWN").upper(),
                 "gate_overall": _normalize_gate_status(row.get("gate_overall")),
                 "final_score": score,
@@ -623,9 +706,13 @@ def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[
             "regime_slice": "ALL",
             "regime_window_start_utc": None,
             "regime_window_end_utc": None,
+            "regime_window_utc": None,
             "regime_window_end_exclusive": True,
+            "slice_rationale": "missing_research_leaderboard",
+            "fallback_reason": "missing_research_leaderboard",
             "regime_rationale": "missing_research_leaderboard",
             "regime_rationale_zh": _regime_rationale_zh("missing_research_leaderboard"),
+            "slice_comparison_key": "unknown|UNKNOWN|base|ALL",
             "gate": {"overall": "UNKNOWN", "recommendation": "UNKNOWN"},
             "metrics_status": "UNKNOWN",
             "metrics_unavailable_reason": "missing_metrics:final_score,oos_sharpe,oos_mdd",
@@ -673,7 +760,29 @@ def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[
     recommendation = str(gate_obj.get("recommendation") or "UNKNOWN").upper()
     if recommendation not in {"PROMOTE", "WATCHLIST", "DEMOTE", "UNKNOWN"}:
         recommendation = "UNKNOWN"
+    regime_slice = str(
+        chosen.get("regime_slice")
+        or chosen.get("regime")
+        or summary_obj.get("regime_slice")
+        or summary_obj.get("regime")
+        or "ALL"
+    ).upper()
+    start_utc = chosen.get("regime_window_start_utc") or summary_obj.get("regime_window_start_utc")
+    end_utc = chosen.get("regime_window_end_utc") or summary_obj.get("regime_window_end_utc")
     regime_rationale = chosen.get("regime_rationale") or summary_obj.get("regime_rationale") or ""
+    slice_rationale = chosen.get("slice_rationale") or summary_obj.get("slice_rationale") or regime_rationale or "default_all_no_slice"
+    fallback_reason = _slice_fallback_reason(
+        regime_slice=regime_slice,
+        fallback_reason=chosen.get("fallback_reason") or summary_obj.get("fallback_reason"),
+        slice_rationale=slice_rationale,
+    )
+    comparison_key = chosen.get("slice_comparison_key") or summary_obj.get("slice_comparison_key")
+    if not comparison_key:
+        comparison_key = (
+            f"{chosen.get('strategy_id') or summary_obj.get('strategy_id') or 'unknown'}|"
+            f"{str(chosen.get('direction') or summary_obj.get('direction') or 'UNKNOWN').upper()}|"
+            f"{chosen.get('variant') or summary_obj.get('variant') or 'base'}|{regime_slice}"
+        )
 
     return {
         "status": "OK",
@@ -681,15 +790,19 @@ def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[
         "strategy_id": chosen.get("strategy_id") or "unknown",
         "direction": chosen.get("direction") or summary_obj.get("direction") or "UNKNOWN",
         "variant": chosen.get("variant") or summary_obj.get("variant") or "base",
-        "regime_slice": str(chosen.get("regime_slice") or chosen.get("regime") or summary_obj.get("regime_slice") or summary_obj.get("regime") or "ALL").upper(),
-        "regime_window_start_utc": chosen.get("regime_window_start_utc") or summary_obj.get("regime_window_start_utc"),
-        "regime_window_end_utc": chosen.get("regime_window_end_utc") or summary_obj.get("regime_window_end_utc"),
+        "regime_slice": regime_slice,
+        "regime_window_start_utc": start_utc,
+        "regime_window_end_utc": end_utc,
+        "regime_window_utc": _regime_window_utc(start_utc, end_utc, chosen.get("regime_window_utc") or summary_obj.get("regime_window_utc")),
         "regime_window_end_exclusive": bool(chosen.get("regime_window_end_exclusive", summary_obj.get("regime_window_end_exclusive", True))),
+        "slice_rationale": slice_rationale,
+        "fallback_reason": fallback_reason,
         "regime_rationale": regime_rationale,
         "regime_rationale_zh": _regime_rationale_zh(
             regime_rationale,
             chosen.get("regime_rationale_zh") or summary_obj.get("regime_rationale_zh"),
         ),
+        "slice_comparison_key": comparison_key,
         "timestamp": chosen.get("timestamp") or "",
         "artifacts": {
             "report_dir": _safe_rel_path(report_dir_path or "", repo_root),

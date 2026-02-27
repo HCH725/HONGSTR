@@ -232,16 +232,24 @@ def _regime_meta(regime_context: dict[str, Any] | None) -> dict[str, Any]:
     ctx = regime_context or {}
     applied = str(ctx.get("applied") or "ALL").upper()
     requested = str(ctx.get("requested") or applied).upper()
+    start_utc = ctx.get("window_start_utc")
+    end_utc = ctx.get("window_end_utc")
+    rationale = str(ctx.get("rationale") or "none")
+    fallback_reason = rationale if requested != applied and applied == "ALL" else None
+    regime_window_utc = f"[{start_utc},{end_utc})" if start_utc and end_utc else None
     return {
         "regime": applied,
         "regime_slice": applied,
         "regime_requested": requested,
-        "regime_window_start_utc": ctx.get("window_start_utc"),
-        "regime_window_end_utc": ctx.get("window_end_utc"),
+        "regime_window_start_utc": start_utc,
+        "regime_window_end_utc": end_utc,
+        "regime_window_utc": regime_window_utc,
         "regime_window_end_exclusive": True,
         "regime_policy_path": ctx.get("policy_path"),
         "regime_status": str(ctx.get("status") or "UNKNOWN").upper(),
-        "regime_rationale": str(ctx.get("rationale") or "none"),
+        "regime_rationale": rationale,
+        "slice_rationale": rationale,
+        "fallback_reason": fallback_reason,
         "regime_rationale_zh": str(ctx.get("rationale_zh") or ""),
     }
 
@@ -249,6 +257,33 @@ def _regime_meta(regime_context: dict[str, Any] | None) -> dict[str, Any]:
 def _with_regime_meta(payload: dict[str, Any], regime_context: dict[str, Any] | None) -> dict[str, Any]:
     out = dict(payload)
     out.update(_regime_meta(regime_context))
+    return out
+
+
+def _slice_comparison_key(
+    *,
+    strategy_id: Any,
+    direction: Any,
+    variant: Any,
+    regime_slice: Any,
+) -> str:
+    sid = str(strategy_id or "unknown").strip() or "unknown"
+    dir_norm = str(direction or "UNKNOWN").upper().strip() or "UNKNOWN"
+    var_norm = str(variant or "base").strip() or "base"
+    slice_norm = str(regime_slice or "ALL").upper().strip() or "ALL"
+    if slice_norm not in {"ALL", "BULL", "BEAR", "SIDEWAYS"}:
+        slice_norm = "ALL"
+    return f"{sid}|{dir_norm}|{var_norm}|{slice_norm}"
+
+
+def _attach_slice_comparison_meta(payload: dict[str, Any]) -> dict[str, Any]:
+    out = dict(payload)
+    out["slice_comparison_key"] = _slice_comparison_key(
+        strategy_id=out.get("strategy_id"),
+        direction=out.get("direction"),
+        variant=out.get("variant"),
+        regime_slice=out.get("regime_slice"),
+    )
     return out
 
 
@@ -280,7 +315,7 @@ def _build_summary(
         "total_cost_bps": metrics.get("total_cost_bps", 0.0),
         "parameters": candidate.get("parameters", {}),
     }
-    return _with_regime_meta(summary, regime_context)
+    return _attach_slice_comparison_meta(_with_regime_meta(summary, regime_context))
 
 
 def _build_selection(
@@ -291,27 +326,26 @@ def _build_selection(
 ) -> dict[str, Any]:
     recommendation = str(gate_payload.get("recommendation", "WATCHLIST")).upper()
     decision = "SELECT" if recommendation == "PROMOTE" else "WATCHLIST" if recommendation == "WATCHLIST" else "DROP"
-    return {
-        **_with_regime_meta(
-            {
-                "decision": decision,
-                "selected_symbol": summary.get("symbol", "BTCUSDT"),
-                "candidate_id": summary.get("candidate_id"),
-                "strategy_id": summary.get("strategy_id"),
-                "direction": summary.get("direction", "LONG"),
-                "variant": summary.get("variant", "base"),
-                "gate": {
-                    "overall": gate_payload.get("overall", "UNKNOWN"),
-                    "reasons": gate_payload.get("reasons", []),
-                    "final_score": gate_payload.get("final_score", 0.0),
-                    "recommendation": recommendation,
-                },
-                "report_only": True,
-                "timestamp": summary.get("timestamp"),
+    payload = _with_regime_meta(
+        {
+            "decision": decision,
+            "selected_symbol": summary.get("symbol", "BTCUSDT"),
+            "candidate_id": summary.get("candidate_id"),
+            "strategy_id": summary.get("strategy_id"),
+            "direction": summary.get("direction", "LONG"),
+            "variant": summary.get("variant", "base"),
+            "gate": {
+                "overall": gate_payload.get("overall", "UNKNOWN"),
+                "reasons": gate_payload.get("reasons", []),
+                "final_score": gate_payload.get("final_score", 0.0),
+                "recommendation": recommendation,
             },
-            regime_context,
-        )
-    }
+            "report_only": True,
+            "timestamp": summary.get("timestamp"),
+        },
+        regime_context,
+    )
+    return _attach_slice_comparison_meta(payload)
 
 
 def _render_candidate_report(*, summary: dict[str, Any], gate_payload: dict[str, Any], proposal: ResearchProposal) -> str:
@@ -329,7 +363,10 @@ def _render_candidate_report(*, summary: dict[str, Any], gate_payload: dict[str,
         f"- Direction: {summary.get('direction')}\n"
         f"- Variant: {summary.get('variant')}\n"
         f"- Regime Slice: {summary.get('regime_slice', 'ALL')}\n"
+        f"- Regime Window UTC: {summary.get('regime_window_utc')}\n"
         f"- Regime Window [start,end): {summary.get('regime_window_start_utc')} -> {summary.get('regime_window_end_utc')}\n"
+        f"- Slice Rationale: {summary.get('slice_rationale', 'none')}\n"
+        f"- Fallback Reason: {summary.get('fallback_reason')}\n"
         f"- Regime Rationale: {summary.get('regime_rationale', 'none')}\n"
         f"- Symbol/TF: {summary.get('symbol')} {summary.get('timeframe')}\n\n"
         f"## Metrics\n"
@@ -367,6 +404,10 @@ def _write_candidate_artifacts(
 
     # Backward compatibility for old leaderboard scanner.
     legacy = dict(metrics)
+    regime_slice = str(summary.get("regime_slice") or "ALL").upper()
+    legacy_name = str(summary.get("candidate_id") or "candidate")
+    if regime_slice != "ALL":
+        legacy_name = f"{legacy_name}__slice_{regime_slice.lower()}"
     legacy.update(
         {
             "candidate_id": summary.get("candidate_id"),
@@ -378,11 +419,15 @@ def _write_candidate_artifacts(
             "regime_slice": summary.get("regime_slice", "ALL"),
             "regime_window_start_utc": summary.get("regime_window_start_utc"),
             "regime_window_end_utc": summary.get("regime_window_end_utc"),
+            "regime_window_utc": summary.get("regime_window_utc"),
+            "slice_rationale": summary.get("slice_rationale", summary.get("regime_rationale", "")),
+            "fallback_reason": summary.get("fallback_reason"),
             "final_score": gate_payload.get("final_score", 0.0),
             "gate_overall": gate_payload.get("overall", "UNKNOWN"),
+            "slice_comparison_key": summary.get("slice_comparison_key"),
         }
     )
-    (run_dir.parent / f"{summary.get('candidate_id')}_results.json").write_text(
+    (run_dir.parent / f"{legacy_name}_results.json").write_text(
         json.dumps(legacy, indent=2),
         encoding="utf-8",
     )
@@ -393,12 +438,16 @@ def _write_strategy_pool(records: list[dict[str, Any]]) -> Path:
     ranked = sorted(records, key=lambda x: float(x.get("last_score", 0.0)), reverse=True)
     promoted = [r["candidate_id"] for r in ranked if r.get("recommendation") == "PROMOTE"][:3]
     demoted = [r["candidate_id"] for r in ranked if r.get("recommendation") == "DEMOTE"]
+    promoted_slice_keys = [r.get("slice_comparison_key") for r in ranked if r.get("recommendation") == "PROMOTE"][:3]
+    demoted_slice_keys = [r.get("slice_comparison_key") for r in ranked if r.get("recommendation") == "DEMOTE"]
     payload = {
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "report_only": True,
         "candidates": ranked,
         "promoted": promoted,
         "demoted": demoted,
+        "promoted_slice_keys": [k for k in promoted_slice_keys if isinstance(k, str) and k.strip()],
+        "demoted_slice_keys": [k for k in demoted_slice_keys if isinstance(k, str) and k.strip()],
     }
     STRATEGY_POOL_PATH.parent.mkdir(parents=True, exist_ok=True)
     STRATEGY_POOL_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -561,7 +610,7 @@ def main() -> None:
 
             if candidate.get("execution_model") == "dca1":
                 dca_out = run_dca1_candidate(candidate, snapshot=snapshot, dry_run=args.dry_run)
-                summary = _with_regime_meta(dca_out["summary"], regime_context)
+                summary = _attach_slice_comparison_meta(_with_regime_meta(dca_out["summary"], regime_context))
                 metrics = _with_regime_meta(dca_out["metrics"], regime_context)
                 report_md = dca_out["report_md"]
             else:
@@ -583,6 +632,10 @@ def main() -> None:
                 "timestamp": summary.get("timestamp"),
             }
             gate_payload = _with_regime_meta(gate_payload, regime_context)
+            gate_payload["strategy_id"] = summary.get("strategy_id")
+            gate_payload["direction"] = summary.get("direction")
+            gate_payload["variant"] = summary.get("variant")
+            gate_payload = _attach_slice_comparison_meta(gate_payload)
 
             summary["final_score"] = gate_payload["final_score"]
             summary["gate_overall"] = gate_payload["overall"]
@@ -595,7 +648,11 @@ def main() -> None:
             if not report_md:
                 report_md = _render_candidate_report(summary=summary, gate_payload=gate_payload, proposal=proposal)
 
-            run_dir = run_root / str(candidate.get("candidate_id"))
+            run_leaf = str(candidate.get("candidate_id"))
+            regime_slice = str(summary.get("regime_slice") or "ALL").upper()
+            if regime_slice != "ALL":
+                run_leaf = f"{run_leaf}__slice_{regime_slice.lower()}"
+            run_dir = run_root / run_leaf
             report_path = _write_candidate_artifacts(
                 run_dir=run_dir,
                 summary=summary,
@@ -617,6 +674,12 @@ def main() -> None:
                     "regime_slice": summary.get("regime_slice", "ALL"),
                     "regime_window_start_utc": summary.get("regime_window_start_utc"),
                     "regime_window_end_utc": summary.get("regime_window_end_utc"),
+                    "regime_window_utc": summary.get("regime_window_utc"),
+                    "slice_rationale": summary.get("slice_rationale", summary.get("regime_rationale")),
+                    "fallback_reason": summary.get("fallback_reason"),
+                    "regime_rationale": summary.get("regime_rationale", ""),
+                    "regime_rationale_zh": summary.get("regime_rationale_zh", ""),
+                    "slice_comparison_key": summary.get("slice_comparison_key"),
                     "last_score": summary.get("final_score", 0.0),
                     "gate_overall": summary.get("gate_overall", "UNKNOWN"),
                     "recommendation": gate_payload.get("recommendation", "WATCHLIST"),
@@ -648,8 +711,12 @@ def main() -> None:
                     "regime_slice": r.get("regime_slice", r.get("regime", "ALL")),
                     "regime_window_start_utc": r.get("regime_window_start_utc"),
                     "regime_window_end_utc": r.get("regime_window_end_utc"),
+                    "regime_window_utc": r.get("regime_window_utc"),
+                    "slice_rationale": r.get("slice_rationale", r.get("regime_rationale", "")),
+                    "fallback_reason": r.get("fallback_reason"),
                     "regime_rationale": r.get("regime_rationale", ""),
                     "regime_rationale_zh": r.get("regime_rationale_zh", ""),
+                    "slice_comparison_key": r.get("slice_comparison_key"),
                 }
                 for r in records[:20]
             ],

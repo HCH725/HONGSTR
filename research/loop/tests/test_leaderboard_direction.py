@@ -53,4 +53,60 @@ def test_entry_from_summary_regime_backward_compat(tmp_path: Path):
     entry = lb._entry_from_summary(run_dir / "summary.json")
     assert entry is not None
     assert entry["regime_slice"] == "ALL"
+    assert entry["regime_window_utc"] is None
+    assert entry["slice_rationale"] == "default_all_no_slice"
+    assert entry["fallback_reason"] is None
     assert entry["metrics_status"] == "OK"
+
+
+def test_build_leaderboard_keeps_same_candidate_across_slices(tmp_path: Path, monkeypatch):
+    reports_root = tmp_path / "reports" / "research" / "20260227"
+    run_all = reports_root / "cand_mix"
+    run_bull = reports_root / "cand_mix__slice_bull"
+    run_all.mkdir(parents=True, exist_ok=True)
+    run_bull.mkdir(parents=True, exist_ok=True)
+
+    (run_all / "summary.json").write_text(
+        json.dumps(
+            {
+                "candidate_id": "cand_mix",
+                "strategy_id": "supertrend_v2",
+                "direction": "LONG",
+                "variant": "base",
+                "regime_slice": "ALL",
+                "sharpe": 0.8,
+                "max_drawdown": -0.11,
+                "timestamp": "2026-02-27T00:00:00Z",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_all / "gate.json").write_text(json.dumps({"overall": "PASS", "final_score": 70.0}), encoding="utf-8")
+
+    (run_bull / "summary.json").write_text(
+        json.dumps(
+            {
+                "candidate_id": "cand_mix",
+                "strategy_id": "supertrend_v2",
+                "direction": "LONG",
+                "variant": "base",
+                "regime_slice": "BULL",
+                "regime_window_start_utc": "2026-01-01T00:00:00Z",
+                "regime_window_end_utc": "2026-04-01T00:00:00Z",
+                "slice_rationale": "slice_applied",
+                "sharpe": 1.1,
+                "max_drawdown": -0.09,
+                "timestamp": "2026-02-27T01:00:00Z",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_bull / "gate.json").write_text(json.dumps({"overall": "PASS", "final_score": 83.0}), encoding="utf-8")
+
+    monkeypatch.setattr(lb, "REPORTS_ROOT", reports_root)
+    out = lb.build_leaderboard(top_n=10)
+    assert len(out) == 2
+    slices = {row["regime_slice"] for row in out}
+    assert slices == {"ALL", "BULL"}
+    keys = {row["slice_comparison_key"] for row in out}
+    assert len(keys) == 2

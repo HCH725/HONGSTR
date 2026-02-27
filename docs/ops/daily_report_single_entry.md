@@ -49,8 +49,10 @@
 ## 4) 區段欄位解釋
 
 - `regime_slice`: 當前回測所屬的市場環境（如 bull, bear, sideways）。
-- `regime_window`: 該環境所定義的時間區間。
+- `regime_window_utc`: 該環境所定義的時間區間（格式固定 `[start,end)`，UTC，end-exclusive）。
+- `slice_rationale`: 切片採用理由（包含正常套用或降級原因碼）。
 - `fallback_reason`: 若無法匹配特定環境時的降級原因（通常降級為 `ALL` 全時段觀測）。
+- `slice_comparison_key`: 比較鍵（`strategy_id|direction|variant|regime_slice`），同策略跨切片比較必須帶此維度，避免樣本混在一起。
 
 ## 5) 缺值規則（硬性）
 

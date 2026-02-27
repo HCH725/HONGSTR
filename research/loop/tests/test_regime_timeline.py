@@ -56,6 +56,31 @@ def test_load_policy_dedupes_overlap(tmp_path: Path):
     assert any("bull_overlap" in msg for msg in loaded["warnings"])
 
 
+def test_load_policy_unsorted_intervals_are_sorted(tmp_path: Path):
+    policy_path = tmp_path / "regime_timeline.json"
+    _write_policy(
+        policy_path,
+        {
+            "regimes": {
+                "bull": [
+                    {"start": "2026-02-01T00:00:00Z", "end": "2026-03-01T00:00:00Z"},
+                    {"start": "2026-01-01T00:00:00Z", "end": "2026-02-01T00:00:00Z"},
+                ],
+                "bear": [],
+                "sideways": [],
+            }
+        },
+    )
+
+    loaded = load_regime_timeline_policy(policy_path)
+    assert loaded["regimes"]["BULL"][0]["start_utc"] == "2026-01-01T00:00:00Z"
+    assert loaded["regimes"]["BULL"][1]["start_utc"] == "2026-02-01T00:00:00Z"
+    assert resolve_regime_window("BULL", "2026-01-31T23:59:59Z", policy_path=policy_path) == (
+        "2026-01-01T00:00:00Z",
+        "2026-02-01T00:00:00Z",
+    )
+
+
 def test_resolve_window_deterministic_for_each_regime(tmp_path: Path):
     policy_path = tmp_path / "regime_timeline.json"
     _write_policy(

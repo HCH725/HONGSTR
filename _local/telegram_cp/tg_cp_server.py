@@ -862,13 +862,15 @@ def _daily_compose_report(
         bt_regime_slice = "ALL"
     bt_regime_start = backtest.get("regime_window_start_utc")
     bt_regime_end = backtest.get("regime_window_end_utc")
-    bt_regime_rationale = backtest.get("regime_rationale")
+    bt_regime_rationale = backtest.get("slice_rationale") or backtest.get("regime_rationale")
+    bt_regime_fallback_reason = backtest.get("fallback_reason")
     bt_regime_rationale_zh = backtest.get("regime_rationale_zh")
+    bt_comparison_key = str(backtest.get("slice_comparison_key") or "資料不足/UNKNOWN")
     bt_regime_note = _daily_regime_slice_note(
         regime_slice=bt_regime_slice,
         window_start_utc=bt_regime_start,
         window_end_utc=bt_regime_end,
-        rationale=bt_regime_rationale,
+        rationale=bt_regime_fallback_reason or bt_regime_rationale,
         rationale_zh=bt_regime_rationale_zh,
     )
     if bt_status == "FAIL" or bt_gate_status == "FAIL":
@@ -911,6 +913,7 @@ def _daily_compose_report(
     short_best_regime = str(short_best.get("regime_slice") or "ALL").upper().strip()
     if short_best_regime not in {"ALL", "BULL", "BEAR", "SIDEWAYS"}:
         short_best_regime = "ALL"
+    short_best_cmp = str(short_best.get("slice_comparison_key") or "資料不足/UNKNOWN")
     pool_candidates = _daily_int(pool_counts.get("candidates"))
     short_candidates = _daily_int(short_coverage.get("candidates"))
     if pool_candidates <= 0:
@@ -1008,6 +1011,7 @@ def _daily_compose_report(
         f"OOS={_daily_unknown(bt_metrics.get('oos_sharpe'))}；MDD={_daily_unknown(bt_metrics.get('oos_mdd'))}；"
         f"IS={_daily_unknown(bt_metrics.get('is_sharpe'))}；Trades={_daily_int_or_unknown(bt_metrics.get('trades_count'))}；"
         f"metrics={backtest.get('metrics_status','UNKNOWN')}；"
+        f"cmp={_daily_trim(bt_comparison_key, limit=56)}；"
         f"{bt_regime_note}"
     )
     short_best_name = short_best.get("strategy_id") or "資料不足/UNKNOWN"
@@ -1016,7 +1020,8 @@ def _daily_compose_report(
     else:
         short_best_summary = (
             f"{short_best_name}(score={_daily_unknown(short_best.get('score'))},"
-            f"metrics={short_best.get('metrics_status','UNKNOWN')},regime={short_best_regime})"
+            f"metrics={short_best.get('metrics_status','UNKNOWN')},regime={short_best_regime},"
+            f"cmp={_daily_trim(short_best_cmp, limit=40)})"
         )
     strategy_reason = (
         f"SHORT覆蓋 候選={_daily_int_or_unknown(short_coverage.get('candidates'))}/"

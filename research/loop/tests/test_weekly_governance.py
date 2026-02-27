@@ -89,3 +89,43 @@ def test_weekly_checklist_keeps_regime_slice_from_recent_results(tmp_path: Path)
     assert top["regime_slice"] == "BULL"
     assert top["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
     assert top["regime_window_end_utc"] == "2026-04-01T00:00:00Z"
+    assert top["regime_window_utc"] == "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)"
+
+
+def test_weekly_checklist_keeps_same_candidate_different_slices(tmp_path: Path):
+    repo = tmp_path / "repo"
+    (repo / "data/state/_research").mkdir(parents=True)
+    (repo / "data/state").mkdir(parents=True, exist_ok=True)
+    (repo / "data/state/system_health_latest.json").write_text(json.dumps({"ssot_status": "OK"}), encoding="utf-8")
+    (repo / "data/state/strategy_pool_summary.json").write_text(json.dumps({"leaderboard": []}), encoding="utf-8")
+    (repo / "data/state/_research/leaderboard.json").write_text(json.dumps({"entries": []}), encoding="utf-8")
+
+    out = generate_weekly_quant_checklist(
+        repo,
+        recent_results=[
+            {
+                "candidate_id": "cand_mix",
+                "strategy_id": "supertrend_v2",
+                "direction": "LONG",
+                "variant": "base",
+                "score": 92.0,
+                "recommendation": "PROMOTE",
+                "regime_slice": "ALL",
+            },
+            {
+                "candidate_id": "cand_mix",
+                "strategy_id": "supertrend_v2",
+                "direction": "LONG",
+                "variant": "base",
+                "score": 84.0,
+                "recommendation": "WATCHLIST",
+                "regime_slice": "BULL",
+                "regime_window_start_utc": "2026-01-01T00:00:00Z",
+                "regime_window_end_utc": "2026-04-01T00:00:00Z",
+            },
+        ],
+    )
+    tops = out["top_candidates"]
+    assert len(tops) == 2
+    assert {t["regime_slice"] for t in tops} == {"ALL", "BULL"}
+    assert len({t["slice_comparison_key"] for t in tops}) == 2

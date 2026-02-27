@@ -25,7 +25,9 @@ Regime B1 metadata appears in the same artifacts:
 - `regime` / `regime_slice`
 - `regime_window_start_utc`
 - `regime_window_end_utc` (end-exclusive `[start,end)`)
-- `regime_rationale`
+- `regime_window_utc` (canonical text form `[start,end)`)
+- `slice_rationale` / `fallback_reason`
+- `slice_comparison_key` (`strategy_id|direction|variant|regime_slice`) for cross-slice comparability
 
 ## Safety
 

@@ -29,7 +29,7 @@ def build_leaderboard(top_n: int = 10) -> list[dict[str, Any]]:
         entry = _entry_from_summary(summary_path)
         if not entry:
             continue
-        key = str(entry.get("candidate_id") or entry.get("experiment_id"))
+        key = _entry_identity_key(entry)
         if key and key in seen_keys:
             continue
         if key:
@@ -41,7 +41,7 @@ def build_leaderboard(top_n: int = 10) -> list[dict[str, Any]]:
         entry = _entry_from_results(results_file)
         if not entry:
             continue
-        key = str(entry.get("candidate_id") or entry.get("experiment_id"))
+        key = _entry_identity_key(entry)
         if key and key in seen_keys:
             continue
         if key:
@@ -90,6 +90,25 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
     if sharpe is None or oos_mdd is None:
         metrics_status = "UNKNOWN"
         metrics_reason = "missing_slice_metrics"
+    regime_slice = _normalize_regime_slice(data.get("regime_slice", data.get("regime", "ALL")))
+    start_utc = data.get("regime_window_start_utc")
+    end_utc = data.get("regime_window_end_utc")
+    regime_window_utc = data.get("regime_window_utc") or _regime_window_utc(start_utc, end_utc)
+    slice_rationale = str(data.get("slice_rationale") or data.get("regime_rationale") or "default_all_no_slice")
+    fallback_reason = data.get("fallback_reason")
+    if fallback_reason is None and regime_slice == "ALL":
+        requested = str(data.get("regime_requested") or "ALL").upper().strip()
+        if requested != "ALL":
+            fallback_reason = slice_rationale
+    comparison_key = str(
+        data.get("slice_comparison_key")
+        or _slice_comparison_key(
+            strategy_id=data.get("strategy_id", "unknown"),
+            direction=data.get("direction", "LONG"),
+            variant=data.get("variant", "base"),
+            regime_slice=regime_slice,
+        )
+    )
 
     return {
         "experiment_id": data.get("experiment_id") or data.get("candidate_id") or data.get("strategy_id") or path.parent.name,
@@ -98,10 +117,13 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
         "family": data.get("family", "unknown"),
         "direction": data.get("direction", "LONG"),
         "variant": data.get("variant", "base"),
-        "regime": data.get("regime", data.get("regime_slice", "ALL")),
-        "regime_slice": data.get("regime_slice", data.get("regime", "ALL")),
-        "regime_window_start_utc": data.get("regime_window_start_utc"),
-        "regime_window_end_utc": data.get("regime_window_end_utc"),
+        "regime": regime_slice,
+        "regime_slice": regime_slice,
+        "regime_window_start_utc": start_utc,
+        "regime_window_end_utc": end_utc,
+        "regime_window_utc": regime_window_utc,
+        "slice_rationale": slice_rationale,
+        "fallback_reason": fallback_reason,
         "oos_sharpe": sharpe,
         "oos_mdd": oos_mdd,
         "is_sharpe": is_sharpe,
@@ -111,6 +133,7 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
         "status": data.get("status", "UNKNOWN"),
         "metrics_status": metrics_status,
         "metrics_reason": metrics_reason,
+        "slice_comparison_key": comparison_key,
         "timestamp": data.get("timestamp", ""),
         "report_dir": str(path.parent),
     }
@@ -139,6 +162,25 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
     if sharpe is None or mdd is None:
         metrics_status = "UNKNOWN"
         metrics_reason = "missing_slice_metrics"
+    regime_slice = _normalize_regime_slice(data.get("regime_slice", data.get("regime", "ALL")))
+    start_utc = data.get("regime_window_start_utc")
+    end_utc = data.get("regime_window_end_utc")
+    regime_window_utc = data.get("regime_window_utc") or _regime_window_utc(start_utc, end_utc)
+    slice_rationale = str(data.get("slice_rationale") or data.get("regime_rationale") or "default_all_no_slice")
+    fallback_reason = data.get("fallback_reason")
+    if fallback_reason is None and regime_slice == "ALL":
+        requested = str(data.get("regime_requested") or "ALL").upper().strip()
+        if requested != "ALL":
+            fallback_reason = slice_rationale
+    comparison_key = str(
+        data.get("slice_comparison_key")
+        or _slice_comparison_key(
+            strategy_id=data.get("strategy_id", exp_id_stem),
+            direction=data.get("direction", "LONG"),
+            variant=data.get("variant", "legacy"),
+            regime_slice=regime_slice,
+        )
+    )
 
     return {
         "experiment_id": data.get("experiment_id", exp_id_stem),
@@ -147,10 +189,13 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
         "family": data.get("family", "legacy"),
         "direction": data.get("direction", "LONG"),
         "variant": data.get("variant", "legacy"),
-        "regime": data.get("regime", data.get("regime_slice", "ALL")),
-        "regime_slice": data.get("regime_slice", data.get("regime", "ALL")),
-        "regime_window_start_utc": data.get("regime_window_start_utc"),
-        "regime_window_end_utc": data.get("regime_window_end_utc"),
+        "regime": regime_slice,
+        "regime_slice": regime_slice,
+        "regime_window_start_utc": start_utc,
+        "regime_window_end_utc": end_utc,
+        "regime_window_utc": regime_window_utc,
+        "slice_rationale": slice_rationale,
+        "fallback_reason": fallback_reason,
         "oos_sharpe": sharpe,
         "oos_mdd": mdd,
         "is_sharpe": is_sharpe,
@@ -160,6 +205,7 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
         "status": data.get("status", "UNKNOWN"),
         "metrics_status": metrics_status,
         "metrics_reason": metrics_reason,
+        "slice_comparison_key": comparison_key,
         "timestamp": data.get("timestamp", ""),
         "report_dir": str(path.parent),
     }
@@ -198,6 +244,35 @@ def _sort_metric(value: Any) -> float:
     if parsed is None:
         return float("-inf")
     return float(parsed)
+
+
+def _normalize_regime_slice(value: Any) -> str:
+    text = str(value or "ALL").upper().strip()
+    return text if text in {"ALL", "BULL", "BEAR", "SIDEWAYS"} else "ALL"
+
+
+def _regime_window_utc(start_utc: Any, end_utc: Any) -> str | None:
+    start = str(start_utc or "").strip()
+    end = str(end_utc or "").strip()
+    if start and end:
+        return f"[{start},{end})"
+    return None
+
+
+def _slice_comparison_key(*, strategy_id: Any, direction: Any, variant: Any, regime_slice: Any) -> str:
+    sid = str(strategy_id or "unknown").strip() or "unknown"
+    d = str(direction or "UNKNOWN").upper().strip() or "UNKNOWN"
+    v = str(variant or "base").strip() or "base"
+    s = _normalize_regime_slice(regime_slice)
+    return f"{sid}|{d}|{v}|{s}"
+
+
+def _entry_identity_key(entry: dict[str, Any]) -> str:
+    candidate_id = str(entry.get("candidate_id") or entry.get("experiment_id") or "").strip()
+    regime_slice = _normalize_regime_slice(entry.get("regime_slice"))
+    if candidate_id:
+        return f"{candidate_id}::{regime_slice}"
+    return str(entry.get("slice_comparison_key") or "")
 
 
 def _fmt_metric(value: Any, *, pct: bool = False) -> str:

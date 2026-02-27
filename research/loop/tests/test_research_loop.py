@@ -166,6 +166,10 @@ class TestRegimeSliceMetadata(unittest.TestCase):
         self.assertEqual(summary["regime_slice"], "ALL")
         self.assertIsNone(summary["regime_window_start_utc"])
         self.assertIsNone(summary["regime_window_end_utc"])
+        self.assertIsNone(summary["regime_window_utc"])
+        self.assertEqual(summary["slice_rationale"], "none")
+        self.assertIsNone(summary["fallback_reason"])
+        self.assertIn("|ALL", summary["slice_comparison_key"])
 
     def test_summary_selection_bull_regime_labels(self):
         candidate = {
@@ -205,9 +209,16 @@ class TestRegimeSliceMetadata(unittest.TestCase):
         self.assertEqual(summary["regime_slice"], "BULL")
         self.assertEqual(summary["regime_window_start_utc"], "2026-01-01T00:00:00Z")
         self.assertEqual(summary["regime_window_end_utc"], "2026-04-01T00:00:00Z")
+        self.assertEqual(summary["regime_window_utc"], "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)")
+        self.assertEqual(summary["slice_rationale"], "slice_applied")
+        self.assertIsNone(summary["fallback_reason"])
+        self.assertTrue(summary["slice_comparison_key"].endswith("|BULL"))
         self.assertEqual(selection["regime_slice"], "BULL")
         self.assertEqual(selection["regime_window_start_utc"], "2026-01-01T00:00:00Z")
         self.assertEqual(selection["regime_window_end_utc"], "2026-04-01T00:00:00Z")
+        self.assertEqual(selection["regime_window_utc"], "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)")
+        self.assertEqual(selection["slice_rationale"], "slice_applied")
+        self.assertIsNone(selection["fallback_reason"])
 
     def test_summary_fallback_all_keeps_regime_rationale_zh(self):
         candidate = {
@@ -244,7 +255,23 @@ class TestRegimeSliceMetadata(unittest.TestCase):
         summary = rl._build_summary(candidate, metrics, regime_context=regime_ctx)
         self.assertEqual(summary["regime_slice"], "ALL")
         self.assertEqual(summary["regime_rationale"], "window_not_found_fallback_all")
+        self.assertEqual(summary["slice_rationale"], "window_not_found_fallback_all")
+        self.assertEqual(summary["fallback_reason"], "window_not_found_fallback_all")
+        self.assertIsNone(summary["regime_window_utc"])
         self.assertIn("降級為 ALL", summary["regime_rationale_zh"])
+        self.assertTrue(summary["slice_comparison_key"].endswith("|ALL"))
+
+    def test_slice_comparison_key_diff_between_all_and_bull(self):
+        base = {
+            "strategy_id": "trend_mvp_btc_1h",
+            "direction": "LONG",
+            "variant": "base",
+        }
+        key_all = rl._slice_comparison_key(regime_slice="ALL", **base)
+        key_bull = rl._slice_comparison_key(regime_slice="BULL", **base)
+        self.assertNotEqual(key_all, key_bull)
+        self.assertTrue(key_all.endswith("|ALL"))
+        self.assertTrue(key_bull.endswith("|BULL"))
 
 
 if __name__ == "__main__":
