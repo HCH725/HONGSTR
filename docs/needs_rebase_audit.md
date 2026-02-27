@@ -1,5 +1,8 @@
 # HONGSTR NEEDS_REBASE Audit (R5-C)
 
+> REFERENCE ONLY
+
+
 ## 1) Objective
 
 Verify whether NEEDS_REBASE is an explicit system signal, and document its producer/consumer chain.

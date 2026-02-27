@@ -55,6 +55,8 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "freshness_summary.profile_totals": {"zh": "新鮮度分檔統計", "en": "freshness_summary.profile_totals"},
     "latest_backtest_head.metrics": {"zh": "最新回測關鍵指標", "en": "latest_backtest_head.metrics"},
     "strategy_pool.leaderboard_top": {"zh": "策略池排行前列", "en": "strategy_pool.leaderboard_top"},
+    "strategy_pool.direction_coverage": {"zh": "策略方向覆蓋摘要", "en": "strategy_pool.direction_coverage"},
+    "strategy_pool.direction_coverage.short_coverage": {"zh": "空方覆蓋摘要", "en": "strategy_pool.direction_coverage.short_coverage"},
     "governance.today_gate_summary": {"zh": "今日Gate摘要", "en": "governance.today_gate_summary"},
 }
 
@@ -444,6 +446,71 @@ def _strategy_pool_top_entries(pool_data: dict[str, Any], top_n: int = 5) -> lis
     return ranked[:top_n]
 
 
+def _strategy_pool_direction_coverage(pool_data: dict[str, Any]) -> dict[str, Any]:
+    rows = pool_data.get("candidates", []) if isinstance(pool_data, dict) else []
+    direction_counts = {"LONG": 0, "SHORT": 0, "LONGSHORT": 0, "UNKNOWN": 0}
+    short_rows: list[dict[str, Any]] = []
+
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        direction_raw = str(row.get("direction") or "UNKNOWN").upper().strip()
+        direction = direction_raw if direction_raw in direction_counts else "UNKNOWN"
+        direction_counts[direction] += 1
+
+        if direction != "SHORT":
+            continue
+
+        metrics = row.get("last_oos_metrics", {})
+        if not isinstance(metrics, dict):
+            metrics = {}
+        score = _as_float_opt(row.get("last_score"))
+        oos_sharpe = _as_float_opt(metrics.get("sharpe"))
+        oos_return = _as_float_opt(metrics.get("return"))
+        metrics_status, reason = _metrics_status(
+            {"score": score, "oos_sharpe": oos_sharpe, "oos_return": oos_return}
+        )
+        short_rows.append(
+            {
+                "strategy_id": row.get("strategy_id") or "unknown",
+                "candidate_id": row.get("candidate_id") or "",
+                "direction": "SHORT",
+                "gate_overall": _normalize_gate_status(row.get("gate_overall")),
+                "score": score,
+                "oos_sharpe": oos_sharpe,
+                "oos_return": oos_return,
+                "metrics_status": metrics_status,
+                "metrics_unavailable_reason": reason,
+            }
+        )
+
+    short_pass = sum(1 for r in short_rows if r.get("gate_overall") == "PASS")
+    short_ranked = sorted(
+        short_rows,
+        key=lambda x: (
+            float(x.get("score")) if _as_float_opt(x.get("score")) is not None else float("-inf"),
+            float(x.get("oos_sharpe")) if _as_float_opt(x.get("oos_sharpe")) is not None else float("-inf"),
+        ),
+        reverse=True,
+    )
+    best_entry = short_ranked[0] if short_ranked else None
+
+    return {
+        "counts": {
+            "long": direction_counts["LONG"],
+            "short": direction_counts["SHORT"],
+            "longshort": direction_counts["LONGSHORT"],
+            "unknown": direction_counts["UNKNOWN"],
+        },
+        "short_coverage": {
+            "candidates": len(short_rows),
+            "gate_pass": short_pass,
+            "best_entry": best_entry,
+            "best_entry_reason": None if best_entry else "no_short_candidates",
+        },
+    }
+
+
 def _research_top_entries(leaderboard: dict[str, Any], top_n: int = 5) -> list[dict[str, Any]]:
     rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
     out: list[dict[str, Any]] = []
@@ -668,6 +735,7 @@ def _build_daily_report_payload(
                 "last_updated_utc": strategy_pool_summary.get("last_updated_utc"),
             },
             "leaderboard_top": _strategy_pool_top_entries(strategy_pool_data, top_n=5),
+            "direction_coverage": _strategy_pool_direction_coverage(strategy_pool_data),
         },
         "research_leaderboard": {
             "generated_at": research_leaderboard.get("generated_at") if isinstance(research_leaderboard, dict) else None,

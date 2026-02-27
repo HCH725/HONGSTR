@@ -1,5 +1,8 @@
 # HONGSTR Brakes Audit Report (R3-A)
 
+> REFERENCE ONLY
+
+
 > This report verifies docs/brakes.md against the repository.
 > Status meanings:
 >

@@ -1,6 +1,8 @@
 # HONGSTR 每日營運報告與術語表 (zh-TW)
 
-> 本文件整合了每日報告模板與系統術語表，作為營運溝通的單一入口。
+> REFERENCE ONLY
+>
+> 每日主入口已收斂為 Telegram `/daily` 與 `docs/ops/daily_report_single_entry.md`。本文件保留作術語參考。
 
 ---
 

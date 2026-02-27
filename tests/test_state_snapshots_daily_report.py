@@ -109,3 +109,47 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     top_row = payload["strategy_pool"]["leaderboard_top"][0]
     assert top_row["direction"] == "LONG"
     assert top_row["metrics_status"] in {"OK", "UNKNOWN"}
+    direction_cov = payload["strategy_pool"]["direction_coverage"]
+    assert direction_cov["counts"]["long"] == 1
+    assert direction_cov["counts"]["short"] == 0
+    assert direction_cov["short_coverage"]["candidates"] == 0
+    assert direction_cov["short_coverage"]["best_entry"] is None
+    assert direction_cov["short_coverage"]["best_entry_reason"] == "no_short_candidates"
+
+
+def test_daily_report_short_coverage_marks_missing_metrics_unknown(tmp_path: Path):
+    mod = _load_state_snapshots_module()
+
+    payload = mod._build_daily_report_payload(
+        now_utc="2026-02-27T00:00:00Z",
+        now_ts=1700000000.0,
+        system_health={"ssot_status": "OK", "refresh_hint": "bash scripts/refresh_state.sh", "components": {}},
+        freshness_table={"rows": []},
+        strategy_pool_summary={"counts": {"candidates": 1, "promoted": 0, "demoted": 0}, "last_updated_utc": "2026-02-27T00:00:00Z"},
+        strategy_pool_data={
+            "report_only": True,
+            "candidates": [
+                {
+                    "strategy_id": "ema_cross_v3",
+                    "candidate_id": "ema_cross_v3__short__baseline",
+                    "direction": "SHORT",
+                    "gate_overall": "PASS",
+                    "last_score": None,
+                    "last_oos_metrics": {},
+                }
+            ],
+        },
+        research_leaderboard={"entries": []},
+        loop_state={"actions": []},
+        policy_payload={"name": "aggressive_yield_first_v1"},
+        repo_root=tmp_path,
+    )
+
+    short_cov = payload["strategy_pool"]["direction_coverage"]["short_coverage"]
+    assert short_cov["candidates"] == 1
+    assert short_cov["gate_pass"] == 1
+    assert isinstance(short_cov["best_entry"], dict)
+    assert short_cov["best_entry"]["metrics_status"] == "UNKNOWN"
+    assert short_cov["best_entry"]["metrics_unavailable_reason"] == "missing_metrics:score,oos_sharpe,oos_return"
+    assert short_cov["best_entry"]["score"] is None
+    assert short_cov["best_entry"]["oos_sharpe"] is None

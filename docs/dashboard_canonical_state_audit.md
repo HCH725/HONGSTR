@@ -1,5 +1,8 @@
 # HONGSTR Dashboard Canonical State Audit (R5-D)
 
+> REFERENCE ONLY
+
+
 ## 1) Objective
 
 Verify whether the dashboard uses canonical state files under `data/state/**` (and other persisted artifacts), or computes health/status dynamically at request time.

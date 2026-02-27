@@ -1,5 +1,9 @@
 # Daily Report Contract (SSOT)
 
+> REFERENCE ONLY
+>
+> 主入口請看 `docs/ops/daily_report_single_entry.md` 與 Telegram `/daily`。
+
 ## Canonical File
 
 - Path: `data/state/daily_report_latest.json`
@@ -28,10 +32,10 @@ Top-level keys are fixed and ordered:
 ## Required Sections
 
 - **SystemHealth**: `ssot_status`, `ssot_components`
-- **Freshness profiles**: `freshness_summary.counts`, `freshness_summary.profile_totals`, `freshness_summary.top_offenders`
-- **Latest Backtest**: `latest_backtest_head.artifacts`, `latest_backtest_head.metrics`, `latest_backtest_head.gate`, `latest_backtest_head.metrics_status`
-- **StrategyPool + Leaderboard**: `strategy_pool.summary`, `strategy_pool.leaderboard_top[*].direction`, `metrics_status`
-- **Governance**: `governance.overfit_gates_policy.name`, `governance.today_gate_summary`
+- **DataFreshness**: `freshness_summary.counts`, `freshness_summary.profile_totals`, `freshness_summary.top_offenders`
+- **Backtest**: `latest_backtest_head.artifacts`, `latest_backtest_head.metrics`, `latest_backtest_head.gate`, `latest_backtest_head.metrics_status`
+- **StrategyPool + Leaderboard**: `strategy_pool.summary`, `strategy_pool.leaderboard_top[*].direction`, `strategy_pool.direction_coverage.short_coverage`
+- **Governance(Overfit)**: `governance.overfit_gates_policy.name`, `governance.today_gate_summary`
 - **Guardrails summary**: `guardrails.checks`
 
 ## /daily Rendering Rules
@@ -40,28 +44,47 @@ Top-level keys are fixed and ordered:
 - LLM polishing is optional and must preserve numeric values from SSOT JSON.
 - Missing fields must render as `資料不足/UNKNOWN`, never coercing to `0.00`.
 - Acronyms must include zh-TW explanation at least once in the message:
-  - `SSOT`, `DD`, `Sharpe`, `Trades`, `OOS/IS`, `L1/L2/L3`
+  - `SSOT`, `DD`, `MDD`, `Sharpe`, `Trades`, `OOS`, `IS`, `WF`, `L1`, `L2`, `L3`, `TP`, `SL`, `DCA`
+- Fixed section order (6): `SystemHealth -> DataFreshness -> Backtest -> StrategyPool+Leaderboard -> Governance(Overfit) -> Guardrails`
+- Fixed per-section shape (3 lines): `狀態`, `白話`, `下一步`
 
 ## Example /daily Output (shape)
 
 ```text
-📘 每日報告（Deterministic SSOT）
+📘 每日報告（Single Entry /daily）
 DAILY_REPORT_STATUS: OK|WARN
 GeneratedUTC: 2026-02-27T03:46:59Z
-縮寫說明: SSOT（單一真實來源）, DD（回撤）, Sharpe（風險調整後報酬）, Trades（交易筆數）, OOS/IS（樣本外/樣本內）, L1/L2/L3（低/中/高優先級風險分層）
+縮寫: SSOT（...）、DD（...）、MDD（...）、Sharpe（...）、Trades（...）、OOS（...）、IS（...）、WF（...）、L1（...）、L2（...）、L3（...）、TP（...）、SL（...）、DCA（...）
 
-1) SystemHealth（系統健康）
-...
-2) Freshness Profiles（新鮮度分檔）
-...
-3) Latest Backtest（最新回測）
-...
-4) StrategyPool + Leaderboard（策略池與排行榜）
-...
-5) Governance（研究治理）
-...
-6) Action Items（行動項）
-...
-參考連結（需要時才點）: docs/inventory.md | docs/ops/telegram_operator_manual.md
+1) SystemHealth
+狀態: ...
+白話: ...
+下一步: ...
+
+2) DataFreshness
+狀態: ...
+白話: ...
+下一步: ...
+
+3) Backtest
+狀態: ...
+白話: ...
+下一步: ...
+
+4) StrategyPool+Leaderboard
+狀態: ...
+白話: ...
+下一步: ...
+
+5) Governance(Overfit)
+狀態: ...
+白話: ...
+下一步: ...
+
+6) Guardrails
+狀態: ...
+白話: ...
+下一步: ...
+需要時參考: docs/inventory.md | docs/ops/telegram_operator_manual.md
 RefreshHint: bash scripts/refresh_state.sh
 ```

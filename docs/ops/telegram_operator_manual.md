@@ -1,5 +1,9 @@
 # Telegram Operator Manual (HONGSTR)
 
+> REFERENCE ONLY
+>
+> 每日主入口請直接使用 Telegram `/daily`。此文件只作補充排障。
+
 ## Daily Report Entry Point
 
 - Command: `/daily`
@@ -12,17 +16,23 @@
 ## What `/daily` covers
 
 1. `SystemHealth` (SSOT system health summary)
-2. `Freshness Profiles` (realtime/backtest counts + offenders)
-3. `Latest Backtest` (OOS/IS, Sharpe, DD, Trades, gate)
-4. `StrategyPool + Leaderboard` (direction + metrics_status)
-5. `Governance` (overfit policy version + today's gate summary)
-6. `Action Items` (L1/L2/L3 priority hints)
+2. `DataFreshness` (realtime/backtest counts + offenders)
+3. `Backtest` (OOS/IS, Sharpe, MDD, Trades, gate)
+4. `StrategyPool+Leaderboard` (direction + SHORT coverage + metrics_status)
+5. `Governance(Overfit)` (policy version + today gate summary)
+6. `Guardrails` (core diff / no-exec / no-data)
+
+每段固定三行：
+
+- `狀態`
+- `白話`
+- `下一步`
 
 ## Acronym policy
 
 `/daily` must explain each acronym at least once in-message:
 
-- `SSOT`, `DD`, `Sharpe`, `Trades`, `OOS/IS`, `L1/L2/L3`
+- `SSOT`, `DD`, `MDD`, `Sharpe`, `Trades`, `OOS`, `IS`, `WF`, `L1`, `L2`, `L3`, `TP`, `SL`, `DCA`
 
 Reference source: `docs/ops/acronym_glossary_zh.md`
 

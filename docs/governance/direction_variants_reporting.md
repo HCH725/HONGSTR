@@ -1,5 +1,8 @@
 # Direction Variants Reporting (LONG / SHORT / LONGSHORT)
 
+> REFERENCE ONLY
+
+
 Research loop now evaluates direction variants from candidate catalog and keeps direction metadata through all report-only artifacts.
 
 ## Source of Truth

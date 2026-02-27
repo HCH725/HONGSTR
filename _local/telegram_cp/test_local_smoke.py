@@ -255,12 +255,26 @@ def _write_daily_report_ssot(repo: Path) -> None:
                             "metrics_status": "UNKNOWN",
                         },
                     ],
+                    "direction_coverage": {
+                        "counts": {"long": 2, "short": 1, "longshort": 0, "unknown": 0},
+                        "short_coverage": {
+                            "candidates": 1,
+                            "gate_pass": 1,
+                            "best_entry": {
+                                "strategy_id": "ema_cross_v3",
+                                "score": None,
+                                "metrics_status": "UNKNOWN",
+                            },
+                            "best_entry_reason": None,
+                        },
+                    },
                 },
                 "governance": {
                     "overfit_gates_policy": {"name": "aggressive_yield_first_v1"},
                     "today_gate_summary": {"scope": "today_utc", "pass": 1, "warn": 0, "fail": 1, "unknown": 1},
                 },
                 "guardrails": {
+                    "status": "PASS",
                     "checks": {
                         "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
                         "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
@@ -499,16 +513,46 @@ def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
 
     resp = s._handle_command(38, "/daily")
     assert "DAILY_REPORT_STATUS: WARN" in resp
-    assert "SystemHealth（系統健康）" in resp
-    assert "Freshness Profiles（新鮮度分檔）" in resp
-    assert "Latest Backtest（最新回測）" in resp
-    assert "StrategyPool + Leaderboard（策略池與排行榜）" in resp
-    assert "Governance（研究治理）" in resp
-    assert "Action Items（行動項）" in resp
-    assert "SSOT（" in resp
-    assert "OOS/IS（" in resp
-    assert "L1/L2/L3（" in resp
+    assert "1) SystemHealth" in resp
+    assert "2) DataFreshness" in resp
+    assert "3) Backtest" in resp
+    assert "4) StrategyPool+Leaderboard" in resp
+    assert "5) Governance(Overfit)" in resp
+    assert "6) Guardrails" in resp
+    assert "狀態:" in resp
+    assert "白話:" in resp
+    assert "下一步:" in resp
+    assert "SSOT(" in resp
+    assert "MDD(" in resp
+    assert "DCA(" in resp
+    assert "SHORT覆蓋" in resp
     assert "RefreshHint: bash scripts/refresh_state.sh" in resp
+
+
+def test_daily_command_section_shape_is_three_lines(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    resp = s._handle_command(380, "/daily")
+    for idx, title in [
+        (1, "SystemHealth"),
+        (2, "DataFreshness"),
+        (3, "Backtest"),
+        (4, "StrategyPool+Leaderboard"),
+        (5, "Governance(Overfit)"),
+        (6, "Guardrails"),
+    ]:
+        anchor = f"{idx}) {title}"
+        assert anchor in resp
+        after = resp.split(anchor, 1)[1]
+        lines = [ln for ln in after.splitlines() if ln.strip()]
+        assert lines[0].startswith("狀態:")
+        assert lines[1].startswith("白話:")
+        assert lines[2].startswith("下一步:")
 
 
 def test_daily_command_missing_ssot(monkeypatch, tmp_path):
@@ -523,6 +567,7 @@ def test_daily_command_missing_ssot(monkeypatch, tmp_path):
     assert "DAILY_REPORT_STATUS: WARN" in resp
     assert "missing_daily_report_ssot" in resp
     assert "資料不足/UNKNOWN" in resp
+    assert "6) Guardrails" in resp
     assert "RefreshHint: bash scripts/refresh_state.sh" in resp
 
 
