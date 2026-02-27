@@ -32,7 +32,12 @@
    - **治理門檻**: 策略通過的 Gate 級別 (如 G4)。
    - **過度擬合預警**: OOS 表現是否與模擬一致。
 
-5. **紅線保護 (Red Line Protection)**
+5. **切片欄位解釋 (Slice Field Explanations)**
+   - `regime_slice`: 當前回測所屬的市場環境（如 bull, bear, sideways）。
+   - `regime_window`: 該環境所定義的時間區間（SSOT 定義）。
+   - `fallback_reason`: 若無法匹配特定環境時的降級原因（通常降級為 `ALL` 全時段觀測）。
+
+6. **紅線保護 (Red Line Protection)**
    - 核心程式碼變動數 / 數據安全檢查。
 
 ---
@@ -55,4 +60,4 @@
 | **Overfit Gov.** | 過度擬合治理 | 防止策略只對歷史有效。 | 若警告亮起，策略需打回研究。 |
 
 ---
-*Safety Level: Docs Official (zh-TW)*
+Safety Level: Docs Official (zh-TW)
