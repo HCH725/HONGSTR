@@ -195,6 +195,76 @@ def _write_status_ssot_sources(repo: Path) -> None:
     )
 
 
+def _write_daily_report_ssot(repo: Path) -> None:
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "daily_report_latest.json").write_text(
+        json.dumps(
+            {
+                "generated_utc": "2026-02-27T00:00:00Z",
+                "refresh_hint": "bash scripts/refresh_state.sh",
+                "ssot_status": "OK",
+                "ssot_components": {
+                    "freshness": {"status": "OK"},
+                    "coverage_matrix": {"status": "PASS"},
+                    "brake": {"status": "OK"},
+                    "regime_monitor": {"status": "OK"},
+                },
+                "freshness_summary": {
+                    "counts": {"OK": 8, "WARN": 1, "FAIL": 0, "UNKNOWN": 0},
+                    "total_rows": 9,
+                    "max_age_h": 12.2,
+                    "top_offenders": [
+                        {"symbol": "ETHUSDT", "tf": "4h", "profile": "backtest", "age_h": 12.2, "status": "WARN"}
+                    ],
+                },
+                "latest_backtest_head": {
+                    "candidate_id": "trend_mvp_btc_1h__long__baseline",
+                    "direction": "LONG",
+                    "metrics_status": "OK",
+                    "metrics": {"final_score": 88.5, "oos_sharpe": 1.2, "oos_mdd": -0.09},
+                    "gate": {"overall": "PASS"},
+                },
+                "strategy_pool": {
+                    "summary": {"counts": {"candidates": 3, "promoted": 1, "demoted": 2}},
+                    "leaderboard_top": [
+                        {
+                            "strategy_id": "trend_mvp_btc_1h",
+                            "direction": "LONG",
+                            "score": 88.5,
+                            "oos_sharpe": 1.2,
+                            "oos_return": 2.1,
+                            "metrics_status": "OK",
+                        },
+                        {
+                            "strategy_id": "ema_cross_v3",
+                            "direction": "SHORT",
+                            "score": None,
+                            "oos_sharpe": None,
+                            "oos_return": None,
+                            "metrics_status": "UNKNOWN",
+                        },
+                    ],
+                },
+                "governance": {
+                    "overfit_gates_policy": {"name": "aggressive_yield_first_v1"},
+                    "today_gate_summary": {"scope": "today_utc", "pass": 1, "warn": 0, "fail": 1, "unknown": 1},
+                },
+                "guardrails": {
+                    "checks": {
+                        "report_only_from_strategy_pool": {"status": "PASS"},
+                        "actions_empty_from_loop_state": {"status": "PASS"},
+                        "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
+                        "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
+                        "no_data_committed": {"status": "PASS_EXPECTED"},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_status_command(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
@@ -409,6 +479,36 @@ def test_status_health_pack_overrides_conflicting_component_files(monkeypatch, t
     assert "CoverageMatrix: PASS 1/1 done | max_lag_h=0.0 | rebase=0" in resp
     assert "RegimeSignal: OK" in resp
     assert "component says fail" not in resp
+
+
+def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("timeout")))
+
+    resp = s._handle_command(38, "/daily")
+    assert "Deterministic Fallback" in resp
+    assert "DAILY_REPORT_STATUS: WARN" in resp
+    assert "資料不足/UNKNOWN" in resp  # from the UNKNOWN leaderboard fixture row
+    assert "RefreshHint: bash scripts/refresh_state.sh" in resp
+
+
+def test_daily_command_when_ssot_missing(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    resp = s._handle_command(39, "/report_daily")
+    assert "Deterministic Fallback" in resp
+    assert "DAILY_REPORT_STATUS: WARN" in resp
+    assert "missing_daily_report_ssot" in resp
+    assert "RefreshHint: bash scripts/refresh_state.sh" in resp
 
 
 def test_ping_command(monkeypatch, tmp_path):

@@ -1,29 +1,55 @@
 # Telegram Operator Manual (HONGSTR)
 
-## 1. Skill Discovery & Help
+## 1. Daily Report Command
 
-Use `/skills` to see all available read-only skills.
+- Command: `/daily` (alias: `/report_daily`)
+- Data source (single SSOT): `data/state/daily_report_latest.json`
+- Output behavior:
+  - Preferred: LLM partner-readable rendering (5 sections)
+  - Guaranteed: deterministic fallback text (same 5 sections, no invented numbers)
+  - If LLM timeout/failure: fallback is returned with `DAILY_REPORT_STATUS: WARN` and `RefreshHint`
 
-- **Check Detailed Help**: `/skills help <skill_name>`
-  - *Example*: `/skills help status_overview`
-  - *Output*: Displays description, parameters (必填/預設), and example command.
+### /daily 5 sections
 
-- **Check Technical Schema**: `/run help <skill_name>`
-  - *Example*: `/run help signal_leakage_audit`
-  - *Output*: Displays raw schema, allowed keys, and JSON example.
+1. System Overview (`SSOT`, Single Source of Truth)
+2. Freshness summary (`Freshness`)
+3. Strategy & backtest summary (`OOS`, `Sharpe`, `MDD`)
+4. Governance summary (`Overfit gates` policy version + today's gate counts)
+5. Guardrails summary (`report_only`, `actions_empty`, preflight-expected checks)
 
-## 2. Running Audits & Monitoring
+## 2. Other Common Commands
 
-- **System Status**: `/status` (or `/run status_overview`)
-- **System Health Brief**: `/run system_health_morning_brief env=prod`
-- **Strategy Leakage Audit**: `/run signal_leakage_and_lookahead_audit backtest_id="BT_123"`
+- `/status`: system health quick summary
+- `/freshness`: freshness matrix details
+- `/regime`: regime monitor summary
+- `/ml_status`: ML pipeline summary
+- `/skills`: list available read-only skills
+- `/run help <skill_name>`: show exact args schema
 
-## 3. Recommended Operator Flow
+## 3. Change Daily Report Schedule (launchd)
 
-1. **Verify State**: Start with `/status` to ensure SSOT is OK.
-2. **Review Pool**: Use `/skills help strategy_pool_summary` to see current candidates.
-3. **Audit Candidate**: Run `/run help <audit_skill>` to understand parameters, then execute the audit.
+The daily report content is published by state-plane refresh (`scripts/refresh_state.sh` -> `scripts/state_snapshots.py`).
+
+- Launchd label placeholder: `com.hongstr.refresh_state`
+- Example operations (replace label if your environment differs):
+  - `launchctl print gui/$(id -u)/com.hongstr.refresh_state`
+  - update the corresponding plist schedule (`StartCalendarInterval`)
+  - `launchctl bootout ...` then `launchctl bootstrap ...` to reload
+
+## 4. Troubleshooting (SSOT missing/unreadable)
+
+If `/daily` shows `missing_daily_report_ssot` or `unreadable_daily_report_ssot`:
+
+1. Run refresh: `bash scripts/refresh_state.sh`
+2. Confirm file exists: `data/state/daily_report_latest.json`
+3. Confirm producer health: `data/state/system_health_latest.json`
+4. Retry `/daily`
+
+If still failing, inspect:
+
+- `logs/launchd_daily_etl.out.log`
+- `logs/launchd_dashboard.out.log`
+- `data/state/_tg_cp/runtime.log`
 
 ---
-*Safety Statement: core diff=0 | no-exec | report_only*
-
+Safety statement: `core diff=0 | tg_cp no-exec | report_only`
