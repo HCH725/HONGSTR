@@ -557,6 +557,8 @@ def main() -> None:
                     "candidate_id": r.get("candidate_id"),
                     "score": r.get("last_score", 0.0),
                     "recommendation": r.get("recommendation", "WATCHLIST"),
+                    "direction": r.get("direction", "UNKNOWN"),
+                    "gate_overall": r.get("gate_overall", "UNKNOWN"),
                 }
                 for r in records[:20]
             ],

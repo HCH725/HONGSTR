@@ -30,6 +30,7 @@ def generate_weekly_quant_checklist(
     policy = _load_json(root / "research/policy/overfit_gates_aggressive.json") or {}
     watch_floor = max(1, _as_int((policy.get("watchlist", {}) or {}).get("min_candidates"), 1))
     _apply_watchlist_floor(sorted_rows, watch_floor)
+    short_coverage = _compute_short_coverage(sorted_rows)
 
     promote = [r["id"] for r in sorted_rows if r.get("recommendation") == "PROMOTE"][:3]
     demote = [r["id"] for r in sorted_rows if r.get("recommendation") == "DEMOTE"]
@@ -59,6 +60,7 @@ def generate_weekly_quant_checklist(
             "promote": len(promote),
             "demote": len(demote),
             "watchlist": len(watchlist),
+            "short_coverage": short_coverage,
         },
         "recommendations": {
             "promote": promote,
@@ -87,13 +89,20 @@ def generate_weekly_quant_checklist(
         f"- demote: {', '.join(demote) if demote else 'none'}",
         f"- watchlist: {', '.join(watchlist) if watchlist else 'none'}",
         "",
+        "## SHORT Coverage",
+        f"- candidate_count: {short_coverage['candidate_count']}",
+        f"- gate_passed_count: {short_coverage['gate_passed_count']}",
+        f"- best_entry: {_format_short_best(short_coverage.get('best_entry'))}",
+        "",
         "## Top Candidates",
-        "| id | score | recommendation | reason |",
-        "|---|---:|---|---|",
+        "| id | direction | score | recommendation | gate_overall | reason |",
+        "|---|---|---:|---|---|---|",
     ]
     for row in sorted_rows[:10]:
         md_lines.append(
-            f"| {row.get('id')} | {float(row.get('score', 0.0)):.2f} | {row.get('recommendation')} | {row.get('reason')} |"
+            f"| {row.get('id')} | {_direction_label(row.get('direction'))} | "
+            f"{float(row.get('score', 0.0)):.2f} | {row.get('recommendation')} | "
+            f"{_gate_label(row.get('gate_overall'))} | {row.get('reason')} |"
         )
 
     md_path = out_dir / "weekly_quant_checklist.md"
@@ -112,12 +121,14 @@ def _extract_candidates(
     recent_results: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    lb_lookup = _leaderboard_lookup(leaderboard)
 
     if isinstance(pool_summary, dict):
         for c in pool_summary.get("leaderboard", []) or []:
             cid = str(c.get("id") or "").strip()
             if not cid:
                 continue
+            lb = lb_lookup.get(cid, {})
             score = _as_float(c.get("score"), 0.0)
             recommendation = "PROMOTE" if score >= 90.0 else "WATCHLIST" if score >= 55.0 else "DEMOTE"
             rows.append(
@@ -125,6 +136,8 @@ def _extract_candidates(
                     "id": cid,
                     "score": score,
                     "recommendation": recommendation,
+                    "direction": _direction_label(lb.get("direction", c.get("direction"))),
+                    "gate_overall": _gate_label(lb.get("gate_overall", c.get("gate_overall"))),
                     "reason": "strategy_pool_summary",
                 }
             )
@@ -141,6 +154,8 @@ def _extract_candidates(
                     "id": cid,
                     "score": score,
                     "recommendation": recommendation,
+                    "direction": _direction_label(e.get("direction")),
+                    "gate_overall": _gate_label(e.get("gate_overall", e.get("status"))),
                     "reason": "research_leaderboard",
                 }
             )
@@ -151,9 +166,30 @@ def _extract_candidates(
             continue
         score = _as_float(e.get("score"), 0.0)
         recommendation = str(e.get("recommendation") or "WATCHLIST").upper()
-        rows.append({"id": cid, "score": score, "recommendation": recommendation, "reason": "recent_results"})
+        rows.append(
+            {
+                "id": cid,
+                "score": score,
+                "recommendation": recommendation,
+                "direction": _direction_label(e.get("direction")),
+                "gate_overall": _gate_label(e.get("gate_overall")),
+                "reason": "recent_results",
+            }
+        )
 
     return rows
+
+
+def _leaderboard_lookup(leaderboard: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    lookup: dict[str, dict[str, Any]] = {}
+    if not isinstance(leaderboard, dict):
+        return lookup
+    for e in leaderboard.get("entries", []) or []:
+        cid = str(e.get("candidate_id") or e.get("experiment_id") or "").strip()
+        if not cid:
+            continue
+        lookup[cid] = e if isinstance(e, dict) else {}
+    return lookup
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -182,6 +218,53 @@ def _as_int(v: Any, default: int) -> int:
         return int(v)
     except Exception:
         return int(default)
+
+
+def _direction_label(value: Any) -> str:
+    direction = str(value or "UNKNOWN").strip().upper()
+    return direction if direction else "UNKNOWN"
+
+
+def _gate_label(value: Any) -> str:
+    gate = str(value or "UNKNOWN").strip().upper()
+    return gate if gate else "UNKNOWN"
+
+
+def _compute_short_coverage(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    short_rows = [r for r in rows if _direction_label(r.get("direction")) == "SHORT"]
+    passed_rows = [r for r in short_rows if _gate_label(r.get("gate_overall")) == "PASS"]
+    best = (
+        sorted(short_rows, key=lambda x: float(x.get("score", 0.0)), reverse=True)[0]
+        if short_rows
+        else None
+    )
+    return {
+        "candidate_count": len(short_rows),
+        "gate_passed_count": len(passed_rows),
+        "best_entry": _compact_best_entry(best),
+    }
+
+
+def _compact_best_entry(row: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not row:
+        return None
+    return {
+        "id": row.get("id"),
+        "direction": _direction_label(row.get("direction")),
+        "score": float(row.get("score", 0.0)),
+        "recommendation": str(row.get("recommendation", "UNKNOWN")).upper(),
+        "gate_overall": _gate_label(row.get("gate_overall")),
+        "reason": row.get("reason"),
+    }
+
+
+def _format_short_best(best: dict[str, Any] | None) -> str:
+    if not best:
+        return "none"
+    return (
+        f"{best.get('id')} (direction={best.get('direction')}, score={float(best.get('score', 0.0)):.2f}, "
+        f"gate_overall={best.get('gate_overall')})"
+    )
 
 
 def _apply_watchlist_floor(rows: list[dict[str, Any]], floor: int) -> None:

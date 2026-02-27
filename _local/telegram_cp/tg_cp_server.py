@@ -1939,17 +1939,75 @@ def _format_run_output(skill_name: str, output: object) -> str:
     return str(output)
 
 
+def _schema_fields(schema: dict) -> list[dict]:
+    fields = schema.get("fields", []) if isinstance(schema, dict) else []
+    return [f for f in fields if isinstance(f, dict) and f.get("name")]
+
+
+def _example_value(field: dict) -> str:
+    name = str(field.get("name", "")).strip()
+    ftype = str(field.get("type", "string")).strip().lower()
+    default = field.get("default")
+    named_examples = {
+        "start": "2026-02-26T00:00:00Z",
+        "end": "2026-02-26T06:00:00Z",
+        "env": "prod",
+        "baseline_ref": "origin/main",
+        "paths": "src/hongstr,_local/telegram_cp",
+        "keywords": "latency,regime",
+        "services": "tg_cp,dashboard",
+        "artifact_path": "research/audit/tests/fixtures/clean.json",
+        "backtest_id": "BT_20260226_A",
+        "baseline_sha": "abcd1234",
+        "factor_id": "alpha_trend_v1",
+        "strategy_id": "trend_mvp_btc_1h",
+    }
+    if name in named_examples:
+        return str(named_examples[name])
+    if ftype == "bool":
+        return "true"
+    if ftype == "int":
+        if isinstance(default, int):
+            return str(default)
+        if isinstance(field.get("min"), int):
+            return str(field["min"])
+        return "1"
+    if ftype == "csv_string":
+        if default is not None and str(default).strip():
+            return str(default)
+        return "a,b"
+    if default is not None and str(default).strip():
+        return str(default)
+    return "demo"
+
+
+def _run_example(skill_name: str, schema: dict) -> str:
+    fields = _schema_fields(schema)
+    required = [f for f in fields if bool(f.get("required", False))]
+    selected = required
+    if not selected:
+        selected = fields[:1]
+    args = [f"{f['name']}={_example_value(f)}" for f in selected]
+    return f"/run {skill_name}" + (f" {' '.join(args)}" if args else "")
+
+
 def _run_help(skill_name: str) -> str:
     sk = SKILL_MAP.get(skill_name)
     if not sk:
         return f"找不到技能: {skill_name}\n請先用 /skills 看可用技能"
-    schema = sk.get("args_schema", {})
+    schema = sk.get("args_schema", {}) if isinstance(sk, dict) else {}
+    fields = _schema_fields(schema)
+    required = [str(f.get("name")) for f in fields if bool(f.get("required", False))]
+    optional = [str(f.get("name")) for f in fields if not bool(f.get("required", False))]
+    example = _run_example(skill_name, schema)
     return "\n".join([
         f"技能: {sk.get('name')}",
         f"類型: {sk.get('type')}",
         f"說明: {sk.get('description')}",
+        f"必填: {', '.join(required) if required else '無'}",
+        f"選填: {', '.join(optional) if optional else '無'}",
         f"參數: {json.dumps(schema, ensure_ascii=False)}",
-        f"範例: /run {skill_name} include_sources=true",
+        f"範例: {example}",
     ])
 
 
@@ -2027,11 +2085,21 @@ def _handle_command(chat_id: int, text: str) -> str:
         return skill_brake_status()
 
     if cmd == "/skills":
-        lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
+        lines = ["可用 read-only 技能（可用 `/run help <skill>` 看完整 schema）:"]
+        for s in SKILLS:
+            if not isinstance(s, dict) or s.get("type") != "read_only":
+                continue
+            skill_name = str(s.get("name", "")).strip()
+            if not skill_name:
+                continue
+            desc = str(s.get("description", ""))
+            example = _run_example(skill_name, s.get("args_schema", {}))
+            lines.append(f"• {skill_name}: {desc}")
+            lines.append(f"  例: {example}")
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         lines.append("• (內建) /ml_status: ML 流水線健康狀態")
         lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
-        return "可用 read-only 技能：\n" + "\n".join(lines)
+        return "\n".join(lines)
 
     if cmd == "/run":
         out, _ = _handle_run(text)

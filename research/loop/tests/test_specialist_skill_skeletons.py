@@ -6,7 +6,7 @@ from research.loop.specialist_skill_skeletons import (
     strategy_regime_sensitivity_report,
 )
 
-REPO = Path("/Users/hong/Projects/HONGSTR")
+REPO = Path(__file__).resolve().parents[3]
 FIX = REPO / "research/loop/tests/fixtures/specialist_skills"
 
 

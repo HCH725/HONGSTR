@@ -58,10 +58,25 @@ def build_leaderboard(top_n: int = 10) -> list[dict[str, Any]]:
 
 def save_leaderboard(top_n: int = 10) -> Path:
     board = build_leaderboard(top_n=top_n)
+    direction_counts = _direction_counts(board)
+    short_coverage = _short_coverage(board)
     payload = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "ranked_by": ["final_score_desc", "oos_sharpe_desc"],
         "top_n": top_n,
+        "columns": [
+            "candidate_id",
+            "strategy_id",
+            "family",
+            "direction",
+            "variant",
+            "gate_overall",
+            "final_score",
+            "oos_sharpe",
+            "oos_mdd",
+        ],
+        "direction_counts": direction_counts,
+        "short_coverage": short_coverage,
         "entries": board,
     }
     LEADERBOARD_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -93,7 +108,7 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
         "candidate_id": data.get("candidate_id") or path.parent.name,
         "strategy_id": data.get("strategy_id", "unknown"),
         "family": data.get("family", "unknown"),
-        "direction": data.get("direction", "LONG"),
+        "direction": _direction_label(data.get("direction")),
         "variant": data.get("variant", "base"),
         "oos_sharpe": sharpe,
         "oos_mdd": _as_float(data.get("max_drawdown", data.get("oos_mdd")), 0.0),
@@ -125,7 +140,7 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
         "candidate_id": data.get("candidate_id", exp_id_stem),
         "strategy_id": data.get("strategy_id", exp_id_stem),
         "family": data.get("family", "legacy"),
-        "direction": data.get("direction", "LONG"),
+        "direction": _direction_label(data.get("direction")),
         "variant": data.get("variant", "legacy"),
         "oos_sharpe": _as_float(data.get("oos_sharpe"), 0.0),
         "oos_mdd": _as_float(data.get("oos_mdd"), 0.0),
@@ -158,6 +173,59 @@ def _as_float(value: Any, default: float | None = 0.0) -> float | None:
         return default
 
 
+def _direction_label(value: Any) -> str:
+    direction = str(value or "UNKNOWN").strip().upper()
+    if not direction:
+        return "UNKNOWN"
+    return direction
+
+
+def _direction_counts(entries: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for entry in entries:
+        direction = _direction_label(entry.get("direction"))
+        counts[direction] = counts.get(direction, 0) + 1
+    return counts
+
+
+def _short_coverage(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    shorts = [e for e in entries if _direction_label(e.get("direction")) == "SHORT"]
+    passed = [
+        e for e in shorts if str(e.get("gate_overall", e.get("status", "UNKNOWN"))).strip().upper() == "PASS"
+    ]
+    best = (
+        sorted(
+            shorts,
+            key=lambda x: (float(x.get("final_score", 0.0)), float(x.get("oos_sharpe", 0.0))),
+            reverse=True,
+        )[0]
+        if shorts
+        else None
+    )
+    return {
+        "candidate_count": len(shorts),
+        "gate_passed_count": len(passed),
+        "best_entry": _compact_entry(best),
+    }
+
+
+def _compact_entry(entry: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not entry:
+        return None
+    return {
+        "candidate_id": entry.get("candidate_id"),
+        "strategy_id": entry.get("strategy_id"),
+        "family": entry.get("family"),
+        "direction": _direction_label(entry.get("direction")),
+        "variant": entry.get("variant"),
+        "gate_overall": str(entry.get("gate_overall", "UNKNOWN")).upper(),
+        "final_score": float(entry.get("final_score", 0.0)),
+        "oos_sharpe": float(entry.get("oos_sharpe", 0.0)),
+        "oos_mdd": float(entry.get("oos_mdd", 0.0)),
+        "report_dir": entry.get("report_dir"),
+    }
+
+
 if __name__ == "__main__":
     import sys
 
@@ -167,7 +235,8 @@ if __name__ == "__main__":
     board = json.loads(path.read_text(encoding="utf-8"))
     for i, e in enumerate(board.get("entries", []), 1):
         print(
-            f"#{i} {e['candidate_id']} score={e['final_score']:.2f} "
+            f"#{i} {e['candidate_id']} direction={e.get('direction', 'UNKNOWN')} "
+            f"score={e['final_score']:.2f} "
             f"sharpe={e['oos_sharpe']:.2f} mdd={e['oos_mdd']:.2%}"
         )
     sys.exit(0)

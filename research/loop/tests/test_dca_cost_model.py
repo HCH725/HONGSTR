@@ -3,7 +3,7 @@ from pathlib import Path
 
 from research.loop.dca_cost_model import estimate_cost_breakdown
 
-FIX = Path("/Users/hong/Projects/HONGSTR/research/loop/tests/fixtures/dca")
+FIX = Path(__file__).resolve().parent / "fixtures" / "dca"
 
 
 def test_l3_fixed_bps_when_no_orderbook_and_no_market_stats():

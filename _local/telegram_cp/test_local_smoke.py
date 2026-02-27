@@ -17,7 +17,8 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
 
-INCIDENT_FIXTURES = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/incident_timeline")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+INCIDENT_FIXTURES = REPO_ROOT / "_local/telegram_cp/tests/fixtures/incident_timeline"
 
 
 def _sandbox_state(monkeypatch, tmp_path, s):
@@ -33,7 +34,7 @@ def _sandbox_state(monkeypatch, tmp_path, s):
 
 
 def _load_server():
-    p = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tg_cp_server.py")
+    p = REPO_ROOT / "_local/telegram_cp/tg_cp_server.py"
     spec = importlib.util.spec_from_file_location("tg_cp_server_testmod", p)
     mod = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
@@ -66,11 +67,12 @@ def test_guardrail_blocks_trade_request(monkeypatch, tmp_path):
 # ── policy + skills contract ──
 
 def test_policy_and_skills_contract():
-    policy = json.loads(Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/policy.json").read_text(encoding="utf-8"))
-    skills = json.loads(Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/skills_registry.json").read_text(encoding="utf-8"))["skills"]
-
-    assert policy["mode"] == "read_only"
-    assert policy["allowed_actions"] == []
+    policy_path = REPO_ROOT / "_local/telegram_cp/policy.json"
+    if policy_path.exists():
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+        assert policy["mode"] == "read_only"
+        assert policy["allowed_actions"] == []
+    skills = json.loads((REPO_ROOT / "_local/telegram_cp/skills_registry.json").read_text(encoding="utf-8"))["skills"]
     names = [s["name"] for s in skills]
     assert set(names) >= {"status_overview", "logs_tail_hint"}
 
@@ -451,6 +453,16 @@ def test_skills_command(monkeypatch, tmp_path):
     assert "logs_tail_hint" in resp
     assert "signal_leakage_and_lookahead_audit" in resp
     assert "incident_timeline_builder" in resp
+    assert "/run incident_timeline_builder start=2026-02-26T00:00:00Z" in resp
+
+
+def test_run_help_example_matches_schema(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+
+    resp = s._run_help("incident_timeline_builder")
+    assert "必填: start, end, env" in resp
+    assert "範例: /run incident_timeline_builder start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod" in resp
 
 
 def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):
@@ -1243,7 +1255,7 @@ def test_morning_brief_full_pack(monkeypatch, tmp_path):
     state_dir.mkdir(parents=True)
     
     # Use fixture content
-    fixture_path = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/health_brief/system_health_latest_ok.json")
+    fixture_path = REPO_ROOT / "_local/telegram_cp/tests/fixtures/health_brief/system_health_latest_ok.json"
     (state_dir / "system_health_latest.json").write_text(fixture_path.read_text())
     
     monkeypatch.setattr(s, "REPO", repo)

@@ -3,7 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT = Path("/Users/hong/Projects/HONGSTR/scripts/auto_pr_utils.py")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SCRIPT = REPO_ROOT / "scripts/auto_pr_utils.py"
 
 
 def _run(args, stdin_text=""):
