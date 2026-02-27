@@ -44,6 +44,16 @@
 
 - [Daily Report & Glossary (zh-TW)](docs/ops/daily_report_zh.md)
 - [Telegram Operator Manual](docs/ops/telegram_operator_manual.md)
+- [Daily Report Contract](docs/ops/daily_report_contract.md)
+- [Acronym Glossary (zh-TW)](docs/ops/acronym_glossary_zh.md)
+
+## PM / Audit References (Reference)
+
+These are reference materials, not daily operational entrypoints. Daily status should be consumed from `/daily` only.
+
+- [PM Checklist](docs/ops/pm_checklist.md)
+- [PM Snapshot Runbook](docs/ops/pm_snapshot_runbook.md)
+- `docs/audits/*.md` (historical analysis reports, reference-only)
 
 ## State / Artifacts (expected)
 

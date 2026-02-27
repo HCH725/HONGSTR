@@ -488,6 +488,383 @@ def _fmt_num(v: float | int | None) -> str:
         return "N/A"
 
 
+def _daily_report_path() -> Path:
+    return REPO / "data/state/daily_report_latest.json"
+
+
+def _daily_unknown(value: object, *, digits: int = 2) -> str:
+    try:
+        if value is None:
+            return "資料不足/UNKNOWN"
+        return f"{float(value):.{digits}f}"
+    except Exception:
+        return "資料不足/UNKNOWN"
+
+
+def _daily_int_or_unknown(value: object) -> str:
+    try:
+        if value is None:
+            return "資料不足/UNKNOWN"
+        return str(int(value))
+    except Exception:
+        return "資料不足/UNKNOWN"
+
+
+def _daily_acronym_map() -> dict[str, str]:
+    defaults = {
+        "SSOT": "單一真實來源",
+        "DD": "回撤（Drawdown）",
+        "Sharpe": "風險調整後報酬",
+        "Trades": "交易筆數",
+        "OOS/IS": "樣本外/樣本內",
+        "L1/L2/L3": "低/中/高優先級風險分層",
+    }
+    path = REPO / "docs/ops/acronym_glossary_zh.md"
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return defaults
+
+    for line in content.splitlines():
+        ln = line.strip().lstrip("-").strip()
+        if not ln or ":" not in ln:
+            continue
+        key, val = ln.split(":", 1)
+        key_norm = key.strip()
+        val_norm = val.strip()
+        if key_norm in defaults and val_norm:
+            defaults[key_norm] = val_norm
+    return defaults
+
+
+def _daily_action_items(payload: dict) -> list[str]:
+    components = payload.get("ssot_components", {})
+    if not isinstance(components, dict):
+        components = {}
+
+    fresh_st = str((components.get("freshness") or {}).get("status", "UNKNOWN")).upper()
+    cov_st = str((components.get("coverage_matrix") or {}).get("status", "UNKNOWN")).upper()
+    brake_st = str((components.get("brake") or {}).get("status", "UNKNOWN")).upper()
+    regime_monitor_st = str((components.get("regime_monitor") or {}).get("status", "UNKNOWN")).upper()
+    regime_signal_st = str((components.get("regime_signal") or {}).get("status", "UNKNOWN")).upper()
+
+    governance = payload.get("governance", {})
+    if not isinstance(governance, dict):
+        governance = {}
+    gate_summary = governance.get("today_gate_summary", {})
+    if not isinstance(gate_summary, dict):
+        gate_summary = {}
+    gate_fail = int(gate_summary.get("fail", 0) or 0)
+
+    items: list[str] = []
+    if brake_st == "FAIL" or regime_signal_st == "FAIL":
+        items.append("L3（高優先級）: 先確認煞車與市場風險信號，必要時暫停新增策略評估。")
+    if fresh_st in {"WARN", "FAIL"} or cov_st in {"WARN", "FAIL"} or regime_monitor_st in {"WARN", "FAIL"}:
+        items.append("L2（中優先級）: 先執行 refresh_state，再確認 realtime/backtest 新鮮度分檔。")
+    if gate_fail > 0:
+        items.append("L2（中優先級）: 針對今日 gate fail 候選做原因分群，再決定 watchlist。")
+    if not items:
+        items.append("L1（低優先級）: 系統健康，維持觀察並照排程更新即可。")
+    return items[:3]
+
+
+def _daily_load_payload() -> tuple[dict, str | None]:
+    path = _daily_report_path()
+    if not path.exists():
+        return (
+            {
+                "schema": {},
+                "generated_utc": "",
+                "refresh_hint": _status_refresh_hint(),
+                "ssot_status": "UNKNOWN",
+                "ssot_components": {},
+                "freshness_summary": {
+                    "counts": {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0},
+                    "profile_totals": {"realtime": 0, "backtest": 0},
+                    "total_rows": 0,
+                    "max_age_h": None,
+                    "top_offenders": [],
+                },
+                "latest_backtest_head": {
+                    "status": "UNKNOWN",
+                    "metrics_status": "UNKNOWN",
+                    "metrics": {
+                        "final_score": None,
+                        "oos_sharpe": None,
+                        "oos_mdd": None,
+                        "is_sharpe": None,
+                        "trades_count": None,
+                    },
+                    "gate": {"overall": "UNKNOWN"},
+                },
+                "strategy_pool": {"summary": {"counts": {"candidates": 0, "promoted": 0, "demoted": 0}}, "leaderboard_top": []},
+                "governance": {
+                    "overfit_gates_policy": {"name": "UNKNOWN"},
+                    "today_gate_summary": {"date_utc": "", "scope": "missing_ssot", "total": 0, "pass": 0, "warn": 0, "fail": 0, "unknown": 0},
+                },
+                "guardrails": {
+                    "status": "WARN",
+                    "checks": {
+                        "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
+                        "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
+                        "no_data_committed": {"status": "PASS_EXPECTED"},
+                    },
+                },
+            },
+            "missing_daily_report_ssot",
+        )
+
+    payload = _load_json(path, {})
+    if not isinstance(payload, dict) or not payload:
+        payload = {
+            "schema": {},
+            "generated_utc": "",
+            "refresh_hint": _status_refresh_hint(),
+            "ssot_status": "UNKNOWN",
+            "ssot_components": {},
+            "freshness_summary": {
+                "counts": {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0},
+                "profile_totals": {"realtime": 0, "backtest": 0},
+                "total_rows": 0,
+                "max_age_h": None,
+                "top_offenders": [],
+            },
+            "latest_backtest_head": {"status": "UNKNOWN", "metrics_status": "UNKNOWN", "metrics": {}, "gate": {"overall": "UNKNOWN"}},
+            "strategy_pool": {"summary": {"counts": {"candidates": 0, "promoted": 0, "demoted": 0}}, "leaderboard_top": []},
+            "governance": {
+                "overfit_gates_policy": {"name": "UNKNOWN"},
+                "today_gate_summary": {"date_utc": "", "scope": "invalid_ssot", "total": 0, "pass": 0, "warn": 0, "fail": 0, "unknown": 0},
+            },
+            "guardrails": {
+                "status": "WARN",
+                "checks": {
+                    "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
+                    "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
+                    "no_data_committed": {"status": "PASS_EXPECTED"},
+                },
+            },
+        }
+        return payload, "unreadable_daily_report_ssot"
+    return payload, None
+
+
+def _daily_compose_report(
+    payload: dict,
+    *,
+    status: str,
+    note: str | None = None,
+    llm_notes: list[str] | None = None,
+) -> str:
+    refresh_hint = str(payload.get("refresh_hint") or _status_refresh_hint())
+    generated_utc = str(payload.get("generated_utc") or "資料不足/UNKNOWN")
+    ssot_status = str(payload.get("ssot_status") or "UNKNOWN").upper()
+    acr = _daily_acronym_map()
+
+    components = payload.get("ssot_components", {})
+    if not isinstance(components, dict):
+        components = {}
+    freshness_comp = components.get("freshness", {}) if isinstance(components.get("freshness"), dict) else {}
+    coverage_comp = components.get("coverage_matrix", {}) if isinstance(components.get("coverage_matrix"), dict) else {}
+    brake_comp = components.get("brake", {}) if isinstance(components.get("brake"), dict) else {}
+    regime_comp = components.get("regime_monitor", {}) if isinstance(components.get("regime_monitor"), dict) else {}
+    regime_signal_comp = components.get("regime_signal", {}) if isinstance(components.get("regime_signal"), dict) else {}
+
+    freshness_summary = payload.get("freshness_summary", {})
+    if not isinstance(freshness_summary, dict):
+        freshness_summary = {}
+    fresh_counts = freshness_summary.get("counts", {})
+    if not isinstance(fresh_counts, dict):
+        fresh_counts = {}
+    profile_totals = freshness_summary.get("profile_totals", {})
+    if not isinstance(profile_totals, dict):
+        profile_totals = {}
+    offenders = freshness_summary.get("top_offenders", [])
+    if not isinstance(offenders, list):
+        offenders = []
+    top_offender = offenders[0] if offenders and isinstance(offenders[0], dict) else {}
+
+    backtest = payload.get("latest_backtest_head", {})
+    if not isinstance(backtest, dict):
+        backtest = {}
+    bt_metrics = backtest.get("metrics", {})
+    if not isinstance(bt_metrics, dict):
+        bt_metrics = {}
+    bt_gate = backtest.get("gate", {})
+    if not isinstance(bt_gate, dict):
+        bt_gate = {}
+
+    strategy_pool = payload.get("strategy_pool", {})
+    if not isinstance(strategy_pool, dict):
+        strategy_pool = {}
+    pool_summary = strategy_pool.get("summary", {})
+    if not isinstance(pool_summary, dict):
+        pool_summary = {}
+    pool_counts = pool_summary.get("counts", {})
+    if not isinstance(pool_counts, dict):
+        pool_counts = {}
+    top_entries = strategy_pool.get("leaderboard_top", [])
+    if not isinstance(top_entries, list):
+        top_entries = []
+
+    governance = payload.get("governance", {})
+    if not isinstance(governance, dict):
+        governance = {}
+    policy = governance.get("overfit_gates_policy", {})
+    if not isinstance(policy, dict):
+        policy = {}
+    gate_summary = governance.get("today_gate_summary", {})
+    if not isinstance(gate_summary, dict):
+        gate_summary = {}
+
+    llm_notes = llm_notes or []
+    while len(llm_notes) < 6:
+        llm_notes.append("")
+
+    lines = [
+        "📘 每日報告（Deterministic SSOT）",
+        f"DAILY_REPORT_STATUS: {status}",
+        f"GeneratedUTC: {generated_utc}",
+        "縮寫說明: "
+        f"SSOT（{acr['SSOT']}）, DD（{acr['DD']}）, Sharpe（{acr['Sharpe']}）, "
+        f"Trades（{acr['Trades']}）, OOS/IS（{acr['OOS/IS']}）, L1/L2/L3（{acr['L1/L2/L3']}）",
+        "",
+        "1) SystemHealth（系統健康）",
+    ]
+    if llm_notes[0]:
+        lines.append(f"- 夥伴解讀: {llm_notes[0]}")
+    lines.extend(
+        [
+            f"- SSOT（{acr['SSOT']}）: {ssot_status}",
+            f"- Freshness={str(freshness_comp.get('status') or 'UNKNOWN').upper()} | Coverage={str(coverage_comp.get('status') or 'UNKNOWN').upper()} | Brake={str(brake_comp.get('status') or 'UNKNOWN').upper()} | RegimeMonitor={str(regime_comp.get('status') or 'UNKNOWN').upper()}",
+            f"- RegimeSignal={str(regime_signal_comp.get('status') or 'UNKNOWN').upper()}",
+            "",
+            "2) Freshness Profiles（新鮮度分檔）",
+        ]
+    )
+    if llm_notes[1]:
+        lines.append(f"- 夥伴解讀: {llm_notes[1]}")
+    lines.extend(
+        [
+            f"- Rows={_daily_int_or_unknown(freshness_summary.get('total_rows'))} | OK/WARN/FAIL/UNKNOWN={_daily_int_or_unknown(fresh_counts.get('OK'))}/{_daily_int_or_unknown(fresh_counts.get('WARN'))}/{_daily_int_or_unknown(fresh_counts.get('FAIL'))}/{_daily_int_or_unknown(fresh_counts.get('UNKNOWN'))}",
+            f"- Profiles(realtime/backtest)={_daily_int_or_unknown(profile_totals.get('realtime'))}/{_daily_int_or_unknown(profile_totals.get('backtest'))} | MaxAge(h)={_daily_unknown(freshness_summary.get('max_age_h'), digits=1)}",
+        ]
+    )
+    if isinstance(top_offender, dict) and top_offender:
+        lines.append(
+            f"- TopOffender={top_offender.get('symbol','UNKNOWN')} {top_offender.get('tf','UNKNOWN')} [{top_offender.get('profile','UNKNOWN')}] age_h={_daily_unknown(top_offender.get('age_h'), digits=1)}"
+        )
+    else:
+        lines.append("- TopOffender=資料不足/UNKNOWN")
+
+    lines.extend(["", "3) Latest Backtest（最新回測）"])
+    if llm_notes[2]:
+        lines.append(f"- 夥伴解讀: {llm_notes[2]}")
+    lines.append(
+        (
+            f"- {backtest.get('candidate_id','UNKNOWN')} [{backtest.get('direction','UNKNOWN')}] "
+            f"gate={bt_gate.get('overall','UNKNOWN')} "
+            f"score={_daily_unknown(bt_metrics.get('final_score'))} "
+            f"OOS（樣本外） Sharpe（{acr['Sharpe']}）={_daily_unknown(bt_metrics.get('oos_sharpe'))} "
+            f"OOS（樣本外） DD（{acr['DD']}）={_daily_unknown(bt_metrics.get('oos_mdd'))} "
+            f"IS（樣本內） Sharpe（{acr['Sharpe']}）={_daily_unknown(bt_metrics.get('is_sharpe'))} "
+            f"Trades（{acr['Trades']}）={_daily_int_or_unknown(bt_metrics.get('trades_count'))} "
+            f"metrics={backtest.get('metrics_status','UNKNOWN')}"
+        )
+    )
+
+    lines.extend(["", "4) StrategyPool + Leaderboard（策略池與排行榜）"])
+    if llm_notes[3]:
+        lines.append(f"- 夥伴解讀: {llm_notes[3]}")
+    lines.append(
+        f"- counts: candidates={_daily_int_or_unknown(pool_counts.get('candidates'))}, promoted={_daily_int_or_unknown(pool_counts.get('promoted'))}, demoted={_daily_int_or_unknown(pool_counts.get('demoted'))}"
+    )
+    for idx, row in enumerate(top_entries[:2], start=1):
+        if not isinstance(row, dict):
+            continue
+        lines.append(
+            f"- Top{idx}: {row.get('strategy_id','UNKNOWN')} [{row.get('direction','UNKNOWN')}] score={_daily_unknown(row.get('score'))} Sharpe（{acr['Sharpe']}）={_daily_unknown(row.get('oos_sharpe'))} return={_daily_unknown(row.get('oos_return'))} metrics={row.get('metrics_status','UNKNOWN')}"
+        )
+
+    lines.extend(["", "5) Governance（研究治理）"])
+    if llm_notes[4]:
+        lines.append(f"- 夥伴解讀: {llm_notes[4]}")
+    lines.append(f"- Overfit gates version={policy.get('name','UNKNOWN')}")
+    lines.append(
+        f"- 今日 gate: pass={_daily_int_or_unknown(gate_summary.get('pass'))}, warn={_daily_int_or_unknown(gate_summary.get('warn'))}, fail={_daily_int_or_unknown(gate_summary.get('fail'))}, unknown={_daily_int_or_unknown(gate_summary.get('unknown'))} (scope={gate_summary.get('scope','UNKNOWN')})"
+    )
+
+    lines.extend(["", "6) Action Items（行動項）"])
+    if llm_notes[5]:
+        lines.append(f"- 夥伴解讀: {llm_notes[5]}")
+    for item in _daily_action_items(payload):
+        lines.append(f"- {item}")
+
+    lines.extend(
+        [
+            "",
+            "參考連結（需要時才點）: docs/inventory.md | docs/ops/telegram_operator_manual.md",
+            f"RefreshHint: {refresh_hint}",
+        ]
+    )
+    if note:
+        lines.append(f"- Note: {note}")
+    return "\n".join(lines)
+
+
+def _daily_llm_notes(payload: dict) -> tuple[list[str] | None, str | None]:
+    if not callable(call_reasoning_specialist):
+        return None, "reasoning_client_unavailable"
+
+    prompt = (
+        "你會收到每日報告 SSOT JSON。請輸出 6 句給合作夥伴的短解讀，對應章節："
+        "1)SystemHealth 2)Freshness Profiles 3)Latest Backtest 4)StrategyPool+Leaderboard 5)Governance 6)Action Items。\n"
+        "限制：每句最多 36 字，繁體中文；不可杜撰數字；資料不足請寫「資料不足/UNKNOWN」；縮寫後要有中文括號解釋。\n"
+        "請以 ReasoningAnalysis JSON 結構輸出，並把 6 句放到 key_findings。\n\n"
+        "SSOT JSON:\n" + json.dumps(payload, ensure_ascii=False)
+    )
+    system_prompt = (
+        "You are a reporting specialist.\n"
+        "Return JSON only with ReasoningAnalysis schema.\n"
+        "Put exactly six short notes into key_findings.\n"
+        "Never invent numbers.\n"
+    )
+
+    try:
+        analysis = call_reasoning_specialist(prompt, system_prompt=system_prompt, timeout=45)
+    except Exception:
+        return None, "reasoning_call_exception"
+    if not analysis:
+        return None, "reasoning_empty"
+
+    problem_lower = str(getattr(analysis, "problem", "")).lower()
+    if "call failed" in problem_lower or "extraction failed" in problem_lower:
+        return None, "reasoning_failed"
+
+    findings = list(getattr(analysis, "key_findings", []) or [])
+    while len(findings) < 6:
+        findings.append("資料不足/UNKNOWN")
+    return findings[:6], None
+
+
+def skill_daily_report() -> str:
+    payload, load_issue = _daily_load_payload()
+    if load_issue:
+        return _daily_compose_report(
+            payload,
+            status="WARN",
+            note=f"{load_issue}; run `{payload.get('refresh_hint', _status_refresh_hint())}`",
+        )
+
+    notes, llm_issue = _daily_llm_notes(payload)
+    if notes:
+        return _daily_compose_report(payload, status="OK", llm_notes=notes)
+    return _daily_compose_report(
+        payload,
+        status="WARN",
+        note=f"LLM 潤飾暫不可用（{llm_issue or 'unknown'}），已回退 deterministic 模板。",
+    )
+
+
 def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
     if not isinstance(health_pack, dict) or not health_pack:
         return None
@@ -1987,7 +2364,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "嗨 👋 我是 HONGSTR 中樞管家。\n"
             "直接跟我聊就好，問什麼我都會盡量用白話回答你。\n"
             "我是 read-only 助手 — 只查看、判讀，不直接動系統。\n\n"
-            "快捷指令：/status /brake /freshness /regime /ml_status /help /skills"
+            "快捷指令：/status /daily /brake /freshness /regime /ml_status /help /skills"
         )
 
     if cmd == "/ping":
@@ -1998,6 +2375,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "直接打字問我就好，不需要特別格式 😊\n\n"
             "📊 監控指令（read-only）：\n"
             "• /status — 系統瓶頸摘要\n"
+            "• /daily — 每日 SSOT 報告（固定模板 + LLM 潤飾失敗自動降級）\n"
             "• /brake — 煞車健康檢查 (Artifacts & Freshness)\n"
             "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
@@ -2010,6 +2388,9 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/status":
         return _status_short_report()
+
+    if cmd == "/daily":
+        return skill_daily_report()
 
     if cmd == "/freshness":
         return skill_freshness_detail()
@@ -2028,6 +2409,7 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
+        lines.append("• (內建) /daily: 每日 SSOT 報告（合作夥伴友善）")
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         lines.append("• (內建) /ml_status: ML 流水線健康狀態")
         lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
