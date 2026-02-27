@@ -85,6 +85,42 @@ def read_paths_from_stdin() -> list[str]:
     return normalize_paths(sys.stdin.read().splitlines())
 
 
+def render_pr_body(title: str, paths: Iterable[str], preflight_transcript: str) -> str:
+    changed = normalize_paths(paths)
+    lines: list[str] = [
+        "## Summary",
+        str(title).strip(),
+        "",
+        "## Changed Paths",
+    ]
+    if changed:
+        lines.extend(f"- `{path}`" for path in changed)
+    else:
+        lines.append("- (none)")
+    lines.extend(
+        [
+            "",
+            "## Safety Statement",
+            "- Allowlist guard enforced (`docs/**`, `_local/**`, `research/**`, `scripts/**`).",
+            "- `src/hongstr/**` is blocked.",
+            "- `data/**` artifacts are not committed.",
+            "- `report_only` workflow is preserved.",
+            "",
+            "## Rollback",
+            "```bash",
+            "git revert <merge_commit_sha>",
+            "```",
+            "",
+            "## Preflight Transcript",
+            "```bash",
+            str(preflight_transcript).rstrip("\n"),
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     paths = args.paths or read_paths_from_stdin()
     ok, bad = check_allowlist(paths, allow_prefixes=args.allow_prefix, block_prefixes=args.block_prefix)
@@ -111,6 +147,22 @@ def cmd_classify(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_render_pr_body(args: argparse.Namespace) -> int:
+    if args.paths:
+        paths = normalize_paths(args.paths)
+    elif args.paths_file:
+        paths = normalize_paths(Path(args.paths_file).read_text(encoding="utf-8").splitlines())
+    else:
+        paths = read_paths_from_stdin()
+
+    preflight = args.preflight_text
+    if args.preflight_file:
+        preflight = Path(args.preflight_file).read_text(encoding="utf-8")
+
+    print(render_pr_body(args.title, paths, preflight), end="")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Auto-PR allowlist and title classification helpers")
     sub = p.add_subparsers(dest="command", required=True)
@@ -124,6 +176,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_class = sub.add_parser("classify", help="Classify change set for PR title selection")
     p_class.add_argument("paths", nargs="*")
     p_class.set_defaults(func=cmd_classify)
+
+    p_render = sub.add_parser("render-pr-body", help="Render PR markdown body safely from title/paths/preflight")
+    p_render.add_argument("--title", required=True)
+    p_render.add_argument("--paths-file", default="")
+    p_render.add_argument("--preflight-file", default="")
+    p_render.add_argument("--preflight-text", default="")
+    p_render.add_argument("paths", nargs="*")
+    p_render.set_defaults(func=cmd_render_pr_body)
     return p
 
 
