@@ -40,8 +40,10 @@
 
 - [System Flow & Terminology Glossary](docs/architecture/flow_and_glossary.md)
 
-## Operations (Quant Specialist)
+## Operations (PM / Portfolio Management)
 
+- [PM Lifecycle Checklist](docs/ops/pm_checklist.md)
+- [PM Snapshot Runbook](docs/ops/pm_snapshot_runbook.md)
 - [Telegram Operator Manual](docs/ops/telegram_operator_manual.md)
 
 ## State / Artifacts (expected)
