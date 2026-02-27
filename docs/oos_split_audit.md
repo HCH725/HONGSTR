@@ -1,5 +1,8 @@
 # HONGSTR OOS Split Audit (R5-B)
 
+> REFERENCE ONLY
+
+
 ## 1) Objective
 
 Confirm whether IS/OOS/WF splits are hard-coded (fixed) and reproducible, and identify the source-of-truth.

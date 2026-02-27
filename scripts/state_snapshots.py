@@ -10,7 +10,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -25,6 +25,48 @@ FRESHNESS_THRESHOLDS = {
     "backtest": {"ok_h": 26.0, "warn_h": 50.0, "fail_h": 72.0},
 }
 FRESHNESS_ROW_KEYS = ("symbol", "tf", "profile", "age_h", "status", "source", "reason")
+DAILY_REPORT_SCHEMA_VERSION = "daily_report.v1"
+DAILY_REPORT_TOP_LEVEL_ORDER = [
+    "schema",
+    "generated_utc",
+    "refresh_hint",
+    "ssot_status",
+    "ssot_components",
+    "freshness_summary",
+    "latest_backtest_head",
+    "strategy_pool",
+    "research_leaderboard",
+    "governance",
+    "guardrails",
+    "sources",
+]
+DAILY_REPORT_FIELD_LABELS_ZH_EN = {
+    "generated_utc": {"zh": "生成時間(UTC)", "en": "generated_utc"},
+    "refresh_hint": {"zh": "更新提示", "en": "refresh_hint"},
+    "ssot_status": {"zh": "系統總狀態", "en": "ssot_status"},
+    "ssot_components": {"zh": "系統組件狀態", "en": "ssot_components"},
+    "freshness_summary": {"zh": "資料新鮮度摘要", "en": "freshness_summary"},
+    "latest_backtest_head": {"zh": "最新回測摘要", "en": "latest_backtest_head"},
+    "strategy_pool": {"zh": "策略池摘要", "en": "strategy_pool"},
+    "research_leaderboard": {"zh": "研究排行榜摘要", "en": "research_leaderboard"},
+    "governance": {"zh": "治理摘要", "en": "governance"},
+    "guardrails": {"zh": "護欄摘要", "en": "guardrails"},
+    "sources": {"zh": "資料來源", "en": "sources"},
+    "freshness_summary.profile_totals": {"zh": "新鮮度分檔統計", "en": "freshness_summary.profile_totals"},
+    "latest_backtest_head.metrics": {"zh": "最新回測關鍵指標", "en": "latest_backtest_head.metrics"},
+    "strategy_pool.leaderboard_top": {"zh": "策略池排行前列", "en": "strategy_pool.leaderboard_top"},
+    "strategy_pool.direction_coverage": {"zh": "策略方向覆蓋摘要", "en": "strategy_pool.direction_coverage"},
+    "strategy_pool.direction_coverage.short_coverage": {"zh": "空方覆蓋摘要", "en": "strategy_pool.direction_coverage.short_coverage"},
+    "governance.today_gate_summary": {"zh": "今日Gate摘要", "en": "governance.today_gate_summary"},
+}
+
+
+def _daily_schema_spec() -> dict[str, Any]:
+    return {
+        "version": DAILY_REPORT_SCHEMA_VERSION,
+        "top_level_order": list(DAILY_REPORT_TOP_LEVEL_ORDER),
+        "field_labels_zh_en": dict(DAILY_REPORT_FIELD_LABELS_ZH_EN),
+    }
 
 
 def _normalize_simple_status(status_raw):
@@ -250,6 +292,472 @@ def write_jsonl(path: Path, rows: list):
                 f.write(json.dumps(row) + "\n")
     except Exception as e:
         logging.error(f"Failed to write snapshot {path}: {e}")
+
+
+def _as_float_opt(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _normalize_gate_status(status_raw: Any) -> str:
+    status = str(status_raw or "UNKNOWN").upper().strip()
+    if status in {"PASS", "OK", "DONE"}:
+        return "PASS"
+    if status in {"WARN", "IN_PROGRESS"}:
+        return "WARN"
+    if status in {"FAIL", "BLOCKED", "BLOCKED_DATA_QUALITY"}:
+        return "FAIL"
+    return "UNKNOWN"
+
+
+def _metrics_status(required: dict[str, Any]) -> tuple[str, str | None]:
+    missing = [k for k, v in required.items() if _as_float_opt(v) is None]
+    if missing:
+        return "UNKNOWN", "missing_metrics:" + ",".join(missing)
+    return "OK", None
+
+
+def _safe_rel_path(path_like: Any, root: Path) -> str:
+    if not path_like:
+        return ""
+    p = Path(str(path_like))
+    if not p.is_absolute():
+        return str(p).replace("\\", "/")
+    try:
+        return str(p.resolve().relative_to(root.resolve())).replace("\\", "/")
+    except Exception:
+        return str(p).replace("\\", "/")
+
+
+def _parse_ts_epoch(value: Any) -> float | None:
+    if not isinstance(value, str):
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    try:
+        normalized = raw
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        dt = datetime.fromisoformat(normalized)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+    except Exception:
+        return None
+
+
+def _freshness_summary(freshness_table: dict[str, Any]) -> dict[str, Any]:
+    rows = freshness_table.get("rows", []) if isinstance(freshness_table, dict) else []
+    counts = {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0}
+    profile_totals = {"realtime": 0, "backtest": 0}
+    max_age_h = None
+    offenders: list[dict[str, Any]] = []
+
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        status = _normalize_simple_status(row.get("status"))
+        if status not in counts:
+            status = "UNKNOWN"
+        counts[status] += 1
+
+        profile = str(row.get("profile") or DEFAULT_FRESHNESS_PROFILE).lower().strip()
+        if profile not in profile_totals:
+            profile = DEFAULT_FRESHNESS_PROFILE
+        profile_totals[profile] += 1
+
+        age_h = _as_float_opt(row.get("age_h"))
+        if age_h is not None:
+            max_age_h = age_h if max_age_h is None else max(max_age_h, age_h)
+
+        if status != "OK":
+            offenders.append(
+                {
+                    "symbol": str(row.get("symbol") or "UNKNOWN"),
+                    "tf": str(row.get("tf") or "UNKNOWN"),
+                    "profile": profile,
+                    "age_h": round(age_h, 1) if age_h is not None else None,
+                    "status": status,
+                    "reason": row.get("reason") or "",
+                }
+            )
+
+    offenders_sorted = sorted(
+        offenders,
+        key=lambda x: float(x.get("age_h")) if _as_float_opt(x.get("age_h")) is not None else -1.0,
+        reverse=True,
+    )
+    return {
+        "counts": counts,
+        "profile_totals": profile_totals,
+        "total_rows": sum(counts.values()),
+        "max_age_h": round(max_age_h, 1) if max_age_h is not None else None,
+        "top_offenders": offenders_sorted[:5],
+    }
+
+
+def _strategy_pool_top_entries(pool_data: dict[str, Any], top_n: int = 5) -> list[dict[str, Any]]:
+    rows = pool_data.get("candidates", []) if isinstance(pool_data, dict) else []
+    out: list[dict[str, Any]] = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        metrics = row.get("last_oos_metrics", {})
+        if not isinstance(metrics, dict):
+            metrics = {}
+        score = _as_float_opt(row.get("last_score"))
+        sharpe = _as_float_opt(metrics.get("sharpe"))
+        ret = _as_float_opt(metrics.get("return"))
+        mdd = _as_float_opt(metrics.get("mdd"))
+        metrics_status, reason = _metrics_status(
+            {"score": score, "oos_sharpe": sharpe, "oos_return": ret}
+        )
+        out.append(
+            {
+                "strategy_id": row.get("strategy_id") or "unknown",
+                "candidate_id": row.get("candidate_id") or "",
+                "family": row.get("family") or "unknown",
+                "direction": row.get("direction") or "UNKNOWN",
+                "variant": row.get("variant") or "base",
+                "score": score,
+                "oos_sharpe": sharpe,
+                "oos_return": ret,
+                "oos_mdd": mdd,
+                "gate_overall": _normalize_gate_status(row.get("gate_overall")),
+                "recommendation": str(row.get("recommendation") or "UNKNOWN").upper(),
+                "metrics_status": metrics_status,
+                "metrics_unavailable_reason": reason,
+                "report_dir": row.get("report_dir") or "",
+            }
+        )
+    ranked = sorted(
+        out,
+        key=lambda x: (
+            float(x.get("score")) if _as_float_opt(x.get("score")) is not None else float("-inf"),
+            float(x.get("oos_sharpe")) if _as_float_opt(x.get("oos_sharpe")) is not None else float("-inf"),
+        ),
+        reverse=True,
+    )
+    return ranked[:top_n]
+
+
+def _strategy_pool_direction_coverage(pool_data: dict[str, Any]) -> dict[str, Any]:
+    rows = pool_data.get("candidates", []) if isinstance(pool_data, dict) else []
+    direction_counts = {"LONG": 0, "SHORT": 0, "LONGSHORT": 0, "UNKNOWN": 0}
+    short_rows: list[dict[str, Any]] = []
+
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        direction_raw = str(row.get("direction") or "UNKNOWN").upper().strip()
+        direction = direction_raw if direction_raw in direction_counts else "UNKNOWN"
+        direction_counts[direction] += 1
+
+        if direction != "SHORT":
+            continue
+
+        metrics = row.get("last_oos_metrics", {})
+        if not isinstance(metrics, dict):
+            metrics = {}
+        score = _as_float_opt(row.get("last_score"))
+        oos_sharpe = _as_float_opt(metrics.get("sharpe"))
+        oos_return = _as_float_opt(metrics.get("return"))
+        metrics_status, reason = _metrics_status(
+            {"score": score, "oos_sharpe": oos_sharpe, "oos_return": oos_return}
+        )
+        short_rows.append(
+            {
+                "strategy_id": row.get("strategy_id") or "unknown",
+                "candidate_id": row.get("candidate_id") or "",
+                "direction": "SHORT",
+                "gate_overall": _normalize_gate_status(row.get("gate_overall")),
+                "score": score,
+                "oos_sharpe": oos_sharpe,
+                "oos_return": oos_return,
+                "metrics_status": metrics_status,
+                "metrics_unavailable_reason": reason,
+            }
+        )
+
+    short_pass = sum(1 for r in short_rows if r.get("gate_overall") == "PASS")
+    short_ranked = sorted(
+        short_rows,
+        key=lambda x: (
+            float(x.get("score")) if _as_float_opt(x.get("score")) is not None else float("-inf"),
+            float(x.get("oos_sharpe")) if _as_float_opt(x.get("oos_sharpe")) is not None else float("-inf"),
+        ),
+        reverse=True,
+    )
+    best_entry = short_ranked[0] if short_ranked else None
+
+    return {
+        "counts": {
+            "long": direction_counts["LONG"],
+            "short": direction_counts["SHORT"],
+            "longshort": direction_counts["LONGSHORT"],
+            "unknown": direction_counts["UNKNOWN"],
+        },
+        "short_coverage": {
+            "candidates": len(short_rows),
+            "gate_pass": short_pass,
+            "best_entry": best_entry,
+            "best_entry_reason": None if best_entry else "no_short_candidates",
+        },
+    }
+
+
+def _research_top_entries(leaderboard: dict[str, Any], top_n: int = 5) -> list[dict[str, Any]]:
+    rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
+    out: list[dict[str, Any]] = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        score = _as_float_opt(row.get("final_score"))
+        sharpe = _as_float_opt(row.get("oos_sharpe"))
+        mdd = _as_float_opt(row.get("oos_mdd"))
+        is_sharpe = _as_float_opt(row.get("is_sharpe"))
+        metrics_status, reason = _metrics_status(
+            {"final_score": score, "oos_sharpe": sharpe, "oos_mdd": mdd}
+        )
+        out.append(
+            {
+                "candidate_id": row.get("candidate_id") or row.get("experiment_id") or "unknown",
+                "strategy_id": row.get("strategy_id") or "unknown",
+                "family": row.get("family") or "unknown",
+                "direction": row.get("direction") or "UNKNOWN",
+                "variant": row.get("variant") or "base",
+                "status": str(row.get("status") or "UNKNOWN").upper(),
+                "gate_overall": _normalize_gate_status(row.get("gate_overall")),
+                "final_score": score,
+                "oos_sharpe": sharpe,
+                "oos_mdd": mdd,
+                "is_sharpe": is_sharpe,
+                "trades_count": int(float(row.get("trades_count"))) if _as_float_opt(row.get("trades_count")) is not None else None,
+                "metrics_status": str(row.get("metrics_status") or metrics_status).upper(),
+                "metrics_unavailable_reason": row.get("metrics_unavailable_reason") or reason,
+                "timestamp": row.get("timestamp") or "",
+                "report_dir": row.get("report_dir") or "",
+            }
+        )
+    ranked = sorted(
+        out,
+        key=lambda x: (
+            float(x.get("final_score")) if _as_float_opt(x.get("final_score")) is not None else float("-inf"),
+            float(x.get("oos_sharpe")) if _as_float_opt(x.get("oos_sharpe")) is not None else float("-inf"),
+        ),
+        reverse=True,
+    )
+    return ranked[:top_n]
+
+
+def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
+    if not isinstance(rows, list) or not rows:
+        return {
+            "status": "UNKNOWN",
+            "reason": "missing_research_leaderboard",
+            "artifacts": {"report_dir": "", "summary": "", "gate": "", "selection": ""},
+            "metrics": {
+                "final_score": None,
+                "oos_sharpe": None,
+                "oos_mdd": None,
+                "is_sharpe": None,
+                "trades_count": None,
+            },
+            "gate": {"overall": "UNKNOWN", "recommendation": "UNKNOWN"},
+            "metrics_status": "UNKNOWN",
+            "metrics_unavailable_reason": "missing_metrics:final_score,oos_sharpe,oos_mdd",
+        }
+
+    chosen = max(
+        (r for r in rows if isinstance(r, dict)),
+        key=lambda x: _parse_ts_epoch(x.get("timestamp")) or 0.0,
+    )
+    report_dir_raw = chosen.get("report_dir") or ""
+    report_dir_path = Path(str(report_dir_raw)) if report_dir_raw else None
+    if report_dir_path and not report_dir_path.is_absolute():
+        report_dir_path = repo_root / report_dir_path
+
+    summary_path = report_dir_path / "summary.json" if report_dir_path else None
+    gate_path = report_dir_path / "gate.json" if report_dir_path else None
+    selection_path = report_dir_path / "selection.json" if report_dir_path else None
+    summary_obj = read_json(summary_path) if summary_path and summary_path.exists() else {}
+    gate_obj = read_json(gate_path) if gate_path and gate_path.exists() else {}
+    if not isinstance(summary_obj, dict):
+        summary_obj = {}
+    if not isinstance(gate_obj, dict):
+        gate_obj = {}
+
+    final_score = _as_float_opt(chosen.get("final_score"))
+    if final_score is None:
+        final_score = _as_float_opt(gate_obj.get("final_score"))
+    oos_sharpe = _as_float_opt(chosen.get("oos_sharpe"))
+    if oos_sharpe is None:
+        oos_sharpe = _as_float_opt(summary_obj.get("sharpe"))
+    oos_mdd = _as_float_opt(chosen.get("oos_mdd"))
+    if oos_mdd is None:
+        oos_mdd = _as_float_opt(summary_obj.get("max_drawdown"))
+    is_sharpe = _as_float_opt(chosen.get("is_sharpe"))
+    if is_sharpe is None:
+        is_sharpe = _as_float_opt(summary_obj.get("is_sharpe"))
+    trades_count = _as_float_opt(chosen.get("trades_count"))
+    if trades_count is None:
+        trades_count = _as_float_opt(summary_obj.get("trades_count"))
+
+    metrics_status, reason = _metrics_status(
+        {"final_score": final_score, "oos_sharpe": oos_sharpe, "oos_mdd": oos_mdd}
+    )
+    gate_overall = _normalize_gate_status(chosen.get("gate_overall") or gate_obj.get("overall"))
+    recommendation = str(gate_obj.get("recommendation") or "UNKNOWN").upper()
+    if recommendation not in {"PROMOTE", "WATCHLIST", "DEMOTE", "UNKNOWN"}:
+        recommendation = "UNKNOWN"
+
+    return {
+        "status": "OK",
+        "candidate_id": chosen.get("candidate_id") or chosen.get("experiment_id") or "unknown",
+        "strategy_id": chosen.get("strategy_id") or "unknown",
+        "direction": chosen.get("direction") or summary_obj.get("direction") or "UNKNOWN",
+        "variant": chosen.get("variant") or summary_obj.get("variant") or "base",
+        "timestamp": chosen.get("timestamp") or "",
+        "artifacts": {
+            "report_dir": _safe_rel_path(report_dir_path or "", repo_root),
+            "summary": _safe_rel_path(summary_path or "", repo_root),
+            "gate": _safe_rel_path(gate_path or "", repo_root),
+            "selection": _safe_rel_path(selection_path or "", repo_root),
+        },
+        "metrics": {
+            "final_score": final_score,
+            "oos_sharpe": oos_sharpe,
+            "oos_mdd": oos_mdd,
+            "is_sharpe": is_sharpe,
+            "trades_count": int(trades_count) if trades_count is not None else None,
+        },
+        "gate": {"overall": gate_overall, "recommendation": recommendation},
+        "metrics_status": metrics_status,
+        "metrics_unavailable_reason": reason,
+    }
+
+
+def _governance_summary(leaderboard: dict[str, Any], policy_payload: dict[str, Any], now_utc: str) -> dict[str, Any]:
+    rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
+    today = now_utc[:10]
+    today_rows = [
+        r for r in rows if isinstance(r, dict) and str(r.get("timestamp") or "").startswith(today)
+    ]
+    scope = "today_utc" if today_rows else "all_entries_fallback"
+    target_rows = today_rows if today_rows else [r for r in rows if isinstance(r, dict)]
+    counts = {"PASS": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0}
+    for row in target_rows:
+        gate_st = _normalize_gate_status(row.get("gate_overall"))
+        counts[gate_st] = counts.get(gate_st, 0) + 1
+
+    return {
+        "overfit_gates_policy": {
+            "name": str(policy_payload.get("name") or "UNKNOWN"),
+            "path": "research/policy/overfit_gates_aggressive.json",
+        },
+        "today_gate_summary": {
+            "date_utc": today,
+            "scope": scope,
+            "total": sum(counts.values()),
+            "pass": counts["PASS"],
+            "warn": counts["WARN"],
+            "fail": counts["FAIL"],
+            "unknown": counts["UNKNOWN"],
+        },
+    }
+
+
+def _guardrails_summary(pool_data: dict[str, Any], loop_state: dict[str, Any]) -> dict[str, Any]:
+    report_only_val = pool_data.get("report_only") if isinstance(pool_data, dict) else None
+    actions = loop_state.get("actions") if isinstance(loop_state, dict) else None
+    actions_empty = isinstance(actions, list) and len(actions) == 0
+    return {
+        "status": "PASS" if report_only_val is True and actions_empty else "WARN",
+        "checks": {
+            "report_only_from_strategy_pool": {
+                "status": "PASS" if report_only_val is True else "UNKNOWN",
+                "value": report_only_val,
+                "source": "data/state/strategy_pool.json#report_only",
+            },
+            "actions_empty_from_loop_state": {
+                "status": "PASS" if actions_empty else "UNKNOWN",
+                "value": actions if isinstance(actions, list) else None,
+                "source": "data/state/_research/loop_state.json#actions",
+            },
+            "core_diff_src_hongstr": {"status": "PASS_EXPECTED", "source": "preflight_required"},
+            "tg_cp_no_exec": {"status": "PASS_EXPECTED", "source": "preflight_required"},
+            "no_data_committed": {"status": "PASS_EXPECTED", "source": "preflight_required"},
+        },
+    }
+
+
+def _build_daily_report_payload(
+    *,
+    now_utc: str,
+    now_ts: float,
+    system_health: dict[str, Any],
+    freshness_table: dict[str, Any],
+    strategy_pool_summary: dict[str, Any],
+    strategy_pool_data: dict[str, Any],
+    research_leaderboard: dict[str, Any],
+    loop_state: dict[str, Any],
+    policy_payload: dict[str, Any],
+    repo_root: Path,
+) -> dict[str, Any]:
+    components = system_health.get("components", {}) if isinstance(system_health, dict) else {}
+    if not isinstance(components, dict):
+        components = {}
+    pool_counts = strategy_pool_summary.get("counts", {}) if isinstance(strategy_pool_summary, dict) else {}
+    if not isinstance(pool_counts, dict):
+        pool_counts = {}
+
+    payload = {
+        "schema": _daily_schema_spec(),
+        "generated_utc": now_utc,
+        "refresh_hint": str(system_health.get("refresh_hint") or "bash scripts/refresh_state.sh"),
+        "ssot_status": str(system_health.get("ssot_status") or "UNKNOWN"),
+        "ssot_components": components,
+        "freshness_summary": _freshness_summary(freshness_table),
+        "latest_backtest_head": _latest_backtest_head(research_leaderboard, repo_root),
+        "strategy_pool": {
+            "summary": {
+                "counts": {
+                    "candidates": int(pool_counts.get("candidates", 0) or 0),
+                    "promoted": int(pool_counts.get("promoted", 0) or 0),
+                    "demoted": int(pool_counts.get("demoted", 0) or 0),
+                },
+                "last_updated_utc": strategy_pool_summary.get("last_updated_utc"),
+            },
+            "leaderboard_top": _strategy_pool_top_entries(strategy_pool_data, top_n=5),
+            "direction_coverage": _strategy_pool_direction_coverage(strategy_pool_data),
+        },
+        "research_leaderboard": {
+            "generated_at": research_leaderboard.get("generated_at") if isinstance(research_leaderboard, dict) else None,
+            "top_n": int(research_leaderboard.get("top_n", 0) or 0) if isinstance(research_leaderboard, dict) else 0,
+            "top_entries": _research_top_entries(research_leaderboard, top_n=5),
+        },
+        "governance": _governance_summary(research_leaderboard, policy_payload, now_utc),
+        "guardrails": _guardrails_summary(strategy_pool_data, loop_state),
+        "sources": {
+            "system_health_latest": _source_meta(STATE_DIR / "system_health_latest.json", now_ts),
+            "freshness_table": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
+            "strategy_pool_summary": _source_meta(STATE_DIR / "strategy_pool_summary.json", now_ts),
+            "strategy_pool": _source_meta(STATE_DIR / "strategy_pool.json", now_ts),
+            "research_leaderboard": _source_meta(STATE_DIR / "_research/leaderboard.json", now_ts, ["generated_at"]),
+            "research_loop_state": _source_meta(STATE_DIR / "_research/loop_state.json", now_ts, ["last_run"]),
+        },
+    }
+
+    ordered_payload: dict[str, Any] = {}
+    for key in DAILY_REPORT_TOP_LEVEL_ORDER:
+        ordered_payload[key] = payload.get(key)
+    return ordered_payload
 
 
 def main():
@@ -698,6 +1206,24 @@ def main():
         },
     }
     write_json(STATE_DIR / "system_health_latest.json", system_health)
+
+    # 13. Daily Report SSOT (single entrypoint for tg_cp/dashboard daily reporting)
+    research_leaderboard = read_json(STATE_DIR / "_research/leaderboard.json") or {}
+    loop_state = read_json(STATE_DIR / "_research/loop_state.json") or {}
+    overfit_policy = read_json(Path("research/policy/overfit_gates_aggressive.json")) or {}
+    daily_report_payload = _build_daily_report_payload(
+        now_utc=now_utc,
+        now_ts=now_ts,
+        system_health=system_health if isinstance(system_health, dict) else {},
+        freshness_table=freshness_table if isinstance(freshness_table, dict) else {},
+        strategy_pool_summary=pool_summary if isinstance(pool_summary, dict) else {},
+        strategy_pool_data=pool_data if isinstance(pool_data, dict) else {},
+        research_leaderboard=research_leaderboard if isinstance(research_leaderboard, dict) else {},
+        loop_state=loop_state if isinstance(loop_state, dict) else {},
+        policy_payload=overfit_policy if isinstance(overfit_policy, dict) else {},
+        repo_root=Path(".").resolve(),
+    )
+    write_json(STATE_DIR / "daily_report_latest.json", daily_report_payload)
 
     logging.info("Snapshots successfully written to data/state/")
 

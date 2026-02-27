@@ -1,5 +1,8 @@
 # HONGSTR Gate/Promotion Audit (R5-A)
 
+> REFERENCE ONLY
+
+
 ## 1) What we mean by "Gate" and "Promotion"
 
 - **Gate**: Quantitative thresholds that block or warn based on performance metrics (Sharpe, MDD, Trade counts, Exposure). It serves as a quality filter for backtest runs.
