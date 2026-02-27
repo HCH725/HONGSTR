@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- 
+  HONGSTR Worker Pack: Research/Compute Example Configuration
+  Place in ~/Library/LaunchAgents/ and load via:
+    launchctl load ~/Library/LaunchAgents/com.hongstr.worker_research.plist
+
+  Notes:
+  - This is an example-only file. 
+  - Adjust StartInterval for your desired compute batching (e.g. 1800 for 30mins, 3600 for 60mins).
+  - Modify WorkingDirectory to your cloned path.
+-->
+<dict>
+    <key>Label</key>
+    <string>com.hongstr.worker_research_example</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <!-- Use 'nice -n 10' to throttle CPU usage so the worker remains unobtrusive -->
+        <string>nice -n 10 /Users/hong/Projects/HONGSTR/scripts/worker_run_once.sh</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/hong/Projects/HONGSTR</string>
+    
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <!-- Reduces I/O priority to avoid starving the host system -->
+    <key>LowPriorityIO</key>
+    <true/>
+    
+    <key>StandardOutPath</key>
+    <string>/tmp/hongstr_worker_out.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/tmp/hongstr_worker_err.log</string>
+</dict>
+</plist>

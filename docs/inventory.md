@@ -44,6 +44,7 @@
 
 - [Daily Report Single Entry](docs/ops/daily_report_single_entry.md) **(Primary)**
 - [Worker Acceptance Checklist](docs/ops/worker_acceptance_checklist.md) **(Primary)**
+- [Worker Pack Deployment](docs/ops/worker_pack.md) **(Reference Only)**
 - [PM Checklist](docs/ops/pm_checklist.md)
 - [PM Snapshot Runbook](docs/ops/pm_snapshot_runbook.md)
 
