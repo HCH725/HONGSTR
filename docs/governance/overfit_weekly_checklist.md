@@ -2,6 +2,9 @@
 
 # Weekly Overfit Checklist (Template)
 
+> REFERENCE ONLY
+
+
 Use this checklist when reviewing weekly research governance outputs.
 
 ## 1) Inputs Freshness

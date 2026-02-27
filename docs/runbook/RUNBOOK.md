@@ -1,5 +1,8 @@
 # HONGSTR RUNBOOK (Phase 0)
 
+> REFERENCE ONLY
+
+
 > **Operational Procedures**
 > This document describes how to operate, debug, and recover the system.
 

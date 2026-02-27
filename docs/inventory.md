@@ -40,10 +40,23 @@
 
 - [System Flow & Terminology Glossary](docs/architecture/flow_and_glossary.md)
 
-## Operations (Partners & Operators)
+## Operations (Partner & Operator)
 
-- [Daily Report & Glossary (zh-TW)](docs/ops/daily_report_zh.md)
-- [Telegram Operator Manual (Reference Only)](docs/ops/telegram_operator_manual.md)
+- [Daily Report Single Entry](docs/ops/daily_report_single_entry.md) **(Primary)**
+- [Daily Report & Glossary (zh-TW)](docs/ops/daily_report_zh.md) **(Reference)**
+- [Telegram Operator Manual](docs/ops/telegram_operator_manual.md) **(Reference)**
+- [Daily Report Contract](docs/ops/daily_report_contract.md) **(Reference)**
+- [Acronym Glossary (zh-TW)](docs/ops/acronym_glossary_zh.md)
+
+## PM / Audit References (Reference)
+
+These are reference materials, not daily operational entrypoints. Daily status should be consumed from `/daily` only.
+
+- [PM Checklist](docs/ops/pm_checklist.md)
+- [PM Snapshot Runbook](docs/ops/pm_snapshot_runbook.md)
+- `docs/audits/*.md` (historical analysis reports, reference-only)
+- `docs/governance/*.md` (weekly governance and policy background, reference-only)
+- `docs/runbook/*.md` (operational fallback manual, reference-only)
 
 ## State / Artifacts (expected)
 

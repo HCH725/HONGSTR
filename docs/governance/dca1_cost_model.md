@@ -2,6 +2,9 @@
 
 # DCA-1 Cost-Aware Research Executor (Report-Only)
 
+> REFERENCE ONLY
+
+
 This module is research-only and does not change production trading behavior.
 
 ## Files
