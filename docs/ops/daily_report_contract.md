@@ -37,6 +37,7 @@ Top-level keys are fixed and ordered:
 - **StrategyPool + Leaderboard**: `strategy_pool.summary`, `strategy_pool.leaderboard_top[*].direction`, `strategy_pool.direction_coverage.short_coverage`
 - **StrategyPool + Leaderboard (B1 extension, optional)**: `research_leaderboard.entries[*].regime_slice` (`ALL|BULL|BEAR|SIDEWAYS`) and optional `regime_window_start_utc`/`regime_window_end_utc` for report-only regime timeline wiring.
 - **Slice Comparison Spec (stability-first)**:
+  - `regime_window_utc = ["start_utc","end_utc"]`，語義固定 `[start,end)`（end-exclusive）
   - `slice_comparison_key = strategy_id|direction|variant|regime_slice`
   - Any comparison of the same `strategy_id` across different slices must include `regime_slice` (or `slice_comparison_key`) to avoid sample contamination.
 - **Governance(Overfit)**: `governance.overfit_gates_policy.name`, `governance.today_gate_summary`
@@ -47,7 +48,7 @@ Top-level keys are fixed and ordered:
 - Default output must be deterministic fallback template.
 - LLM polishing is optional and must preserve numeric values from SSOT JSON.
 - Missing fields must render as `資料不足/UNKNOWN`, never coercing to `0.00`.
-- Slice fallback must render explicit reason from `fallback_reason` (or `slice_rationale`) when `regime_slice=ALL` due to degrade path.
+- Slice fallback must render explicit reason from `fallback_reason` (or `slice_rationale`) when `regime_slice=ALL` due to degrade path. `fallback_reason` should be partner-friendly Chinese.
 - Acronyms must include zh-TW explanation at least once in the message:
   - `SSOT`, `DD`, `MDD`, `Sharpe`, `Trades`, `OOS`, `IS`, `WF`, `L1`, `L2`, `L3`, `TP`, `SL`, `DCA`
 - Fixed section order (6): `SystemHealth -> DataFreshness -> Backtest -> StrategyPool+Leaderboard -> Governance(Overfit) -> Guardrails`

@@ -70,6 +70,8 @@ def load_regime_timeline_policy(policy_path: Path | None = None) -> dict[str, An
             iv = _parse_interval(item, regime=regime, index=idx, warnings=warnings)
             if iv is not None:
                 parsed.append(iv)
+        if any(parsed[idx]["start_dt"] > parsed[idx + 1]["start_dt"] for idx in range(len(parsed) - 1)):
+            warnings.append(f"{key}_unsorted")
         parsed.sort(key=lambda x: x["start_dt"])
         payload["regimes"][regime] = _dedupe_overlaps(parsed, regime=regime, warnings=warnings)
 
@@ -193,6 +195,7 @@ def _resolve_policy_fallback_reason(policy: dict[str, Any], requested: str) -> s
         "policy_not_object",
         "_not_list",
         "_not_object",
+        "_unsorted",
         "_invalid_timestamp",
         "_invalid_range",
         "_overlap",

@@ -93,7 +93,7 @@ def _entry_from_summary(path: Path) -> dict[str, Any] | None:
     regime_slice = _normalize_regime_slice(data.get("regime_slice", data.get("regime", "ALL")))
     start_utc = data.get("regime_window_start_utc")
     end_utc = data.get("regime_window_end_utc")
-    regime_window_utc = data.get("regime_window_utc") or _regime_window_utc(start_utc, end_utc)
+    regime_window_utc = _regime_window_utc(start_utc, end_utc, data.get("regime_window_utc"))
     slice_rationale = str(data.get("slice_rationale") or data.get("regime_rationale") or "default_all_no_slice")
     fallback_reason = data.get("fallback_reason")
     if fallback_reason is None and regime_slice == "ALL":
@@ -165,7 +165,7 @@ def _entry_from_results(path: Path) -> dict[str, Any] | None:
     regime_slice = _normalize_regime_slice(data.get("regime_slice", data.get("regime", "ALL")))
     start_utc = data.get("regime_window_start_utc")
     end_utc = data.get("regime_window_end_utc")
-    regime_window_utc = data.get("regime_window_utc") or _regime_window_utc(start_utc, end_utc)
+    regime_window_utc = _regime_window_utc(start_utc, end_utc, data.get("regime_window_utc"))
     slice_rationale = str(data.get("slice_rationale") or data.get("regime_rationale") or "default_all_no_slice")
     fallback_reason = data.get("fallback_reason")
     if fallback_reason is None and regime_slice == "ALL":
@@ -251,11 +251,16 @@ def _normalize_regime_slice(value: Any) -> str:
     return text if text in {"ALL", "BULL", "BEAR", "SIDEWAYS"} else "ALL"
 
 
-def _regime_window_utc(start_utc: Any, end_utc: Any) -> str | None:
+def _regime_window_utc(start_utc: Any, end_utc: Any, explicit_window: Any = None) -> list[str] | None:
+    if isinstance(explicit_window, (list, tuple)) and len(explicit_window) == 2:
+        start = str(explicit_window[0] or "").strip()
+        end = str(explicit_window[1] or "").strip()
+        if start and end:
+            return [start, end]
     start = str(start_utc or "").strip()
     end = str(end_utc or "").strip()
     if start and end:
-        return f"[{start},{end})"
+        return [start, end]
     return None
 
 

@@ -73,12 +73,14 @@ def test_load_policy_unsorted_intervals_are_sorted(tmp_path: Path):
     )
 
     loaded = load_regime_timeline_policy(policy_path)
+    assert loaded["status"] == "WARN"
+    assert any("bull_unsorted" in msg for msg in loaded["warnings"])
     assert loaded["regimes"]["BULL"][0]["start_utc"] == "2026-01-01T00:00:00Z"
     assert loaded["regimes"]["BULL"][1]["start_utc"] == "2026-02-01T00:00:00Z"
-    assert resolve_regime_window("BULL", "2026-01-31T23:59:59Z", policy_path=policy_path) == (
-        "2026-01-01T00:00:00Z",
-        "2026-02-01T00:00:00Z",
-    )
+    ctx = resolve_regime_context("BULL", as_of_utc="2026-01-31T23:59:59Z", policy_path=policy_path)
+    assert ctx["applied"] == "ALL"
+    assert ctx["rationale"] == "policy_invalid_fallback_all"
+    assert "不合法" in ctx["rationale_zh"]
 
 
 def test_resolve_window_deterministic_for_each_regime(tmp_path: Path):

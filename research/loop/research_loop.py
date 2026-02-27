@@ -235,8 +235,10 @@ def _regime_meta(regime_context: dict[str, Any] | None) -> dict[str, Any]:
     start_utc = ctx.get("window_start_utc")
     end_utc = ctx.get("window_end_utc")
     rationale = str(ctx.get("rationale") or "none")
-    fallback_reason = rationale if requested != applied and applied == "ALL" else None
-    regime_window_utc = f"[{start_utc},{end_utc})" if start_utc and end_utc else None
+    rationale_zh = str(ctx.get("rationale_zh") or "")
+    fallback_reason = rationale_zh if requested != applied and applied == "ALL" and rationale_zh else None
+    slice_rationale = rationale_zh or rationale
+    regime_window_utc = [str(start_utc), str(end_utc)] if start_utc and end_utc else None
     return {
         "regime": applied,
         "regime_slice": applied,
@@ -248,9 +250,9 @@ def _regime_meta(regime_context: dict[str, Any] | None) -> dict[str, Any]:
         "regime_policy_path": ctx.get("policy_path"),
         "regime_status": str(ctx.get("status") or "UNKNOWN").upper(),
         "regime_rationale": rationale,
-        "slice_rationale": rationale,
+        "slice_rationale": slice_rationale,
         "fallback_reason": fallback_reason,
-        "regime_rationale_zh": str(ctx.get("rationale_zh") or ""),
+        "regime_rationale_zh": rationale_zh,
     }
 
 

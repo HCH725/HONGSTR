@@ -89,7 +89,7 @@ def test_weekly_checklist_keeps_regime_slice_from_recent_results(tmp_path: Path)
     assert top["regime_slice"] == "BULL"
     assert top["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
     assert top["regime_window_end_utc"] == "2026-04-01T00:00:00Z"
-    assert top["regime_window_utc"] == "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)"
+    assert top["regime_window_utc"] == ["2026-01-01T00:00:00Z", "2026-04-01T00:00:00Z"]
 
 
 def test_weekly_checklist_keeps_same_candidate_different_slices(tmp_path: Path):

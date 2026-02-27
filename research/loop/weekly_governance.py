@@ -92,7 +92,11 @@ def generate_weekly_quant_checklist(
         "|---|---:|---|---|---|---|---|",
     ]
     for row in sorted_rows[:10]:
-        window = str(row.get("regime_window_utc") or "ALL/default")
+        window_raw = row.get("regime_window_utc")
+        if isinstance(window_raw, list) and len(window_raw) == 2:
+            window = f"[{window_raw[0]},{window_raw[1]})"
+        else:
+            window = "ALL/default"
         md_lines.append(
             f"| {row.get('id')} | {float(row.get('score', 0.0)):.2f} | {row.get('recommendation')} | "
             f"{row.get('regime_slice', 'ALL')} | {window} | {row.get('slice_comparison_key', '')} | {row.get('reason')} |"
@@ -132,9 +136,10 @@ def _extract_candidates(
                     "regime_slice": regime_slice,
                     "regime_window_start_utc": c.get("regime_window_start_utc"),
                     "regime_window_end_utc": c.get("regime_window_end_utc"),
-                    "regime_window_utc": c.get("regime_window_utc") or _regime_window_utc(
+                    "regime_window_utc": _regime_window_utc(
                         c.get("regime_window_start_utc"),
                         c.get("regime_window_end_utc"),
+                        c.get("regime_window_utc"),
                     ),
                     "slice_rationale": str(c.get("slice_rationale") or c.get("regime_rationale") or "default_all_no_slice"),
                     "fallback_reason": c.get("fallback_reason"),
@@ -169,9 +174,10 @@ def _extract_candidates(
                     "regime_slice": regime_slice,
                     "regime_window_start_utc": e.get("regime_window_start_utc"),
                     "regime_window_end_utc": e.get("regime_window_end_utc"),
-                    "regime_window_utc": e.get("regime_window_utc") or _regime_window_utc(
+                    "regime_window_utc": _regime_window_utc(
                         e.get("regime_window_start_utc"),
                         e.get("regime_window_end_utc"),
+                        e.get("regime_window_utc"),
                     ),
                     "slice_rationale": str(e.get("slice_rationale") or e.get("regime_rationale") or "default_all_no_slice"),
                     "fallback_reason": e.get("fallback_reason"),
@@ -205,9 +211,10 @@ def _extract_candidates(
                 "regime_slice": regime_slice,
                 "regime_window_start_utc": e.get("regime_window_start_utc"),
                 "regime_window_end_utc": e.get("regime_window_end_utc"),
-                "regime_window_utc": e.get("regime_window_utc") or _regime_window_utc(
+                "regime_window_utc": _regime_window_utc(
                     e.get("regime_window_start_utc"),
                     e.get("regime_window_end_utc"),
+                    e.get("regime_window_utc"),
                 ),
                 "slice_rationale": str(e.get("slice_rationale") or e.get("regime_rationale") or "default_all_no_slice"),
                 "fallback_reason": e.get("fallback_reason"),
@@ -261,11 +268,16 @@ def _normalize_regime_slice(v: Any) -> str:
     return value if value in {"ALL", "BULL", "BEAR", "SIDEWAYS"} else "ALL"
 
 
-def _regime_window_utc(start_utc: Any, end_utc: Any) -> str | None:
+def _regime_window_utc(start_utc: Any, end_utc: Any, explicit_window: Any = None) -> list[str] | None:
+    if isinstance(explicit_window, (list, tuple)) and len(explicit_window) == 2:
+        start = str(explicit_window[0] or "").strip()
+        end = str(explicit_window[1] or "").strip()
+        if start and end:
+            return [start, end]
     start = str(start_utc or "").strip()
     end = str(end_utc or "").strip()
     if start and end:
-        return f"[{start},{end})"
+        return [start, end]
     return None
 
 

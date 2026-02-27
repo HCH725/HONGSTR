@@ -366,14 +366,27 @@ def _regime_rationale_zh(rationale: Any, explicit_zh: Any = None) -> str:
     return mapping.get(code, "")
 
 
-def _regime_window_utc(start_utc: Any, end_utc: Any, explicit_window: Any = None) -> str | None:
+def _regime_window_utc(start_utc: Any, end_utc: Any, explicit_window: Any = None) -> list[str] | None:
+    if isinstance(explicit_window, (list, tuple)) and len(explicit_window) == 2:
+        start = str(explicit_window[0] or "").strip()
+        end = str(explicit_window[1] or "").strip()
+        if start and end:
+            return [start, end]
+
+    # Backward compatibility with legacy string format: "[start,end)"
     explicit = str(explicit_window or "").strip()
-    if explicit:
-        return explicit
+    if explicit.startswith("[") and explicit.endswith(")") and "," in explicit:
+        core = explicit[1:-1]
+        raw_start, raw_end = core.split(",", 1)
+        start = raw_start.strip()
+        end = raw_end.strip()
+        if start and end:
+            return [start, end]
+
     start = str(start_utc or "").strip()
     end = str(end_utc or "").strip()
     if start and end:
-        return f"[{start},{end})"
+        return [start, end]
     return None
 
 
@@ -385,13 +398,15 @@ def _slice_fallback_reason(
 ) -> str | None:
     explicit = str(fallback_reason or "").strip()
     if explicit:
-        return explicit
+        zh = _regime_rationale_zh(explicit)
+        return zh or explicit
     slice_norm = str(regime_slice or "ALL").upper().strip()
     if slice_norm != "ALL":
         return None
     rationale = str(slice_rationale or "").strip()
     if rationale and rationale != "default_all_no_slice":
-        return rationale
+        zh = _regime_rationale_zh(rationale)
+        return zh or rationale
     return None
 
 

@@ -75,7 +75,7 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "regime_slice": "BULL",
                     "regime_window_start_utc": "2026-01-01T00:00:00Z",
                     "regime_window_end_utc": "2026-04-01T00:00:00Z",
-                    "regime_window_utc": "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)",
+                    "regime_window_utc": ["2026-01-01T00:00:00Z", "2026-04-01T00:00:00Z"],
                     "slice_rationale": "slice_applied",
                     "slice_comparison_key": "trend_mvp_btc_1h|LONG|baseline|BULL",
                     "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
@@ -98,7 +98,7 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "regime_slice": "BULL",
                     "regime_window_start_utc": "2026-01-01T00:00:00Z",
                     "regime_window_end_utc": "2026-04-01T00:00:00Z",
-                    "regime_window_utc": "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)",
+                    "regime_window_utc": ["2026-01-01T00:00:00Z", "2026-04-01T00:00:00Z"],
                     "slice_rationale": "slice_applied",
                     "slice_comparison_key": "trend_mvp_btc_1h|LONG|baseline|BULL",
                     "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
@@ -149,7 +149,7 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["latest_backtest_head"]["regime_slice"] == "BULL"
     assert payload["latest_backtest_head"]["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
     assert payload["latest_backtest_head"]["regime_window_end_utc"] == "2026-04-01T00:00:00Z"
-    assert payload["latest_backtest_head"]["regime_window_utc"] == "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)"
+    assert payload["latest_backtest_head"]["regime_window_utc"] == ["2026-01-01T00:00:00Z", "2026-04-01T00:00:00Z"]
     assert payload["latest_backtest_head"]["slice_rationale"] == "slice_applied"
     assert payload["latest_backtest_head"]["fallback_reason"] is None
     assert payload["latest_backtest_head"]["slice_comparison_key"] == "trend_mvp_btc_1h|LONG|baseline|BULL"

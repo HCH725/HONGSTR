@@ -237,7 +237,7 @@ def _write_daily_report_ssot(repo: Path) -> None:
                     "regime_slice": "BULL",
                     "regime_window_start_utc": "2026-01-01T00:00:00Z",
                     "regime_window_end_utc": "2026-04-01T00:00:00Z",
-                    "regime_window_utc": "[2026-01-01T00:00:00Z,2026-04-01T00:00:00Z)",
+                    "regime_window_utc": ["2026-01-01T00:00:00Z", "2026-04-01T00:00:00Z"],
                     "slice_rationale": "slice_applied",
                     "regime_rationale": "slice_applied",
                     "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
