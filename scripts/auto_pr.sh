@@ -200,7 +200,9 @@ printf '  - %s\n' "${CHANGED[@]}"
 
 ALLOW_JSON=$(mktemp)
 CLASS_JSON=$(mktemp)
-trap 'rm -f "$ALLOW_JSON" "$CLASS_JSON" "$PREFLIGHT_TXT" "$BODY_FILE"' EXIT
+CHANGED_LIST_FILE=$(mktemp)
+trap 'rm -f "${ALLOW_JSON:-}" "${CLASS_JSON:-}" "${CHANGED_LIST_FILE:-}" "${PREFLIGHT_TXT:-}" "${BODY_FILE:-}"' EXIT
+printf '%s\n' "${CHANGED[@]}" > "$CHANGED_LIST_FILE"
 
 printf '%s\n' "${CHANGED[@]}" | "$PY_BIN" scripts/auto_pr_utils.py check > "$ALLOW_JSON" || {
   echo "[auto_pr] Allowlist check failed:"
@@ -289,29 +291,11 @@ git commit -m "$COMMIT_MSG"
 git push -u origin "$BRANCH"
 
 BODY_FILE=$(mktemp)
-cat > "$BODY_FILE" <<MD
-## Summary
-$TITLE
-
-## Changed Paths
-$(printf -- '- `%s`\n' "${CHANGED[@]}")
-
-## Safety Statement
-- Allowlist guard enforced (`docs/**`, `_local/**`, `research/**`, `scripts/**`).
-- `src/hongstr/**` is blocked.
-- `data/**` artifacts are not committed.
-- `report_only` workflow is preserved.
-
-## Rollback
-\`\`\`bash
-git revert <merge_commit_sha>
-\`\`\`
-
-## Preflight Transcript
-\`\`\`bash
-$(cat "$PREFLIGHT_TXT")
-\`\`\`
-MD
+"$PY_BIN" scripts/auto_pr_utils.py render-pr-body \
+  --title "$TITLE" \
+  --paths-file "$CHANGED_LIST_FILE" \
+  --preflight-file "$PREFLIGHT_TXT" \
+  > "$BODY_FILE"
 
 PR_ARGS=(--base "$BASE_BRANCH" --head "$BRANCH" --title "[codex] $TITLE" --body-file "$BODY_FILE")
 if [[ "$DRAFT_MODE" -eq 1 ]]; then

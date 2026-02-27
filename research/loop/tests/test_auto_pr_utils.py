@@ -41,3 +41,19 @@ def test_classify_research_docs_combo():
     assert rc == 0
     payload = json.loads(out)
     assert payload["kind"] == "research-docs"
+
+
+def test_render_pr_body_never_executes_path_like_tokens():
+    stdin_paths = "docs/architecture\nsrc/hongstr/__init__.py\nreport_only\n"
+    rc, out, err = _run(
+        ["render-pr-body", "--title", "ops(auto_pr): allowlisted mixed update", "--preflight-text", "ok"],
+        stdin_paths,
+    )
+    assert rc == 0
+    assert err == ""
+    assert "- `docs/architecture`" in out
+    assert "- `src/hongstr/__init__.py`" in out
+    assert "- `report_only`" in out
+    assert "is a directory" not in out
+    assert "Permission denied" not in out
+    assert "command not found" not in out
