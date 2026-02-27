@@ -40,8 +40,9 @@
 
 - [System Flow & Terminology Glossary](docs/architecture/flow_and_glossary.md)
 
-## Operations (Quant Specialist)
+## Operations (Partner & Operator)
 
+- [Daily Report & Glossary (zh-TW)](docs/ops/daily_report_zh.md)
 - [Telegram Operator Manual](docs/ops/telegram_operator_manual.md)
 
 ## State / Artifacts (expected)
