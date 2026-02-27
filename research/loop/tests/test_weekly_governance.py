@@ -33,6 +33,7 @@ def test_weekly_checklist_generation(tmp_path: Path):
     assert out["report_only"] is True
     assert out["actions"] == []
     assert out["counts"]["candidate_total"] >= 2
+    assert out["top_candidates"][0]["regime_slice"] in {"ALL", "BULL", "BEAR", "SIDEWAYS"}
 
     json_path = repo / out["outputs"]["json"]
     md_path = repo / out["outputs"]["markdown"]
@@ -60,3 +61,31 @@ def test_weekly_checklist_watchlist_floor(tmp_path: Path):
     out = generate_weekly_quant_checklist(repo)
     assert out["counts"]["watchlist"] >= 1
     assert out["recommendations"]["watchlist"]
+
+
+def test_weekly_checklist_keeps_regime_slice_from_recent_results(tmp_path: Path):
+    repo = tmp_path / "repo"
+    (repo / "data/state/_research").mkdir(parents=True)
+    (repo / "data/state").mkdir(parents=True, exist_ok=True)
+    (repo / "data/state/system_health_latest.json").write_text(json.dumps({"ssot_status": "OK"}), encoding="utf-8")
+    (repo / "data/state/strategy_pool_summary.json").write_text(json.dumps({"leaderboard": []}), encoding="utf-8")
+    (repo / "data/state/_research/leaderboard.json").write_text(json.dumps({"entries": []}), encoding="utf-8")
+
+    out = generate_weekly_quant_checklist(
+        repo,
+        recent_results=[
+            {
+                "candidate_id": "cand_regime_bull",
+                "score": 91.0,
+                "recommendation": "PROMOTE",
+                "regime_slice": "BULL",
+                "regime_window_start_utc": "2026-01-01T00:00:00Z",
+                "regime_window_end_utc": "2026-04-01T00:00:00Z",
+            }
+        ],
+    )
+    assert out["top_candidates"]
+    top = out["top_candidates"][0]
+    assert top["regime_slice"] == "BULL"
+    assert top["regime_window_start_utc"] == "2026-01-01T00:00:00Z"
+    assert top["regime_window_end_utc"] == "2026-04-01T00:00:00Z"

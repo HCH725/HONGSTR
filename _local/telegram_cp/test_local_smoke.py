@@ -234,6 +234,11 @@ def _write_daily_report_ssot(repo: Path) -> None:
                 "latest_backtest_head": {
                     "candidate_id": "trend_mvp_btc_1h__long__baseline",
                     "direction": "LONG",
+                    "regime_slice": "BULL",
+                    "regime_window_start_utc": "2026-01-01T00:00:00Z",
+                    "regime_window_end_utc": "2026-04-01T00:00:00Z",
+                    "regime_rationale": "slice_applied",
+                    "regime_rationale_zh": "已套用 BULL 切片，區間 [2026-01-01T00:00:00Z,2026-04-01T00:00:00Z) UTC（結束不含）。",
                     "metrics_status": "OK",
                     "metrics": {
                         "final_score": 88.5,
@@ -250,6 +255,7 @@ def _write_daily_report_ssot(repo: Path) -> None:
                         {
                             "strategy_id": "trend_mvp_btc_1h",
                             "direction": "LONG",
+                            "regime_slice": "BULL",
                             "score": 88.5,
                             "oos_sharpe": 1.2,
                             "oos_return": 2.1,
@@ -258,6 +264,7 @@ def _write_daily_report_ssot(repo: Path) -> None:
                         {
                             "strategy_id": "ema_cross_v3",
                             "direction": "SHORT",
+                            "regime_slice": "ALL",
                             "score": None,
                             "oos_sharpe": None,
                             "oos_return": None,
@@ -273,6 +280,7 @@ def _write_daily_report_ssot(repo: Path) -> None:
                                 "strategy_id": "ema_cross_v3",
                                 "score": None,
                                 "metrics_status": "UNKNOWN",
+                                "regime_slice": "ALL",
                             },
                             "best_entry_reason": None,
                         },
@@ -540,6 +548,7 @@ def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
     assert "校準狀態=STALE" in resp
     assert "上次校準=2026-02-18T00:00:00Z" in resp
     assert "先降槓桿或降部位、暫停 promote" in resp
+    assert "本次回測切片=BULL" in resp
     assert "SHORT覆蓋" in resp
     assert "RefreshHint: bash scripts/refresh_state.sh" in resp
 
@@ -590,6 +599,27 @@ def test_daily_command_section_shape_is_three_lines(monkeypatch, tmp_path):
         assert lines[0].startswith("狀態:")
         assert lines[1].startswith("白話:")
         assert lines[2].startswith("下一步:")
+
+
+def test_daily_command_regime_slice_fallback_reason_zh(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    state_dir = repo / "data/state"
+    payload = json.loads((state_dir / "daily_report_latest.json").read_text(encoding="utf-8"))
+    payload["latest_backtest_head"]["regime_slice"] = "ALL"
+    payload["latest_backtest_head"]["regime_window_start_utc"] = None
+    payload["latest_backtest_head"]["regime_window_end_utc"] = None
+    payload["latest_backtest_head"]["regime_rationale"] = "policy_missing_fallback_all"
+    payload["latest_backtest_head"]["regime_rationale_zh"] = ""
+    (state_dir / "daily_report_latest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    resp = s._handle_command(382, "/daily")
+    assert "本次回測切片=ALL（policy 缺失，已自動降級）。" in resp
 
 
 def test_daily_command_missing_ssot(monkeypatch, tmp_path):
