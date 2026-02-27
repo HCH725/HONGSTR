@@ -1,7 +1,8 @@
 {
     "allowed_strategies": [
         "trend_follower_v1",
-        "mean_reversion_v2"
+        "mean_reversion_v2",
+        "dca1_supertrend"
     ],
     "allowed_symbols": [
         "BTCUSDT",
@@ -24,6 +25,30 @@
         "lookback": [
             24,
             168
+        ],
+        "base_order": [
+            0.1,
+            20.0
+        ],
+        "safety_multiplier": [
+            1.0,
+            4.0
+        ],
+        "safety_gap_bps": [
+            20.0,
+            600.0
+        ],
+        "take_profit_pct": [
+            0.2,
+            6.0
+        ],
+        "stop_loss_pct": [
+            0.5,
+            10.0
+        ],
+        "trailing_pct": [
+            0.0,
+            4.0
         ]
     },
     "forbidden_keywords": [

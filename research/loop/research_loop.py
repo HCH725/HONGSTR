@@ -57,6 +57,7 @@ from research.loop.schemas_research import ResearchProposal
 from research.loop.gates import ResearchGate
 from research.loop.leaderboard import save_leaderboard
 from research.loop.weekly_governance import generate_weekly_quant_checklist
+from research.loop.dca1_executor import run_dca1_sweep
 
 
 # ── Lock ──────────────────────────────────────────────────────────────────────
@@ -261,6 +262,11 @@ def notify_telegram_warn(error_msg: str):
 def main():
     parser = argparse.ArgumentParser(description="HONGSTR Autonomous Research Loop v2")
     parser.add_argument("--dry-run", action="store_true", help="Skip backtest, write DRY_RUN state")
+    parser.add_argument(
+        "--enable-dca1-sweep",
+        action="store_true",
+        help="Optional research-only DCA-1 sweep artifact generation",
+    )
     args, _ = parser.parse_known_args()
 
     logger.info(f"Research Loop v2 starting (dry_run={args.dry_run})...")
@@ -324,6 +330,37 @@ def main():
                 }
             ],
         )
+
+        enable_dca = args.enable_dca1_sweep or os.getenv("HONGSTR_ENABLE_DCA1_SWEEP", "0").strip() in {"1", "true", "TRUE"}
+        if enable_dca and not args.dry_run:
+            dca_candidate = {
+                "candidate_id": f"DCA1_{date_id}",
+                "strategy_id": "dca1_supertrend",
+                "family": "dca1",
+                "symbol": proposal.symbol,
+                "timeframe": proposal.timeframe,
+                "direction": "LONG",
+                "variant": "base_safety1",
+                "parameters": {
+                    "base_order": 1.0,
+                    "safety_multiplier": 1.6,
+                    "safety_gap_bps": 120.0,
+                    "take_profit_pct": 1.1,
+                    "stop_loss_pct": 2.3,
+                    "trailing_pct": 0.7,
+                },
+            }
+            sweep = run_dca1_sweep(
+                dca_candidate,
+                safety_multiplier_values=[1.4, 1.8],
+                safety_gap_bps_values=[100.0, 180.0],
+                fee_scenarios=("standard", "vip", "stress"),
+                snapshot=snapshot,
+            )
+            dca_path = REPORTS_ROOT / datetime.now().strftime("%Y%m%d") / "dca1_sweep.json"
+            dca_path.parent.mkdir(parents=True, exist_ok=True)
+            dca_path.write_text(json.dumps(sweep, indent=2), encoding="utf-8")
+            logger.info("DCA1 sweep artifact generated: %s (%s variants)", dca_path, len(sweep))
 
         # 7. Write enriched state
         write_state(
