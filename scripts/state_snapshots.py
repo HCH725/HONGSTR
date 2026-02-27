@@ -1162,7 +1162,7 @@ def main():
     regime_threshold_rationale_raw = str(regime_data.get("threshold_rationale") or "").strip()
     regime_threshold_rationale = regime_threshold_rationale_raw or None
     regime_calibration_status_raw = str(regime_data.get("calibration_status") or "").upper().strip()
-    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "STALE", "UNKNOWN"} else "UNKNOWN"
+    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "WARN", "STALE", "UNKNOWN"} else "UNKNOWN"
     regime_last_calibrated_raw = regime_data.get("last_calibrated_utc")
     regime_last_calibrated_utc = str(regime_last_calibrated_raw).strip() if isinstance(regime_last_calibrated_raw, str) and str(regime_last_calibrated_raw).strip() else None
 

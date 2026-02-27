@@ -164,7 +164,7 @@ def load_regime_policy(now_utc_dt):
     last_calibrated_utc = calibration.get("last_calibrated_utc")
     explicit_status = str(calibration.get("calibration_status") or "").upper().strip()
     derived_status = _calibration_status(last_calibrated_utc, stale_after_days, now_utc_dt)
-    cal_status = explicit_status if explicit_status in {"OK", "STALE", "UNKNOWN"} else derived_status
+    cal_status = explicit_status if explicit_status in {"OK", "WARN", "STALE", "UNKNOWN"} else derived_status
     if cal_status == "UNKNOWN":
         cal_status = derived_status
 

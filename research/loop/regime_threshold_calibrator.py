@@ -279,6 +279,7 @@ def run_calibration(
         "fail": round(rec_fail, 6),
     }
     candidate_cal = dict(calibration_cfg)
+    candidate_cal_status = "OK" if method_status == "OK" else "WARN"
     candidate_cal.update(
         {
             "mode": "semi_dynamic_weekly_pr",
@@ -288,7 +289,7 @@ def run_calibration(
             "min_samples": min_samples,
             "stale_after_days": stale_after_days,
             "last_calibrated_utc": now_utc,
-            "calibration_status": "OK",
+            "calibration_status": candidate_cal_status,
             "sample_count": sample_count,
             "sample_period_start_utc": period_start,
             "sample_period_end_utc": period_end,

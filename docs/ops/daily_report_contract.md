@@ -31,7 +31,7 @@ Top-level keys are fixed and ordered:
 
 ## Required Sections
 
-- **SystemHealth**: `ssot_status`, `ssot_components`, `ssot_components.regime_signal.threshold_*`, `ssot_components.regime_signal.calibration_status`, `ssot_components.regime_signal.last_calibrated_utc`
+- **SystemHealth**: `ssot_status`, `ssot_components`, `ssot_components.regime_signal.threshold_*`, `ssot_components.regime_signal.calibration_status` (`OK|WARN|STALE|UNKNOWN`), `ssot_components.regime_signal.last_calibrated_utc`
 - **DataFreshness**: `freshness_summary.counts`, `freshness_summary.profile_totals`, `freshness_summary.top_offenders`
 - **Backtest**: `latest_backtest_head.artifacts`, `latest_backtest_head.metrics`, `latest_backtest_head.gate`, `latest_backtest_head.metrics_status`
 - **StrategyPool + Leaderboard**: `strategy_pool.summary`, `strategy_pool.leaderboard_top[*].direction`, `strategy_pool.direction_coverage.short_coverage`

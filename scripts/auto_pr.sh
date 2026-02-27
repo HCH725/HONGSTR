@@ -8,8 +8,8 @@ BASE_BRANCH="main"
 COOLDOWN_HOURS="${AUTO_PR_COOLDOWN_HOURS:-24}"
 ALLOW_DOCS_AUTOMERGE=0
 RUN_PREFLIGHT=1
-DRAFT_MODE=0
-NAMED_GENERATORS=()
+DRAFT_MODE=1
+ONLY_GENERATORS=()
 
 usage() {
   cat <<'EOF'
@@ -19,13 +19,15 @@ Options:
   --base <branch>              Base branch to sync and open PR against (default: main)
   --cooldown-hours <hours>     Cooldown window for same change class (default: 24)
   --allow-docs-automerge       Allow docs-only PR auto-merge (default: off)
-  --generator <name>           Run built-in generator (repeatable)
+  --only <name>                Run only the named generator(s) from AUTO_PR_GENERATORS
   --skip-preflight             Skip preflight checks
-  --draft                      Create draft PR
+  --draft                      Create draft PR (default)
   -h, --help                   Show this help
 
 Environment:
-  AUTO_PR_GENERATORS           Semicolon-separated generator commands
+  AUTO_PR_GENERATORS           Semicolon-separated generator specs:
+                               - "name:command"
+                               - "command" (backward compatible)
   AUTO_PR_STATE_FILE           State file path (default: _local/auto_pr/state.json)
 EOF
 }
@@ -44,8 +46,8 @@ while [[ $# -gt 0 ]]; do
       ALLOW_DOCS_AUTOMERGE=1
       shift
       ;;
-    --generator)
-      NAMED_GENERATORS+=("$2")
+    --only)
+      ONLY_GENERATORS+=("$2")
       shift 2
       ;;
     --skip-preflight)
@@ -97,11 +99,11 @@ run_generator_cmd() {
   bash -lc "$run_cmd"
 }
 
-resolve_named_generator() {
+resolve_generator_command() {
   local name="$1"
   case "$name" in
     regime_thresholds_calibration)
-      echo "bash scripts/calibrate_regime_thresholds.sh --pr-mode"
+      echo "bash scripts/calibrate_regime_thresholds.sh --pr-mode --as-of-utc \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
       ;;
     *)
       return 1
@@ -109,23 +111,67 @@ resolve_named_generator() {
   esac
 }
 
-if [[ "${#NAMED_GENERATORS[@]}" -gt 0 ]]; then
-  echo "[auto_pr] Running named generators ..."
-  for gen in "${NAMED_GENERATORS[@]}"; do
-    if ! cmd="$(resolve_named_generator "$gen")"; then
-      echo "[auto_pr] Unknown generator name: $gen" >&2
+run_named_or_inline_generator() {
+  local gen_name="$1"
+  local gen_cmd="$2"
+  if [[ -z "$gen_cmd" ]]; then
+    if ! gen_cmd="$(resolve_generator_command "$gen_name")"; then
+      echo "[auto_pr] Unknown generator name: $gen_name" >&2
       exit 2
     fi
-    run_generator_cmd "$cmd"
-  done
-fi
+  fi
+  run_generator_cmd "$gen_cmd"
+}
 
-if [[ -n "${AUTO_PR_GENERATORS:-}" ]]; then
+if [[ -n "${AUTO_PR_GENERATORS:-}" || "${#ONLY_GENERATORS[@]}" -gt 0 ]]; then
   echo "[auto_pr] Running generators ..."
-  IFS=';' read -r -a generators <<< "$AUTO_PR_GENERATORS"
-  for cmd in "${generators[@]}"; do
-    run_generator_cmd "$cmd"
-  done
+  mapfile -t RAW_GENERATORS < <(printf '%s' "${AUTO_PR_GENERATORS:-}" | tr ';' '\n')
+
+  if [[ "${#ONLY_GENERATORS[@]}" -eq 0 ]]; then
+    for raw in "${RAW_GENERATORS[@]}"; do
+      spec="$(echo "$raw" | xargs)"
+      if [[ -z "$spec" ]]; then
+        continue
+      fi
+      if [[ "$spec" == *:* ]]; then
+        gen_name="$(echo "${spec%%:*}" | xargs)"
+        gen_cmd="$(echo "${spec#*:}" | xargs)"
+        if [[ -z "$gen_name" ]]; then
+          run_generator_cmd "$gen_cmd"
+        else
+          run_named_or_inline_generator "$gen_name" "$gen_cmd"
+        fi
+      else
+        if cmd_from_name="$(resolve_generator_command "$spec" 2>/dev/null)"; then
+          run_named_or_inline_generator "$spec" "$cmd_from_name"
+        else
+          run_generator_cmd "$spec"
+        fi
+      fi
+    done
+  else
+    for only_name in "${ONLY_GENERATORS[@]}"; do
+      found=0
+      for raw in "${RAW_GENERATORS[@]}"; do
+        spec="$(echo "$raw" | xargs)"
+        if [[ -z "$spec" ]]; then
+          continue
+        fi
+        if [[ "$spec" != *:* ]]; then
+          continue
+        fi
+        gen_name="$(echo "${spec%%:*}" | xargs)"
+        gen_cmd="$(echo "${spec#*:}" | xargs)"
+        if [[ "$gen_name" == "$only_name" ]]; then
+          run_named_or_inline_generator "$gen_name" "$gen_cmd"
+          found=1
+        fi
+      done
+      if [[ "$found" -eq 0 ]]; then
+        run_named_or_inline_generator "$only_name" ""
+      fi
+    done
+  fi
 fi
 
 mapfile -t CHANGED < <(

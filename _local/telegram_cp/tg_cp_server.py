@@ -760,7 +760,7 @@ def _daily_compose_report(
     regime_threshold_policy_sha = regime_threshold_policy_sha_raw[:12] if regime_threshold_policy_sha_raw else "資料不足/UNKNOWN"
     regime_threshold_rationale = str(regime_signal_comp.get("threshold_rationale") or "").strip() or "資料不足/UNKNOWN"
     regime_calibration_status_raw = str(regime_signal_comp.get("calibration_status") or "").upper().strip()
-    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "STALE", "UNKNOWN"} else "UNKNOWN"
+    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "WARN", "STALE", "UNKNOWN"} else "UNKNOWN"
     regime_last_calibrated_raw = regime_signal_comp.get("last_calibrated_utc")
     regime_last_calibrated = str(regime_last_calibrated_raw).strip() if isinstance(regime_last_calibrated_raw, str) and str(regime_last_calibrated_raw).strip() else "資料不足/UNKNOWN"
     system_section_status = _status_max(ssot_status, regime_signal_status)
@@ -777,6 +777,8 @@ def _daily_compose_report(
         regime_reason_zh_note = "口語補註=目前在風險舒適區。"
     if regime_calibration_status == "OK":
         regime_calibration_note = f"校準狀態=OK（週校準有效）；上次校準={regime_last_calibrated}。"
+    elif regime_calibration_status == "WARN":
+        regime_calibration_note = f"校準狀態=WARN（樣本偏少，建議人工覆核）；上次校準={regime_last_calibrated}。"
     elif regime_calibration_status == "STALE":
         regime_calibration_note = f"校準狀態=STALE（超過週期，建議重跑校準）；上次校準={regime_last_calibrated}。"
     else:
