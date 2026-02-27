@@ -96,6 +96,7 @@ def test_help_command(monkeypatch, tmp_path):
 
     resp = s._handle_command(20, "/help")
     assert "/status" in resp
+    assert "/daily" in resp
     assert "/skills" in resp
     # Must list all monitoring commands so users can discover them
     assert "/freshness" in resp
@@ -191,6 +192,106 @@ def _write_status_ssot_sources(repo: Path) -> None:
             }
         )
         + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_daily_report_ssot(repo: Path) -> None:
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "daily_report_latest.json").write_text(
+        json.dumps(
+            {
+                "schema": {"version": "daily_report.v1", "field_labels_zh_en": {}},
+                "generated_utc": "2026-02-27T00:00:00Z",
+                "refresh_hint": "bash scripts/refresh_state.sh",
+                "ssot_status": "OK",
+                "ssot_components": {
+                    "freshness": {"status": "OK"},
+                    "coverage_matrix": {"status": "PASS"},
+                    "brake": {"status": "OK"},
+                    "regime_monitor": {"status": "OK"},
+                    "regime_signal": {
+                        "status": "FAIL",
+                        "top_reason": "MDD 跌破保護線",
+                        "threshold_value": -0.0353,
+                        "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
+                        "threshold_policy_sha": "abc123def4567890",
+                        "threshold_rationale": "最大回撤超過 p95 風險區間",
+                        "calibration_status": "STALE",
+                        "last_calibrated_utc": "2026-02-18T00:00:00Z",
+                    },
+                },
+                "freshness_summary": {
+                    "counts": {"OK": 8, "WARN": 1, "FAIL": 0, "UNKNOWN": 0},
+                    "profile_totals": {"realtime": 6, "backtest": 3},
+                    "total_rows": 9,
+                    "max_age_h": 2.4,
+                    "top_offenders": [
+                        {"symbol": "ETHUSDT", "tf": "4h", "profile": "backtest", "age_h": 2.4, "status": "WARN"}
+                    ],
+                },
+                "latest_backtest_head": {
+                    "candidate_id": "trend_mvp_btc_1h__long__baseline",
+                    "direction": "LONG",
+                    "metrics_status": "OK",
+                    "metrics": {
+                        "final_score": 88.5,
+                        "oos_sharpe": 1.2,
+                        "oos_mdd": -0.09,
+                        "is_sharpe": 1.4,
+                        "trades_count": 37,
+                    },
+                    "gate": {"overall": "PASS"},
+                },
+                "strategy_pool": {
+                    "summary": {"counts": {"candidates": 3, "promoted": 1, "demoted": 2}},
+                    "leaderboard_top": [
+                        {
+                            "strategy_id": "trend_mvp_btc_1h",
+                            "direction": "LONG",
+                            "score": 88.5,
+                            "oos_sharpe": 1.2,
+                            "oos_return": 2.1,
+                            "metrics_status": "OK",
+                        },
+                        {
+                            "strategy_id": "ema_cross_v3",
+                            "direction": "SHORT",
+                            "score": None,
+                            "oos_sharpe": None,
+                            "oos_return": None,
+                            "metrics_status": "UNKNOWN",
+                        },
+                    ],
+                    "direction_coverage": {
+                        "counts": {"long": 2, "short": 1, "longshort": 0, "unknown": 0},
+                        "short_coverage": {
+                            "candidates": 1,
+                            "gate_pass": 1,
+                            "best_entry": {
+                                "strategy_id": "ema_cross_v3",
+                                "score": None,
+                                "metrics_status": "UNKNOWN",
+                            },
+                            "best_entry_reason": None,
+                        },
+                    },
+                },
+                "governance": {
+                    "overfit_gates_policy": {"name": "aggressive_yield_first_v1"},
+                    "today_gate_summary": {"scope": "today_utc", "pass": 1, "warn": 0, "fail": 1, "unknown": 1},
+                },
+                "guardrails": {
+                    "status": "PASS",
+                    "checks": {
+                        "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
+                        "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
+                        "no_data_committed": {"status": "PASS_EXPECTED"},
+                    }
+                },
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -409,6 +510,109 @@ def test_status_health_pack_overrides_conflicting_component_files(monkeypatch, t
     assert "CoverageMatrix: PASS 1/1 done | max_lag_h=0.0 | rebase=0" in resp
     assert "RegimeSignal: OK" in resp
     assert "component says fail" not in resp
+
+
+def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("timeout")))
+
+    resp = s._handle_command(38, "/daily")
+    assert "DAILY_REPORT_STATUS: WARN" in resp
+    assert "1) SystemHealth" in resp
+    assert "2) DataFreshness" in resp
+    assert "3) Backtest" in resp
+    assert "4) StrategyPool+Leaderboard" in resp
+    assert "5) Governance(Overfit)" in resp
+    assert "6) Guardrails" in resp
+    assert "狀態:" in resp
+    assert "白話:" in resp
+    assert "下一步:" in resp
+    assert "SSOT(" in resp
+    assert "MDD(" in resp
+    assert "DCA(" in resp
+    assert "RegimeSignal（市場風險告警）=FAIL" in resp
+    assert "來源=reports/strategy_research/phase3/phase3_results.json" in resp
+    assert "版本=abc123def456" in resp
+    assert "校準狀態=STALE" in resp
+    assert "上次校準=2026-02-18T00:00:00Z" in resp
+    assert "先降槓桿或降部位、暫停 promote" in resp
+    assert "SHORT覆蓋" in resp
+    assert "RefreshHint: bash scripts/refresh_state.sh" in resp
+
+
+def test_daily_command_regime_calibration_stale_sop(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    # Override fixture to simulate calibration stale with no immediate fail.
+    state_dir = repo / "data/state"
+    payload = json.loads((state_dir / "daily_report_latest.json").read_text(encoding="utf-8"))
+    payload["ssot_components"]["regime_signal"]["status"] = "OK"
+    payload["ssot_components"]["regime_signal"]["top_reason"] = "within range"
+    payload["ssot_components"]["regime_signal"]["calibration_status"] = "STALE"
+    payload["ssot_components"]["regime_signal"]["last_calibrated_utc"] = "2026-02-01T00:00:00Z"
+    (state_dir / "daily_report_latest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    resp = s._handle_command(381, "/daily")
+    assert "校準狀態=STALE" in resp
+    assert "Regime 門檻校準已過期；先跑 calibrate_regime_thresholds 並開 policy PR" in resp
+
+
+def test_daily_command_section_shape_is_three_lines(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    resp = s._handle_command(380, "/daily")
+    for idx, title in [
+        (1, "SystemHealth"),
+        (2, "DataFreshness"),
+        (3, "Backtest"),
+        (4, "StrategyPool+Leaderboard"),
+        (5, "Governance(Overfit)"),
+        (6, "Guardrails"),
+    ]:
+        anchor = f"{idx}) {title}"
+        assert anchor in resp
+        after = resp.split(anchor, 1)[1]
+        lines = [ln for ln in after.splitlines() if ln.strip()]
+        assert lines[0].startswith("狀態:")
+        assert lines[1].startswith("白話:")
+        assert lines[2].startswith("下一步:")
+
+
+def test_daily_command_missing_ssot(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    resp = s._handle_command(39, "/daily")
+    assert "DAILY_REPORT_STATUS: WARN" in resp
+    assert "missing_daily_report_ssot" in resp
+    assert "資料不足/UNKNOWN" in resp
+    assert "6) Guardrails" in resp
+    assert "RefreshHint: bash scripts/refresh_state.sh" in resp
+
+
+def test_report_daily_alias_not_supported(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    resp = s._handle_command(39, "/report_daily")
+    assert "不認識" in resp
 
 
 def test_ping_command(monkeypatch, tmp_path):

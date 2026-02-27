@@ -1,5 +1,8 @@
 # Overfit Governance (Aggressive, Yield-First)
 
+> REFERENCE ONLY
+
+
 This policy is the research-loop governance standard for report-only evaluation.
 
 - Policy file: `research/policy/overfit_gates_aggressive.json`

@@ -4,7 +4,7 @@
 
 ## Safety Defaults
 
-- Default mode: create PR only (no auto-merge).
+- Default mode: create **draft PR** only (no auto-merge).
 - Auto-merge is allowed only when both conditions hold:
   - change class is `docs-only`
   - `--allow-docs-automerge` is explicitly set
@@ -15,14 +15,18 @@
 ## Commands
 
 ```bash
-# Standard run (sync main, classify changes, preflight, open PR)
+# Standard run (sync main, classify changes, preflight, open draft PR)
 bash scripts/auto_pr.sh
 
-# Same, but create draft PR
+# Explicit draft flag (same effect as default)
 bash scripts/auto_pr.sh --draft
 
 # Allow docs-only auto-merge (explicit)
 bash scripts/auto_pr.sh --allow-docs-automerge
+
+# Run named generator via AUTO_PR_GENERATORS mapping + --only selector
+AUTO_PR_GENERATORS='regime_thresholds_calibration:bash scripts/calibrate_regime_thresholds.sh --pr-mode --as-of-utc "$(date -u +%Y-%m-%dT%H:%M:%SZ)"' \
+  bash scripts/auto_pr.sh --only regime_thresholds_calibration
 
 # Skip preflight (not recommended)
 bash scripts/auto_pr.sh --skip-preflight

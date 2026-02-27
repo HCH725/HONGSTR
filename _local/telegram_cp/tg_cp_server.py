@@ -488,6 +488,682 @@ def _fmt_num(v: float | int | None) -> str:
         return "N/A"
 
 
+def _daily_report_path() -> Path:
+    return REPO / "data/state/daily_report_latest.json"
+
+
+def _daily_unknown(value: object, *, digits: int = 2) -> str:
+    try:
+        if value is None:
+            return "資料不足/UNKNOWN"
+        return f"{float(value):.{digits}f}"
+    except Exception:
+        return "資料不足/UNKNOWN"
+
+
+def _daily_int_or_unknown(value: object) -> str:
+    try:
+        if value is None:
+            return "資料不足/UNKNOWN"
+        return str(int(value))
+    except Exception:
+        return "資料不足/UNKNOWN"
+
+
+def _daily_acronym_map() -> dict[str, str]:
+    defaults = {
+        "SSOT": "單一真實來源",
+        "DD": "回撤（Drawdown）",
+        "MDD": "最大回撤（Max Drawdown）",
+        "Sharpe": "風險調整後報酬",
+        "Trades": "交易筆數",
+        "OOS": "樣本外（Out-of-Sample）",
+        "IS": "樣本內（In-Sample）",
+        "OOS/IS": "樣本外/樣本內",
+        "WF": "滾動前推驗證（Walk-Forward）",
+        "L1": "低優先級處置",
+        "L2": "中優先級處置",
+        "L3": "高優先級處置",
+        "L1/L2/L3": "低/中/高優先級風險分層",
+        "TP": "停利（Take Profit）",
+        "SL": "停損（Stop Loss）",
+        "DCA": "定期定額/分批攤平（Dollar-Cost Averaging）",
+    }
+    path = REPO / "docs/ops/acronym_glossary_zh.md"
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return defaults
+
+    for line in content.splitlines():
+        ln = line.strip().lstrip("-").strip()
+        if not ln or ":" not in ln:
+            continue
+        key, val = ln.split(":", 1)
+        key_norm = key.strip()
+        val_norm = val.strip()
+        if key_norm in defaults and val_norm:
+            defaults[key_norm] = val_norm
+    return defaults
+
+
+def _daily_trim(text: str, limit: int = 180) -> str:
+    clean = " ".join(str(text or "").split())
+    if len(clean) <= limit:
+        return clean
+    return clean[: max(0, limit - 1)] + "…"
+
+
+def _daily_norm_status(status_raw: object) -> str:
+    status = str(status_raw or "UNKNOWN").upper().strip()
+    if status in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        return status
+    if status in {"PASS", "DONE"}:
+        return "OK"
+    if status == "NEEDS_REBASE":
+        return "WARN"
+    return "UNKNOWN"
+
+
+def _daily_int(value: object, default: int = 0) -> int:
+    try:
+        return int(float(value))
+    except Exception:
+        return default
+
+
+def _daily_reason(default_reason: str, llm_note: str | None) -> str:
+    if isinstance(llm_note, str) and llm_note.strip():
+        return _daily_trim(llm_note.strip())
+    return _daily_trim(default_reason)
+
+
+def _daily_next_step(
+    status: str,
+    *,
+    ok: str,
+    warn: str,
+    fail: str,
+    unknown: str,
+) -> str:
+    normalized = _daily_norm_status(status)
+    if normalized == "OK":
+        return ok
+    if normalized == "WARN":
+        return warn
+    if normalized == "FAIL":
+        return fail
+    return unknown
+
+
+def _daily_acr_short(desc: str) -> str:
+    text = str(desc or "").strip()
+    for marker in ("（", "("):
+        pos = text.find(marker)
+        if pos > 0:
+            text = text[:pos].strip()
+            break
+    return text or "資料不足"
+
+
+def _daily_load_payload() -> tuple[dict, str | None]:
+    path = _daily_report_path()
+    if not path.exists():
+        return (
+            {
+                "schema": {},
+                "generated_utc": "",
+                "refresh_hint": _status_refresh_hint(),
+                "ssot_status": "UNKNOWN",
+                "ssot_components": {},
+                "freshness_summary": {
+                    "counts": {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0},
+                    "profile_totals": {"realtime": 0, "backtest": 0},
+                    "total_rows": 0,
+                    "max_age_h": None,
+                    "top_offenders": [],
+                },
+                "latest_backtest_head": {
+                    "status": "UNKNOWN",
+                    "metrics_status": "UNKNOWN",
+                    "metrics": {
+                        "final_score": None,
+                        "oos_sharpe": None,
+                        "oos_mdd": None,
+                        "is_sharpe": None,
+                        "trades_count": None,
+                    },
+                    "gate": {"overall": "UNKNOWN"},
+                },
+                "strategy_pool": {
+                    "summary": {"counts": {"candidates": 0, "promoted": 0, "demoted": 0}},
+                    "leaderboard_top": [],
+                    "direction_coverage": {
+                        "counts": {"long": 0, "short": 0, "longshort": 0, "unknown": 0},
+                        "short_coverage": {
+                            "candidates": 0,
+                            "gate_pass": 0,
+                            "best_entry": None,
+                            "best_entry_reason": "missing_ssot",
+                        },
+                    },
+                },
+                "governance": {
+                    "overfit_gates_policy": {"name": "UNKNOWN"},
+                    "today_gate_summary": {"date_utc": "", "scope": "missing_ssot", "total": 0, "pass": 0, "warn": 0, "fail": 0, "unknown": 0},
+                },
+                "guardrails": {
+                    "status": "WARN",
+                    "checks": {
+                        "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
+                        "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
+                        "no_data_committed": {"status": "PASS_EXPECTED"},
+                    },
+                },
+            },
+            "missing_daily_report_ssot",
+        )
+
+    payload = _load_json(path, {})
+    if not isinstance(payload, dict) or not payload:
+        payload = {
+            "schema": {},
+            "generated_utc": "",
+            "refresh_hint": _status_refresh_hint(),
+            "ssot_status": "UNKNOWN",
+            "ssot_components": {},
+            "freshness_summary": {
+                "counts": {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0},
+                "profile_totals": {"realtime": 0, "backtest": 0},
+                "total_rows": 0,
+                "max_age_h": None,
+                "top_offenders": [],
+            },
+                "latest_backtest_head": {"status": "UNKNOWN", "metrics_status": "UNKNOWN", "metrics": {}, "gate": {"overall": "UNKNOWN"}},
+                "strategy_pool": {
+                    "summary": {"counts": {"candidates": 0, "promoted": 0, "demoted": 0}},
+                    "leaderboard_top": [],
+                    "direction_coverage": {
+                        "counts": {"long": 0, "short": 0, "longshort": 0, "unknown": 0},
+                        "short_coverage": {
+                            "candidates": 0,
+                            "gate_pass": 0,
+                            "best_entry": None,
+                            "best_entry_reason": "invalid_ssot",
+                        },
+                    },
+                },
+                "governance": {
+                    "overfit_gates_policy": {"name": "UNKNOWN"},
+                    "today_gate_summary": {"date_utc": "", "scope": "invalid_ssot", "total": 0, "pass": 0, "warn": 0, "fail": 0, "unknown": 0},
+                },
+            "guardrails": {
+                "status": "WARN",
+                "checks": {
+                    "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
+                    "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
+                    "no_data_committed": {"status": "PASS_EXPECTED"},
+                },
+            },
+        }
+        return payload, "unreadable_daily_report_ssot"
+    return payload, None
+
+
+def _daily_compose_report(
+    payload: dict,
+    *,
+    status: str,
+    note: str | None = None,
+    llm_notes: list[str] | None = None,
+) -> str:
+    refresh_hint = str(payload.get("refresh_hint") or _status_refresh_hint())
+    generated_utc = str(payload.get("generated_utc") or "資料不足/UNKNOWN")
+    ssot_status = _daily_norm_status(payload.get("ssot_status"))
+    acr = _daily_acronym_map()
+    acr_short = {k: _daily_acr_short(v) for k, v in acr.items()}
+    acr_display = {
+        "SSOT": acr_short.get("SSOT") or "單一真實來源",
+        "DD": "回撤",
+        "MDD": "最大回撤",
+        "Sharpe": "風險報酬",
+        "Trades": "交易筆數",
+        "OOS": "樣本外",
+        "IS": "樣本內",
+        "WF": "滾動驗證",
+        "L1/L2/L3": "低中高優先",
+        "TP": "停利",
+        "SL": "停損",
+        "DCA": "分批攤平",
+    }
+
+    components = payload.get("ssot_components", {})
+    if not isinstance(components, dict):
+        components = {}
+    freshness_comp = components.get("freshness", {}) if isinstance(components.get("freshness"), dict) else {}
+    coverage_comp = components.get("coverage_matrix", {}) if isinstance(components.get("coverage_matrix"), dict) else {}
+    brake_comp = components.get("brake", {}) if isinstance(components.get("brake"), dict) else {}
+    regime_comp = components.get("regime_monitor", {}) if isinstance(components.get("regime_monitor"), dict) else {}
+    regime_signal_comp = components.get("regime_signal", {}) if isinstance(components.get("regime_signal"), dict) else {}
+    fresh_component_status = _daily_norm_status(freshness_comp.get("status"))
+    coverage_component_status = _daily_norm_status(coverage_comp.get("status"))
+    brake_component_status = _daily_norm_status(brake_comp.get("status"))
+    regime_monitor_status = _daily_norm_status(regime_comp.get("status"))
+    regime_signal_status = _daily_norm_status(regime_signal_comp.get("status"))
+    regime_signal_reason_raw = regime_signal_comp.get("top_reason")
+    regime_signal_reason = "資料不足/UNKNOWN"
+    if isinstance(regime_signal_reason_raw, str) and regime_signal_reason_raw.strip():
+        regime_signal_reason = regime_signal_reason_raw.strip()
+    regime_threshold_value = _daily_unknown(regime_signal_comp.get("threshold_value"), digits=4)
+    regime_threshold_source_path = str(regime_signal_comp.get("threshold_source_path") or "").strip() or "資料不足/UNKNOWN"
+    regime_threshold_policy_sha_raw = str(regime_signal_comp.get("threshold_policy_sha") or "").strip()
+    regime_threshold_policy_sha = regime_threshold_policy_sha_raw[:12] if regime_threshold_policy_sha_raw else "資料不足/UNKNOWN"
+    regime_threshold_rationale = str(regime_signal_comp.get("threshold_rationale") or "").strip() or "資料不足/UNKNOWN"
+    regime_calibration_status_raw = str(regime_signal_comp.get("calibration_status") or "").upper().strip()
+    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "WARN", "STALE", "UNKNOWN"} else "UNKNOWN"
+    regime_last_calibrated_raw = regime_signal_comp.get("last_calibrated_utc")
+    regime_last_calibrated = str(regime_last_calibrated_raw).strip() if isinstance(regime_last_calibrated_raw, str) and str(regime_last_calibrated_raw).strip() else "資料不足/UNKNOWN"
+    system_section_status = _status_max(ssot_status, regime_signal_status)
+    if regime_calibration_status == "STALE":
+        system_section_status = _status_max(system_section_status, "WARN")
+    regime_signal_reason_short = _daily_trim(regime_signal_reason, limit=24)
+    regime_threshold_source_short = _daily_trim(regime_threshold_source_path, limit=72)
+    regime_threshold_rationale_short = _daily_trim(regime_threshold_rationale, limit=28)
+    if regime_signal_status == "FAIL":
+        regime_reason_zh_note = "口語補註=風險已越過紅線，代表短期回撤擴大。"
+    elif regime_signal_status == "WARN":
+        regime_reason_zh_note = "口語補註=風險正在升溫，需先收斂曝險。"
+    else:
+        regime_reason_zh_note = "口語補註=目前在風險舒適區。"
+    if regime_calibration_status == "OK":
+        regime_calibration_note = f"校準狀態=OK（週校準有效）；上次校準={regime_last_calibrated}。"
+    elif regime_calibration_status == "WARN":
+        regime_calibration_note = f"校準狀態=WARN（樣本偏少，建議人工覆核）；上次校準={regime_last_calibrated}。"
+    elif regime_calibration_status == "STALE":
+        regime_calibration_note = f"校準狀態=STALE（超過週期，建議重跑校準）；上次校準={regime_last_calibrated}。"
+    else:
+        regime_calibration_note = f"校準狀態=UNKNOWN（資料不足）；上次校準={regime_last_calibrated}。"
+
+    freshness_summary = payload.get("freshness_summary", {})
+    if not isinstance(freshness_summary, dict):
+        freshness_summary = {}
+    fresh_counts = freshness_summary.get("counts", {})
+    if not isinstance(fresh_counts, dict):
+        fresh_counts = {}
+    profile_totals = freshness_summary.get("profile_totals", {})
+    if not isinstance(profile_totals, dict):
+        profile_totals = {}
+    offenders = freshness_summary.get("top_offenders", [])
+    if not isinstance(offenders, list):
+        offenders = []
+    top_offender = offenders[0] if offenders and isinstance(offenders[0], dict) else {}
+    fresh_ok = _daily_int(fresh_counts.get("OK"))
+    fresh_warn = _daily_int(fresh_counts.get("WARN"))
+    fresh_fail = _daily_int(fresh_counts.get("FAIL"))
+    fresh_unknown = _daily_int(fresh_counts.get("UNKNOWN"))
+    fresh_total = _daily_int(freshness_summary.get("total_rows"))
+    if fresh_fail > 0:
+        freshness_status = "FAIL"
+    elif fresh_warn > 0 or fresh_unknown > 0:
+        freshness_status = "WARN"
+    elif fresh_total > 0:
+        freshness_status = "OK"
+    else:
+        freshness_status = fresh_component_status
+
+    backtest = payload.get("latest_backtest_head", {})
+    if not isinstance(backtest, dict):
+        backtest = {}
+    bt_metrics = backtest.get("metrics", {})
+    if not isinstance(bt_metrics, dict):
+        bt_metrics = {}
+    bt_gate = backtest.get("gate", {})
+    if not isinstance(bt_gate, dict):
+        bt_gate = {}
+    bt_status = _daily_norm_status(backtest.get("status"))
+    bt_gate_status_raw = str(bt_gate.get("overall") or "UNKNOWN").upper()
+    bt_gate_status = _daily_norm_status(bt_gate_status_raw)
+    bt_metrics_status = _daily_norm_status(backtest.get("metrics_status"))
+    if bt_status == "FAIL" or bt_gate_status == "FAIL":
+        backtest_status = "FAIL"
+    elif bt_status == "UNKNOWN":
+        backtest_status = "UNKNOWN"
+    elif bt_gate_status == "WARN" or bt_metrics_status in {"WARN", "UNKNOWN"}:
+        backtest_status = "WARN"
+    else:
+        backtest_status = "OK"
+
+    strategy_pool = payload.get("strategy_pool", {})
+    if not isinstance(strategy_pool, dict):
+        strategy_pool = {}
+    pool_summary = strategy_pool.get("summary", {})
+    if not isinstance(pool_summary, dict):
+        pool_summary = {}
+    pool_counts = pool_summary.get("counts", {})
+    if not isinstance(pool_counts, dict):
+        pool_counts = {}
+    top_entries = strategy_pool.get("leaderboard_top", [])
+    if not isinstance(top_entries, list):
+        top_entries = []
+    top_entry = top_entries[0] if top_entries and isinstance(top_entries[0], dict) else {}
+    top_entry_status = _daily_norm_status(top_entry.get("metrics_status"))
+    top_entry_gate = _daily_norm_status(top_entry.get("gate_overall"))
+    direction_coverage = strategy_pool.get("direction_coverage", {})
+    if not isinstance(direction_coverage, dict):
+        direction_coverage = {}
+    direction_counts = direction_coverage.get("counts", {})
+    if not isinstance(direction_counts, dict):
+        direction_counts = {}
+    short_coverage = direction_coverage.get("short_coverage", {})
+    if not isinstance(short_coverage, dict):
+        short_coverage = {}
+    short_best = short_coverage.get("best_entry", {})
+    if not isinstance(short_best, dict):
+        short_best = {}
+    short_best_status = _daily_norm_status(short_best.get("metrics_status"))
+    pool_candidates = _daily_int(pool_counts.get("candidates"))
+    short_candidates = _daily_int(short_coverage.get("candidates"))
+    if pool_candidates <= 0:
+        strategy_status = "UNKNOWN"
+    elif top_entry_gate == "FAIL":
+        strategy_status = "WARN"
+    elif top_entry_status in {"WARN", "UNKNOWN"}:
+        strategy_status = "WARN"
+    elif short_candidates > 0 and short_best_status in {"WARN", "UNKNOWN"}:
+        strategy_status = "WARN"
+    else:
+        strategy_status = "OK"
+
+    governance = payload.get("governance", {})
+    if not isinstance(governance, dict):
+        governance = {}
+    policy = governance.get("overfit_gates_policy", {})
+    if not isinstance(policy, dict):
+        policy = {}
+    gate_summary = governance.get("today_gate_summary", {})
+    if not isinstance(gate_summary, dict):
+        gate_summary = {}
+    gate_pass = _daily_int(gate_summary.get("pass"))
+    gate_warn = _daily_int(gate_summary.get("warn"))
+    gate_fail = _daily_int(gate_summary.get("fail"))
+    gate_unknown = _daily_int(gate_summary.get("unknown"))
+    gate_total = _daily_int(gate_summary.get("total"))
+    if gate_fail > 0:
+        governance_status = "FAIL"
+    elif gate_warn > 0 or gate_unknown > 0:
+        governance_status = "WARN"
+    elif gate_total > 0 or gate_pass > 0:
+        governance_status = "OK"
+    else:
+        governance_status = "UNKNOWN"
+
+    guardrails = payload.get("guardrails", {})
+    if not isinstance(guardrails, dict):
+        guardrails = {}
+    guardrails_checks = guardrails.get("checks", {})
+    if not isinstance(guardrails_checks, dict):
+        guardrails_checks = {}
+    core_diff_status = str((guardrails_checks.get("core_diff_src_hongstr") or {}).get("status", "UNKNOWN")).upper()
+    no_exec_status = str((guardrails_checks.get("tg_cp_no_exec") or {}).get("status", "UNKNOWN")).upper()
+    no_data_status = str((guardrails_checks.get("no_data_committed") or {}).get("status", "UNKNOWN")).upper()
+    guardrail_values = [core_diff_status, no_exec_status, no_data_status]
+    if any(v == "FAIL" for v in guardrail_values):
+        guardrails_status = "FAIL"
+    elif any(v in {"UNKNOWN", "WARN"} for v in guardrail_values):
+        guardrails_status = "WARN"
+    else:
+        guardrails_status = _daily_norm_status(guardrails.get("status"))
+        if guardrails_status == "UNKNOWN":
+            guardrails_status = "WARN"
+
+    llm_notes = llm_notes or []
+    while len(llm_notes) < 6:
+        llm_notes.append("")
+
+    regime_signal_reason_cn = (
+        f"RegimeSignal（市場風險告警）={regime_signal_status}；"
+        f"{regime_calibration_note}"
+        f"；"
+        f"來源={regime_threshold_source_short}；"
+        f"版本={regime_threshold_policy_sha}；"
+        f"門檻={regime_threshold_value}；"
+        f"{regime_reason_zh_note}"
+        f"；"
+        f"原因={regime_signal_reason_short}；"
+        f"理由={regime_threshold_rationale_short}。"
+    )
+    system_reason = (
+        f"{regime_signal_reason_cn} "
+        f"SSOT={ssot_status}；Freshness={fresh_component_status}、Coverage={coverage_component_status}、"
+        f"Brake={brake_component_status}、RegimeMonitor={regime_monitor_status}。"
+    )
+    offender_text = "資料不足/UNKNOWN"
+    if isinstance(top_offender, dict) and top_offender:
+        offender_text = (
+            f"{top_offender.get('symbol','UNKNOWN')} {top_offender.get('tf','UNKNOWN')}"
+            f"[{top_offender.get('profile','UNKNOWN')}] age_h={_daily_unknown(top_offender.get('age_h'), digits=1)}"
+        )
+    freshness_reason = (
+        f"rows={_daily_int_or_unknown(freshness_summary.get('total_rows'))}；"
+        f"OK/WARN/FAIL/UNKNOWN={_daily_int_or_unknown(fresh_counts.get('OK'))}/"
+        f"{_daily_int_or_unknown(fresh_counts.get('WARN'))}/"
+        f"{_daily_int_or_unknown(fresh_counts.get('FAIL'))}/"
+        f"{_daily_int_or_unknown(fresh_counts.get('UNKNOWN'))}；"
+        f"max_age_h={_daily_unknown(freshness_summary.get('max_age_h'), digits=1)}；"
+        f"top_offender={offender_text}。"
+    )
+    backtest_reason = (
+        f"cand={backtest.get('candidate_id','UNKNOWN')}[{backtest.get('direction','UNKNOWN')}]；"
+        f"gate={bt_gate_status_raw}；score={_daily_unknown(bt_metrics.get('final_score'))}；"
+        f"OOS={_daily_unknown(bt_metrics.get('oos_sharpe'))}；MDD={_daily_unknown(bt_metrics.get('oos_mdd'))}；"
+        f"IS={_daily_unknown(bt_metrics.get('is_sharpe'))}；Trades={_daily_int_or_unknown(bt_metrics.get('trades_count'))}；"
+        f"metrics={backtest.get('metrics_status','UNKNOWN')}。"
+    )
+    short_best_name = short_best.get("strategy_id") or "資料不足/UNKNOWN"
+    if short_best_name == "資料不足/UNKNOWN":
+        short_best_summary = "資料不足/UNKNOWN"
+    else:
+        short_best_summary = (
+            f"{short_best_name}(score={_daily_unknown(short_best.get('score'))},"
+            f"metrics={short_best.get('metrics_status','UNKNOWN')})"
+        )
+    strategy_reason = (
+        f"SHORT覆蓋 候選={_daily_int_or_unknown(short_coverage.get('candidates'))}/"
+        f"過gate={_daily_int_or_unknown(short_coverage.get('gate_pass'))}/"
+        f"最佳={short_best_summary}；"
+        f"counts={_daily_int_or_unknown(pool_counts.get('candidates'))}/"
+        f"{_daily_int_or_unknown(pool_counts.get('promoted'))}/"
+        f"{_daily_int_or_unknown(pool_counts.get('demoted'))}；"
+        f"Top1={top_entry.get('strategy_id','UNKNOWN')}[{top_entry.get('direction','UNKNOWN')}]"
+        f"(score={_daily_unknown(top_entry.get('score'))},m={top_entry.get('metrics_status','UNKNOWN')})。"
+    )
+    governance_reason = (
+        f"policy={policy.get('name','UNKNOWN')}；gate pass/warn/fail/unknown="
+        f"{_daily_int_or_unknown(gate_summary.get('pass'))}/"
+        f"{_daily_int_or_unknown(gate_summary.get('warn'))}/"
+        f"{_daily_int_or_unknown(gate_summary.get('fail'))}/"
+        f"{_daily_int_or_unknown(gate_summary.get('unknown'))}"
+        f" (scope={gate_summary.get('scope','UNKNOWN')})。"
+    )
+    guardrails_reason = (
+        f"core diff={core_diff_status}；tg_cp no-exec={no_exec_status}；"
+        f"no data committed={no_data_status}。"
+    )
+    system_next_default = _daily_next_step(
+        system_section_status,
+        ok="L1：維持排程，明天同一時間再看 /daily。",
+        warn="L2：先跑 refresh_state，再優先排查 DataFreshness 與 Guardrails。",
+        fail="L3：先停新增研究輸出，照 operator manual 逐項排查紅燈。",
+        unknown="L2：先確認 daily_report_latest.json 與 system_health_latest.json 可讀。",
+    )
+    if regime_signal_status == "FAIL":
+        system_next = "L3：RegimeSignal（市場風險告警）紅燈；先降槓桿或降部位、暫停 promote，改看 short 候選並重跑 gate。"
+    elif regime_signal_status == "WARN":
+        system_next = "L2：RegimeSignal（市場風險告警）轉黃；先小幅降槓桿、暫停 promote，優先檢查 short 候選。"
+    elif regime_calibration_status == "STALE":
+        system_next = "L2：Regime 門檻校準已過期；先跑 calibrate_regime_thresholds 並開 policy PR，審核後再生效。"
+    else:
+        system_next = system_next_default
+
+    sections = [
+        {
+            "title": "SystemHealth",
+            "status": system_section_status,
+            "reason": _daily_reason(system_reason, llm_notes[0]),
+            "next": system_next,
+        },
+        {
+            "title": "DataFreshness",
+            "status": freshness_status,
+            "reason": _daily_reason(freshness_reason, llm_notes[1]),
+            "next": _daily_next_step(
+                freshness_status,
+                ok="L1：維持 refresh_state 排程，異常時再看 offender。",
+                warn="L2：先看 top offender 的 ETL 與檔案時間戳，確認 age_h 下降。",
+                fail="L3：先補資料來源後重跑 refresh_state，再確認 FAIL 清零。",
+                unknown="L2：確認 freshness_summary 欄位存在且型別正確。",
+            ),
+        },
+        {
+            "title": "Backtest",
+            "status": backtest_status,
+            "reason": _daily_reason(backtest_reason, llm_notes[2]),
+            "next": _daily_next_step(
+                backtest_status,
+                ok="L1：維持觀察；若連兩日下滑再進 governance 複查。",
+                warn="L2：重跑 research loop(one-shot)並核對 metrics_status/reason。",
+                fail="L3：先凍結該候選推進，先解 gate fail 原因再評估。",
+                unknown="L2：確認 latest_backtest_head artifacts 與 metrics 是否齊全。",
+            ),
+        },
+        {
+            "title": "StrategyPool+Leaderboard",
+            "status": strategy_status,
+            "reason": _daily_reason(strategy_reason, llm_notes[3]),
+            "next": _daily_next_step(
+                strategy_status,
+                ok="L1：維持方向覆蓋；追蹤 SHORT 最佳候選是否穩定。",
+                warn="L2：補齊缺失 metrics 或方向欄位，再更新 leaderboard。",
+                fail="L3：先停止策略池升級流程，先修正 ranking/gate 異常。",
+                unknown="L2：先確認 strategy_pool summary 與 leaderboard_top 來源完整。",
+            ),
+        },
+        {
+            "title": "Governance(Overfit)",
+            "status": governance_status,
+            "reason": _daily_reason(governance_reason, llm_notes[4]),
+            "next": _daily_next_step(
+                governance_status,
+                ok="L1：照既有 overfit policy 持續監控即可。",
+                warn="L2：把 WARN/UNKNOWN 候選列入 watchlist 並補原因標註。",
+                fail="L3：針對 fail 候選先做原因分群，再決定是否降級。",
+                unknown="L2：確認 today_gate_summary 是否由最新研究輸出更新。",
+            ),
+        },
+        {
+            "title": "Guardrails",
+            "status": guardrails_status,
+            "reason": _daily_reason(guardrails_reason, llm_notes[5]),
+            "next": _daily_next_step(
+                guardrails_status,
+                ok="L1：維持 preflight 慣例（core/no-exec/no-data）。",
+                warn="L2：補跑 guardrails 檢查並修復未達 PASS_EXPECTED 的項目。",
+                fail="L3：停止交付，先修復 guardrail fail 再重新驗證。",
+                unknown="L2：先刷新 guardrails 區塊與 preflight transcript。",
+            ),
+        },
+    ]
+
+    lines = [
+        "📘 每日報告（Single Entry /daily）",
+        f"DAILY_REPORT_STATUS: {_daily_norm_status(status)}",
+        f"UTC: {generated_utc}",
+        "縮寫: "
+        f"SSOT({acr_display['SSOT']}) DD({acr_display['DD']}) MDD({acr_display['MDD']}) "
+        f"Sharpe({acr_display['Sharpe']}) Trades({acr_display['Trades']}) "
+        f"OOS({acr_display['OOS']}) IS({acr_display['IS']}) WF({acr_display['WF']}) "
+        f"L1/L2/L3({acr_display['L1/L2/L3']}) TP({acr_display['TP']}) "
+        f"SL({acr_display['SL']}) DCA({acr_display['DCA']})",
+    ]
+
+    for idx, section in enumerate(sections, start=1):
+        lines.extend(
+            [
+                "",
+                f"{idx}) {section['title']}",
+                f"狀態: {_daily_norm_status(section['status'])}",
+                f"白話: {section['reason']}",
+                f"下一步: {section['next']}",
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "需要時參考: docs/inventory.md | docs/ops/telegram_operator_manual.md",
+            f"RefreshHint: {refresh_hint}",
+        ]
+    )
+    if note:
+        lines.append(f"註記: {note}")
+    return "\n".join(lines)
+
+
+def _daily_llm_notes(payload: dict) -> tuple[list[str] | None, str | None]:
+    if not callable(call_reasoning_specialist):
+        return None, "reasoning_client_unavailable"
+
+    prompt = (
+        "你會收到每日報告 SSOT JSON。請輸出 6 句給合作夥伴的短解讀，對應章節："
+        "1)SystemHealth 2)DataFreshness 3)Backtest 4)StrategyPool+Leaderboard 5)Governance(Overfit) 6)Guardrails。\n"
+        "限制：每句最多 48 字，繁體中文；不可杜撰數字；資料不足請寫「資料不足/UNKNOWN」。\n"
+        "請以 ReasoningAnalysis JSON 結構輸出，並把 6 句放到 key_findings。\n\n"
+        "SSOT JSON:\n" + json.dumps(payload, ensure_ascii=False)
+    )
+    system_prompt = (
+        "You are a reporting specialist.\n"
+        "Return JSON only with ReasoningAnalysis schema.\n"
+        "Put exactly six short notes into key_findings.\n"
+        "Never invent numbers.\n"
+    )
+
+    try:
+        analysis = call_reasoning_specialist(prompt, system_prompt=system_prompt, timeout=45)
+    except Exception:
+        return None, "reasoning_call_exception"
+    if not analysis:
+        return None, "reasoning_empty"
+
+    problem_lower = str(getattr(analysis, "problem", "")).lower()
+    if "call failed" in problem_lower or "extraction failed" in problem_lower:
+        return None, "reasoning_failed"
+
+    findings = list(getattr(analysis, "key_findings", []) or [])
+    while len(findings) < 6:
+        findings.append("資料不足/UNKNOWN")
+    return findings[:6], None
+
+
+def skill_daily_report() -> str:
+    payload, load_issue = _daily_load_payload()
+    if load_issue:
+        return _daily_compose_report(
+            payload,
+            status="WARN",
+            note=f"{load_issue}; run `{payload.get('refresh_hint', _status_refresh_hint())}`",
+        )
+
+    base_status = _daily_norm_status(payload.get("ssot_status"))
+    notes, llm_issue = _daily_llm_notes(payload)
+    if notes:
+        return _daily_compose_report(payload, status=base_status, llm_notes=notes)
+    return _daily_compose_report(
+        payload,
+        status=_status_max(base_status, "WARN"),
+        note=None,
+    )
+
+
 def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
     if not isinstance(health_pack, dict) or not health_pack:
         return None
@@ -1987,7 +2663,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "嗨 👋 我是 HONGSTR 中樞管家。\n"
             "直接跟我聊就好，問什麼我都會盡量用白話回答你。\n"
             "我是 read-only 助手 — 只查看、判讀，不直接動系統。\n\n"
-            "快捷指令：/status /brake /freshness /regime /ml_status /help /skills"
+            "快捷指令：/status /daily /brake /freshness /regime /ml_status /help /skills"
         )
 
     if cmd == "/ping":
@@ -1998,6 +2674,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "直接打字問我就好，不需要特別格式 😊\n\n"
             "📊 監控指令（read-only）：\n"
             "• /status — 系統瓶頸摘要\n"
+            "• /daily — 每日 SSOT 報告（固定模板 + LLM 潤飾失敗自動降級）\n"
             "• /brake — 煞車健康檢查 (Artifacts & Freshness)\n"
             "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
@@ -2010,6 +2687,9 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/status":
         return _status_short_report()
+
+    if cmd == "/daily":
+        return skill_daily_report()
 
     if cmd == "/freshness":
         return skill_freshness_detail()
@@ -2028,6 +2708,7 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
+        lines.append("• (內建) /daily: 每日 SSOT 報告（合作夥伴友善）")
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         lines.append("• (內建) /ml_status: ML 流水線健康狀態")
         lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
