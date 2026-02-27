@@ -40,29 +40,23 @@
 
 - [System Flow & Terminology Glossary](docs/architecture/flow_and_glossary.md)
 
-<<<<<<< HEAD
-## Operations (Quant Specialist)
-
-- [Telegram Operator Manual](docs/ops/telegram_operator_manual.md)
-=======
 ## Operations (Partner & Operator)
 
 - [Daily Report Single Entry](docs/ops/daily_report_single_entry.md) **(Primary)**
-- [Daily Report & Glossary (zh-TW)](docs/ops/daily_report_zh.md) **(Reference)**
-- [Telegram Operator Manual](docs/ops/telegram_operator_manual.md) **(Reference)**
-- [Daily Report Contract](docs/ops/daily_report_contract.md) **(Reference)**
-- [Acronym Glossary (zh-TW)](docs/ops/acronym_glossary_zh.md)
+- [PM Checklist](docs/ops/pm_checklist.md)
+- [PM Snapshot Runbook](docs/ops/pm_snapshot_runbook.md)
 
-## PM / Audit References (Reference)
+## Reference (Operations)
 
 These are reference materials, not daily operational entrypoints. Daily status should be consumed from `/daily` only.
 
-- [PM Checklist](docs/ops/pm_checklist.md)
-- [PM Snapshot Runbook](docs/ops/pm_snapshot_runbook.md)
-- `docs/audits/*.md` (historical analysis reports, reference-only)
-- `docs/governance/*.md` (weekly governance and policy background, reference-only)
-- `docs/runbook/*.md` (operational fallback manual, reference-only)
->>>>>>> cd76fa5 (ops/report: consolidate /daily single-entry template + SSOT coverage)
+- [Telegram Operator Manual](docs/ops/telegram_operator_manual.md) **(Reference Only)**
+- [Daily Report & Glossary (zh-TW)](docs/ops/daily_report_zh.md) **(Reference Only)**
+- [Daily Report Contract](docs/ops/daily_report_contract.md) **(Reference Only)**
+- [Acronym Glossary (zh-TW)](docs/ops/acronym_glossary_zh.md) **(Reference Only)**
+- `docs/audits/*.md` (historical analysis reports)
+- `docs/governance/*.md` (policy background)
+- `docs/runbook/*.md` (operational fallback manual)
 
 ## State / Artifacts (expected)
 

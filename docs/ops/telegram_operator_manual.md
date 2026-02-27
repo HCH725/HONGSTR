@@ -1,8 +1,11 @@
-# Telegram Operator Manual (HONGSTR)
-
-> REFERENCE ONLY
+# Telegram Operator Manual
 >
-> 每日主入口請直接使用 Telegram `/daily`。此文件只作補充排障。
+> [!IMPORTANT]
+> **REFERENCE ONLY**
+> 操作與報告入口請參考 [Daily Report Single Entry](daily_report_single_entry.md)。
+(HONGSTR)
+> REFERENCE ONLY
+> 每日報告主入口已收斂至 Telegram `/daily`。本文件保留作操作細節參考。
 
 ## Daily Report Entry Point
 

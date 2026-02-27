@@ -1,13 +1,16 @@
 # HONGSTR 每日營運報告與術語表 (zh-TW)
-
-> REFERENCE ONLY
 >
-> 每日主入口已收斂為 Telegram `/daily` 與 `docs/ops/daily_report_single_entry.md`。本文件保留作術語參考。
+> [!IMPORTANT]
+> **REFERENCE ONLY**
+> 每日報告主入口已收斂至 [Daily Report Single Entry](daily_report_single_entry.md)。
 
 ---
 
 ## 1. 每日營運報告模板 (Daily Report Template)
-
+>
+> [!IMPORTANT]
+> **REFERENCE ONLY**
+> 每日報告協議說明請參見 [Daily Report Single Entry](daily_report_single_entry.md)。
 > 旨在提供系統狀態與策略表現的快速概覽。
 
 ### 報告區段
@@ -55,4 +58,4 @@
 | **Overfit Gov.** | 過度擬合治理 | 防止策略只對歷史有效。 | 若警告亮起，策略需打回研究。 |
 
 ---
-*Safety Level: Docs Official (zh-TW)*
+Safety Level: Docs Official (zh-TW)
