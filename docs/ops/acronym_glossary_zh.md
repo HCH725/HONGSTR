@@ -1,4 +1,8 @@
-# HONGSTR Acronym Glossary (zh-TW)
+# HONGSTR 術語名詞表 (Acronym Glossary)
+
+> [!IMPORTANT]
+> REFERENCE ONLY - 內容已整合至 [Daily Report Single Entry](daily_report_single_entry.md)。
+ (zh-TW)
 
 - SSOT: 單一真實來源（Single Source of Truth）
 - DD: 回撤（Drawdown）
