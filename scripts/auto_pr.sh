@@ -131,7 +131,7 @@ if [[ -n "${AUTO_PR_GENERATORS:-}" || "${#ONLY_GENERATORS[@]}" -gt 0 ]]; then
   done < <(printf '%s' "${AUTO_PR_GENERATORS:-}" | tr ';' '\n')
 
   if [[ "${#ONLY_GENERATORS[@]}" -eq 0 ]]; then
-    for raw in "${RAW_GENERATORS[@]}"; do
+    for raw in "${RAW_GENERATORS[@]-}"; do
       spec="$(echo "$raw" | xargs)"
       if [[ -z "$spec" ]]; then
         continue
@@ -153,9 +153,9 @@ if [[ -n "${AUTO_PR_GENERATORS:-}" || "${#ONLY_GENERATORS[@]}" -gt 0 ]]; then
       fi
     done
   else
-    for only_name in "${ONLY_GENERATORS[@]}"; do
+    for only_name in "${ONLY_GENERATORS[@]-}"; do
       found=0
-      for raw in "${RAW_GENERATORS[@]}"; do
+      for raw in "${RAW_GENERATORS[@]-}"; do
         spec="$(echo "$raw" | xargs)"
         if [[ -z "$spec" ]]; then
           continue
