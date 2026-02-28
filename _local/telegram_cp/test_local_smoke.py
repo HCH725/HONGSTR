@@ -232,6 +232,12 @@ def _write_daily_report_ssot(repo: Path) -> None:
                     ],
                 },
                 "latest_backtest_head": {
+                    "source": "local",
+                    "path": "reports/research/20260227/trend_mvp_btc_1h__long__baseline/summary.json",
+                    "bundle": None,
+                    "timestamp": "2026-02-27T22:20:01Z",
+                    "timestamp_utc": "2026-02-27T22:20:01Z",
+                    "reason": "local backtest newer or equal to worker bundle",
                     "candidate_id": "trend_mvp_btc_1h__long__baseline",
                     "direction": "LONG",
                     "metrics_status": "OK",
@@ -288,6 +294,16 @@ def _write_daily_report_ssot(repo: Path) -> None:
                         "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
                         "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
                         "no_data_committed": {"status": "PASS_EXPECTED"},
+                    }
+                },
+                "sources": {
+                    "worker_inbox": {
+                        "present": True,
+                        "latest_bundle": "mba_m4_backtests_20260227T210000Z",
+                        "bundle_path": "_local/worker_inbox/mba_m4_backtests_20260227T210000Z",
+                        "bundle_ts_utc": "2026-02-27T21:00:00Z",
+                        "ingested_into_state": True,
+                        "note": "worker 較舊，沿用 local",
                     }
                 },
             }
@@ -541,6 +557,7 @@ def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
     assert "上次校準=2026-02-18T00:00:00Z" in resp
     assert "先降槓桿或降部位、暫停 promote" in resp
     assert "SHORT覆蓋" in resp
+    assert "來源：LOCAL trend_mvp_btc_1h__long__baseline（worker 較舊，沿用 local）" in resp
     assert "RefreshHint: bash scripts/refresh_state.sh" in resp
 
 
@@ -588,8 +605,33 @@ def test_daily_command_section_shape_is_three_lines(monkeypatch, tmp_path):
         after = resp.split(anchor, 1)[1]
         lines = [ln for ln in after.splitlines() if ln.strip()]
         assert lines[0].startswith("狀態:")
-        assert lines[1].startswith("白話:")
-        assert lines[2].startswith("下一步:")
+        if title == "Backtest":
+            assert lines[1].startswith("來源：")
+            assert lines[2].startswith("白話:")
+            assert lines[3].startswith("下一步:")
+        else:
+            assert lines[1].startswith("白話:")
+            assert lines[2].startswith("下一步:")
+
+
+def test_daily_command_backtest_worker_source_line(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    state_dir = repo / "data/state"
+    payload = json.loads((state_dir / "daily_report_latest.json").read_text(encoding="utf-8"))
+    payload["latest_backtest_head"]["source"] = "worker_inbox"
+    payload["latest_backtest_head"]["bundle"] = "mba_m4_backtests_20260228T083052Z"
+    payload["latest_backtest_head"]["reason"] = "worker bundle newer than local backtest"
+    payload["sources"]["worker_inbox"]["note"] = "worker 較新，已選為最新回測"
+    (state_dir / "daily_report_latest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    resp = s._handle_command(382, "/daily")
+    assert "來源：WORKER mba_m4_backtests_20260228T083052Z" in resp
 
 
 def test_daily_command_missing_ssot(monkeypatch, tmp_path):

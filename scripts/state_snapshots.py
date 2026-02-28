@@ -19,6 +19,7 @@ ATOMIC_STATE_DIR = Path("reports/state_atomic")
 ATOMIC_COVERAGE_TABLE = ATOMIC_STATE_DIR / "coverage_table.jsonl"
 ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
 ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
+WORKER_INBOX_DIR = Path("_local/worker_inbox")
 DEFAULT_FRESHNESS_PROFILE = "realtime"
 FRESHNESS_THRESHOLDS = {
     "realtime": {"ok_h": 0.1, "warn_h": 0.25, "fail_h": 1.0},
@@ -58,6 +59,8 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "strategy_pool.direction_coverage": {"zh": "策略方向覆蓋摘要", "en": "strategy_pool.direction_coverage"},
     "strategy_pool.direction_coverage.short_coverage": {"zh": "空方覆蓋摘要", "en": "strategy_pool.direction_coverage.short_coverage"},
     "governance.today_gate_summary": {"zh": "今日Gate摘要", "en": "governance.today_gate_summary"},
+    "sources.worker_inbox": {"zh": "Worker 收件匣來源", "en": "sources.worker_inbox"},
+    "latest_backtest_head.source": {"zh": "最新回測來源", "en": "latest_backtest_head.source"},
     "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
     "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
     "ssot_components.regime_signal.threshold_policy_sha": {"zh": "RegimeSignal門檻版本SHA", "en": "ssot_components.regime_signal.threshold_policy_sha"},
@@ -357,6 +360,43 @@ def _parse_ts_epoch(value: Any) -> float | None:
         return None
 
 
+def _ts_utc_from_epoch(epoch: float | None) -> str | None:
+    if epoch is None:
+        return None
+    try:
+        return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        return None
+
+
+def _normalize_ts_utc(value: Any) -> str | None:
+    return _ts_utc_from_epoch(_parse_ts_epoch(value))
+
+
+def _path_mtime_utc(path: Path) -> str | None:
+    try:
+        return _ts_utc_from_epoch(path.stat().st_mtime)
+    except Exception:
+        return None
+
+
+def _worker_bundle_ts_utc(bundle_name: str) -> str | None:
+    token = str(bundle_name or "")
+    marker = "_backtests_"
+    if marker not in token:
+        return None
+    suffix = token.rsplit(marker, 1)[-1].strip()
+    if len(suffix) != 16 or suffix[8] != "T" or not suffix.endswith("Z"):
+        return None
+    try:
+        return (
+            f"{suffix[0:4]}-{suffix[4:6]}-{suffix[6:8]}T"
+            f"{suffix[9:11]}:{suffix[11:13]}:{suffix[13:15]}Z"
+        )
+    except Exception:
+        return None
+
+
 def _freshness_summary(freshness_table: dict[str, Any]) -> dict[str, Any]:
     rows = freshness_table.get("rows", []) if isinstance(freshness_table, dict) else []
     counts = {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0}
@@ -561,24 +601,33 @@ def _research_top_entries(leaderboard: dict[str, Any], top_n: int = 5) -> list[d
     return ranked[:top_n]
 
 
-def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+def _unknown_backtest_head(reason: str) -> dict[str, Any]:
+    return {
+        "status": "UNKNOWN",
+        "source": "local",
+        "path": "",
+        "bundle": None,
+        "timestamp": "",
+        "timestamp_utc": None,
+        "reason": reason,
+        "artifacts": {"report_dir": "", "summary": "", "gate": "", "selection": ""},
+        "metrics": {
+            "final_score": None,
+            "oos_sharpe": None,
+            "oos_mdd": None,
+            "is_sharpe": None,
+            "trades_count": None,
+        },
+        "gate": {"overall": "UNKNOWN", "recommendation": "UNKNOWN"},
+        "metrics_status": "UNKNOWN",
+        "metrics_unavailable_reason": "missing_metrics:final_score,oos_sharpe,oos_mdd",
+    }
+
+
+def _latest_local_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
     if not isinstance(rows, list) or not rows:
-        return {
-            "status": "UNKNOWN",
-            "reason": "missing_research_leaderboard",
-            "artifacts": {"report_dir": "", "summary": "", "gate": "", "selection": ""},
-            "metrics": {
-                "final_score": None,
-                "oos_sharpe": None,
-                "oos_mdd": None,
-                "is_sharpe": None,
-                "trades_count": None,
-            },
-            "gate": {"overall": "UNKNOWN", "recommendation": "UNKNOWN"},
-            "metrics_status": "UNKNOWN",
-            "metrics_unavailable_reason": "missing_metrics:final_score,oos_sharpe,oos_mdd",
-        }
+        return _unknown_backtest_head("missing_research_leaderboard")
 
     chosen = max(
         (r for r in rows if isinstance(r, dict)),
@@ -622,17 +671,26 @@ def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[
     recommendation = str(gate_obj.get("recommendation") or "UNKNOWN").upper()
     if recommendation not in {"PROMOTE", "WATCHLIST", "DEMOTE", "UNKNOWN"}:
         recommendation = "UNKNOWN"
+    timestamp_raw = chosen.get("timestamp") or summary_obj.get("timestamp") or ""
+    timestamp_utc = _normalize_ts_utc(timestamp_raw)
+    summary_rel = _safe_rel_path(summary_path or "", repo_root)
+    report_dir_rel = _safe_rel_path(report_dir_path or "", repo_root)
 
     return {
         "status": "OK",
+        "source": "local",
+        "path": summary_rel or report_dir_rel,
+        "bundle": None,
         "candidate_id": chosen.get("candidate_id") or chosen.get("experiment_id") or "unknown",
         "strategy_id": chosen.get("strategy_id") or "unknown",
         "direction": chosen.get("direction") or summary_obj.get("direction") or "UNKNOWN",
         "variant": chosen.get("variant") or summary_obj.get("variant") or "base",
-        "timestamp": chosen.get("timestamp") or "",
+        "timestamp": timestamp_raw,
+        "timestamp_utc": timestamp_utc,
+        "reason": "selected newest local research leaderboard entry",
         "artifacts": {
-            "report_dir": _safe_rel_path(report_dir_path or "", repo_root),
-            "summary": _safe_rel_path(summary_path or "", repo_root),
+            "report_dir": report_dir_rel,
+            "summary": summary_rel,
             "gate": _safe_rel_path(gate_path or "", repo_root),
             "selection": _safe_rel_path(selection_path or "", repo_root),
         },
@@ -647,6 +705,196 @@ def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[
         "metrics_status": metrics_status,
         "metrics_unavailable_reason": reason,
     }
+
+
+def _latest_worker_backtest_head(repo_root: Path) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    meta = {
+        "present": False,
+        "latest_bundle": "",
+        "bundle_path": "",
+        "bundle_ts_utc": None,
+        "ingested_into_state": False,
+        "note": "",
+    }
+    inbox_dir = repo_root / WORKER_INBOX_DIR
+    if not inbox_dir.exists() or not inbox_dir.is_dir():
+        return None, meta
+
+    bundles: list[tuple[float, str, Path, str | None]] = []
+    for child in inbox_dir.iterdir():
+        if not child.is_dir() or "_backtests_" not in child.name:
+            continue
+        bundle_ts_utc = _worker_bundle_ts_utc(child.name) or _path_mtime_utc(child)
+        bundle_epoch = _parse_ts_epoch(bundle_ts_utc) if bundle_ts_utc else None
+        if bundle_epoch is None:
+            try:
+                bundle_epoch = child.stat().st_mtime
+            except Exception:
+                bundle_epoch = 0.0
+        bundles.append((float(bundle_epoch), child.name, child, bundle_ts_utc))
+
+    if not bundles:
+        return None, meta
+
+    _, bundle_name, bundle_dir, bundle_ts_utc = max(bundles, key=lambda row: (row[0], row[1]))
+    meta.update(
+        {
+            "present": True,
+            "latest_bundle": bundle_name,
+            "bundle_path": _safe_rel_path(bundle_dir, repo_root),
+            "bundle_ts_utc": bundle_ts_utc,
+            "ingested_into_state": True,
+            "note": "偵測到 worker backtests bundle",
+        }
+    )
+
+    summary_path = bundle_dir / "summary.json"
+    gate_path = bundle_dir / "gate.json"
+    selection_path = bundle_dir / "selection.json"
+    if not summary_path.exists():
+        meta["note"] = "worker 產物不完整：缺少 summary.json，沿用 local"
+        return None, meta
+
+    summary_obj = read_json(summary_path)
+    if not isinstance(summary_obj, dict):
+        meta["note"] = "worker 產物不可讀：summary.json，沿用 local"
+        return None, meta
+
+    gate_obj = read_json(gate_path) if gate_path.exists() else {}
+    selection_obj = read_json(selection_path) if selection_path.exists() else {}
+    if not isinstance(gate_obj, dict):
+        gate_obj = {}
+    if not isinstance(selection_obj, dict):
+        selection_obj = {}
+
+    gate_results = gate_obj.get("results", {})
+    if not isinstance(gate_results, dict):
+        gate_results = {}
+    overall_obj = gate_results.get("overall", {})
+    if not isinstance(overall_obj, dict):
+        overall_obj = {}
+    overall_pass = overall_obj.get("pass")
+    if isinstance(overall_pass, bool):
+        gate_overall = "PASS" if overall_pass else "FAIL"
+    else:
+        gate_overall = _normalize_gate_status(gate_obj.get("overall"))
+
+    selected_obj = selection_obj.get("selected", {})
+    if not isinstance(selected_obj, dict):
+        selected_obj = {}
+    selected_params = selected_obj.get("params", {})
+    if not isinstance(selected_params, dict):
+        selected_params = {}
+    strategy_id = str(selected_params.get("strategy") or summary_obj.get("strategy") or "worker_backtest_bundle")
+    direction = str(
+        (
+            gate_obj.get("inputs", {})
+            if isinstance(gate_obj.get("inputs"), dict)
+            else {}
+        ).get("mode")
+        or summary_obj.get("direction")
+        or "UNKNOWN"
+    ).upper()
+    if direction not in {"LONG", "SHORT", "LONGSHORT"}:
+        direction = "UNKNOWN"
+    variant = str(selection_obj.get("regime") or summary_obj.get("variant") or "worker_bundle")
+    timestamp_raw = (
+        summary_obj.get("timestamp")
+        or selection_obj.get("generated_at")
+        or gate_obj.get("generated_at")
+        or bundle_ts_utc
+        or ""
+    )
+    timestamp_utc = _normalize_ts_utc(timestamp_raw) or bundle_ts_utc
+
+    final_score = _as_float_opt(gate_obj.get("final_score"))
+    oos_sharpe = _as_float_opt(summary_obj.get("sharpe"))
+    oos_mdd = _as_float_opt(summary_obj.get("max_drawdown"))
+    is_sharpe = _as_float_opt(summary_obj.get("is_sharpe"))
+    trades_count = _as_float_opt(summary_obj.get("trades_count"))
+
+    worker_missing = []
+    if oos_sharpe is None:
+        worker_missing.append("oos_sharpe")
+    if oos_mdd is None:
+        worker_missing.append("oos_mdd")
+    if worker_missing:
+        metrics_status = "UNKNOWN"
+        metrics_reason = "missing_metrics:" + ",".join(worker_missing)
+    else:
+        metrics_status = "OK"
+        metrics_reason = None
+
+    return (
+        {
+            "status": "OK",
+            "source": "worker_inbox",
+            "path": _safe_rel_path(summary_path, repo_root),
+            "bundle": bundle_name,
+            "candidate_id": strategy_id,
+            "strategy_id": strategy_id,
+            "direction": direction,
+            "variant": variant,
+            "timestamp": timestamp_raw or "",
+            "timestamp_utc": timestamp_utc,
+            "reason": "worker bundle available for comparison",
+            "artifacts": {
+                "report_dir": _safe_rel_path(bundle_dir, repo_root),
+                "summary": _safe_rel_path(summary_path, repo_root),
+                "gate": _safe_rel_path(gate_path, repo_root) if gate_path.exists() else "",
+                "selection": _safe_rel_path(selection_path, repo_root) if selection_path.exists() else "",
+            },
+            "metrics": {
+                "final_score": final_score,
+                "oos_sharpe": oos_sharpe,
+                "oos_mdd": oos_mdd,
+                "is_sharpe": is_sharpe,
+                "trades_count": int(trades_count) if trades_count is not None else None,
+            },
+            "gate": {"overall": gate_overall, "recommendation": "UNKNOWN"},
+            "metrics_status": metrics_status,
+            "metrics_unavailable_reason": metrics_reason,
+        },
+        meta,
+    )
+
+
+def _latest_backtest_head_with_worker_provenance(
+    leaderboard: dict[str, Any], repo_root: Path
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    local_head = _latest_local_backtest_head(leaderboard, repo_root)
+    worker_head, worker_meta = _latest_worker_backtest_head(repo_root)
+    local_epoch = _parse_ts_epoch(local_head.get("timestamp_utc") or local_head.get("timestamp"))
+    worker_epoch = None
+    if isinstance(worker_head, dict):
+        worker_epoch = _parse_ts_epoch(worker_head.get("timestamp_utc") or worker_head.get("timestamp"))
+
+    if isinstance(worker_head, dict) and (
+        local_epoch is None or (worker_epoch is not None and worker_epoch > local_epoch)
+    ):
+        worker_meta["note"] = "worker 較新，已選為最新回測"
+        worker_head["reason"] = "worker bundle newer than local backtest"
+        return worker_head, worker_meta
+
+    if worker_meta.get("present"):
+        if not isinstance(worker_head, dict):
+            if local_head.get("status") == "UNKNOWN":
+                local_head["reason"] = "worker bundle incomplete and local backtest unavailable"
+            else:
+                local_head["reason"] = "worker bundle incomplete; fallback to local"
+        elif local_epoch is None and worker_epoch is None:
+            worker_meta["note"] = "worker 與 local 時間戳不可判定，沿用 local"
+            local_head["reason"] = "worker and local timestamps unreadable; default to local"
+        else:
+            worker_meta["note"] = "worker 較舊或同時戳，沿用 local"
+            local_head["reason"] = "local backtest newer or equal to worker bundle"
+
+    return local_head, worker_meta
+
+
+def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    head, _ = _latest_backtest_head_with_worker_provenance(leaderboard, repo_root)
+    return head
 
 
 def _governance_summary(leaderboard: dict[str, Any], policy_payload: dict[str, Any], now_utc: str) -> dict[str, Any]:
@@ -722,6 +970,9 @@ def _build_daily_report_payload(
     pool_counts = strategy_pool_summary.get("counts", {}) if isinstance(strategy_pool_summary, dict) else {}
     if not isinstance(pool_counts, dict):
         pool_counts = {}
+    latest_backtest_head, worker_inbox_source = _latest_backtest_head_with_worker_provenance(
+        research_leaderboard, repo_root
+    )
 
     payload = {
         "schema": _daily_schema_spec(),
@@ -730,7 +981,7 @@ def _build_daily_report_payload(
         "ssot_status": str(system_health.get("ssot_status") or "UNKNOWN"),
         "ssot_components": components,
         "freshness_summary": _freshness_summary(freshness_table),
-        "latest_backtest_head": _latest_backtest_head(research_leaderboard, repo_root),
+        "latest_backtest_head": latest_backtest_head,
         "strategy_pool": {
             "summary": {
                 "counts": {
@@ -757,6 +1008,7 @@ def _build_daily_report_payload(
             "strategy_pool": _source_meta(STATE_DIR / "strategy_pool.json", now_ts),
             "research_leaderboard": _source_meta(STATE_DIR / "_research/leaderboard.json", now_ts, ["generated_at"]),
             "research_loop_state": _source_meta(STATE_DIR / "_research/loop_state.json", now_ts, ["last_run"]),
+            "worker_inbox": worker_inbox_source,
         },
     }
 

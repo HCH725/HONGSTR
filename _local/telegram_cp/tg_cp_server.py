@@ -832,6 +832,32 @@ def _daily_compose_report(
         backtest_status = "WARN"
     else:
         backtest_status = "OK"
+    sources = payload.get("sources", {})
+    if not isinstance(sources, dict):
+        sources = {}
+    worker_source = sources.get("worker_inbox", {})
+    if not isinstance(worker_source, dict):
+        worker_source = {}
+    worker_present = bool(worker_source.get("present"))
+    worker_note = str(worker_source.get("note") or "").strip()
+    bt_source_raw = str(backtest.get("source") or "local").strip().lower()
+    bt_source = "worker_inbox" if bt_source_raw == "worker_inbox" else "local"
+    bt_path = str(backtest.get("path") or "").strip()
+    bt_bundle = str(backtest.get("bundle") or "").strip()
+    if bt_source == "worker_inbox":
+        worker_token = bt_bundle
+        if not worker_token and bt_path:
+            worker_token = Path(bt_path).parent.name or Path(bt_path).name
+        backtest_source_line = f"來源：WORKER {worker_token or '資料不足/UNKNOWN'}"
+    else:
+        local_token = ""
+        if bt_path:
+            local_token = Path(bt_path).parent.name or Path(bt_path).name
+        if not local_token:
+            local_token = str(backtest.get("candidate_id") or "資料不足/UNKNOWN")
+        backtest_source_line = f"來源：LOCAL {local_token}"
+        if worker_present and worker_note:
+            backtest_source_line += f"（{worker_note}）"
 
     strategy_pool = payload.get("strategy_pool", {})
     if not isinstance(strategy_pool, dict):
@@ -1027,6 +1053,7 @@ def _daily_compose_report(
         {
             "title": "Backtest",
             "status": backtest_status,
+            "source_line": backtest_source_line,
             "reason": _daily_reason(backtest_reason, llm_notes[2]),
             "next": _daily_next_step(
                 backtest_status,
@@ -1092,6 +1119,13 @@ def _daily_compose_report(
                 "",
                 f"{idx}) {section['title']}",
                 f"狀態: {_daily_norm_status(section['status'])}",
+            ]
+        )
+        source_line = str(section.get("source_line") or "").strip()
+        if source_line:
+            lines.append(source_line)
+        lines.extend(
+            [
                 f"白話: {section['reason']}",
                 f"下一步: {section['next']}",
             ]
