@@ -1821,6 +1821,28 @@ def skill_execution_quality_report_readonly(args: dict) -> str:
     return payload["markdown"]
 
 
+def skill_data_lineage_fingerprint(args: dict) -> dict:
+    try:
+        from _local.telegram_cp.skills.data_lineage_fingerprint import get_data_lineage_fingerprint
+    except ImportError:
+        from data_lineage_fingerprint import get_data_lineage_fingerprint
+    payload = get_data_lineage_fingerprint(REPO)
+    return payload
+
+
+def skill_backtest_repro_gate(args: dict) -> dict:
+    candidate_id = str(args.get("candidate_id", ""))
+    slice_ref = str(args.get("slice_ref", ""))
+    code_ref = str(args.get("code_ref", ""))
+    runs = int(args.get("runs", 3))
+    try:
+        from _local.telegram_cp.skills.backtest_repro_gate import get_backtest_repro_gate
+    except ImportError:
+        from backtest_repro_gate import get_backtest_repro_gate
+    payload = get_backtest_repro_gate(REPO, candidate_id, slice_ref, code_ref, runs)
+    return payload
+
+
 def skill_backtest_reproducibility_audit(args: dict) -> dict:
     backtest_id = str(args.get("backtest_id", ""))
     baseline_sha = str(args.get("baseline_sha", ""))
@@ -1879,6 +1901,8 @@ def skill_signal_leakage_audit(args: dict) -> str:
 
 
 SKILL_IMPL = {
+    "data_lineage_fingerprint": skill_data_lineage_fingerprint,
+    "backtest_repro_gate": skill_backtest_repro_gate,
     "backtest_reproducibility_audit": skill_backtest_reproducibility_audit,
     "factor_health_and_drift_report": skill_factor_health_and_drift_report,
     "strategy_regime_sensitivity_report": skill_strategy_regime_sensitivity_report,
@@ -2519,6 +2543,8 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
 QUANT_REPORT_ONLY_SKILLS = {
     "signal_leakage_audit",
     "signal_leakage_and_lookahead_audit",
+    "data_lineage_fingerprint",
+    "backtest_repro_gate",
     "backtest_reproducibility_audit",
     "factor_health_and_drift_report",
     "strategy_regime_sensitivity_report",

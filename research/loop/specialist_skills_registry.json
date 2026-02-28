@@ -23,6 +23,49 @@
       }
     },
     {
+      "name": "data_lineage_fingerprint",
+      "type": "report_only",
+      "description": "Report-only fingerprint of code/data/SSOT lineage for reproducibility checks.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": []
+      }
+    },
+    {
+      "name": "backtest_repro_gate",
+      "type": "report_only",
+      "description": "Report-only drift gate for fixed backtest references; never blocks pipelines.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "candidate_id",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "slice_ref",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "code_ref",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "runs",
+            "type": "int",
+            "required": false,
+            "default": 3
+          }
+        ]
+      }
+    },
+    {
       "name": "backtest_reproducibility_audit",
       "type": "report_only",
       "description": "Report-only reproducibility audit from research manifests.",

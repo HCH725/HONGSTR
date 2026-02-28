@@ -197,6 +197,51 @@
       }
     },
     {
+      "name": "data_lineage_fingerprint",
+      "type": "read_only",
+      "description": "Build a read-only lineage fingerprint preview from /daily SSOT sources.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": []
+      }
+    },
+    {
+      "name": "backtest_repro_gate",
+      "type": "read_only",
+      "description": "Preview a read-only reproducibility drift gate for a fixed candidate/slice/code ref.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "candidate_id",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "slice_ref",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "code_ref",
+            "type": "string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "runs",
+            "type": "int",
+            "required": false,
+            "default": 3,
+            "min": 1,
+            "max": 10
+          }
+        ]
+      }
+    },
+    {
       "name": "backtest_reproducibility_audit",
       "type": "read_only",
       "description": "Verify backtest reproducibility between baseline and current research manifests.",

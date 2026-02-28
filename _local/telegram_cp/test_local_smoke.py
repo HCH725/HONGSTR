@@ -1739,3 +1739,54 @@ def test_run_quant_missing_artifacts_returns_json_contract(monkeypatch, tmp_path
     assert payload["actions"] == []
     assert payload["missing_artifacts"]
     assert "refresh_state.sh" in str(payload.get("refresh_hint", ""))
+
+
+def test_data_lineage_fingerprint_unknown_when_missing(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    from _local.telegram_cp.skills.data_lineage_fingerprint import get_data_lineage_fingerprint
+
+    res = get_data_lineage_fingerprint(repo)
+
+    assert res["status"] in {"UNKNOWN", "WARN"}
+    assert res["report_only"] is True
+    assert res["actions"] == []
+    assert res["missing_artifacts"]
+
+
+def test_backtest_repro_gate_warn_when_missing(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    from _local.telegram_cp.skills.backtest_repro_gate import get_backtest_repro_gate
+
+    res = get_backtest_repro_gate(repo, "cand_1", "BEAR@4h", "sha_xyz", 3)
+
+    assert res["status"] in {"UNKNOWN", "WARN"}
+    assert res["report_only"] is True
+    assert res["actions"] == []
+    assert res["missing_artifacts"]
+
+
+def test_run_data_lineage_fingerprint_returns_json_contract(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run("/run data_lineage_fingerprint")
+
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["skill"] == "data_lineage_fingerprint"
+    assert payload["status"] in {"WARN", "UNKNOWN"}
+    assert payload["report_only"] is True
+    assert payload["actions"] == []
