@@ -245,6 +245,24 @@
           }
         ]
       }
+    },
+    {
+      "name": "run_integrity_report",
+      "type": "report_only",
+      "description": "Report on the integrity of the latest backtest run artifacts in SSOT.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": []
+      }
+    },
+    {
+      "name": "worker_acceptance_check",
+      "type": "report_only",
+      "description": "Report on the status of attached macOS compute expansion workers.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": []
+      }
     }
   ]
 }

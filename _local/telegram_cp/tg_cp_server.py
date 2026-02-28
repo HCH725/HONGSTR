@@ -1877,8 +1877,23 @@ def skill_signal_leakage_audit(args: dict) -> str:
     payload = audit_from_artifact(REPO, artifact_path=artifact_path, max_allowed_lookahead_ms=max_lookahead_ms)
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
+def skill_run_integrity_report(args: dict) -> dict:
+    try:
+        from _local.telegram_cp.skills.run_integrity_report import generate_run_integrity_report
+    except ImportError:
+        from run_integrity_report import generate_run_integrity_report
+    return generate_run_integrity_report(REPO)
+
+def skill_worker_acceptance_check(args: dict) -> dict:
+    try:
+        from _local.telegram_cp.skills.worker_acceptance_check import generate_worker_acceptance_check
+    except ImportError:
+        from worker_acceptance_check import generate_worker_acceptance_check
+    return generate_worker_acceptance_check(REPO)
 
 SKILL_IMPL = {
+    "run_integrity_report": skill_run_integrity_report,
+    "worker_acceptance_check": skill_worker_acceptance_check,
     "backtest_reproducibility_audit": skill_backtest_reproducibility_audit,
     "factor_health_and_drift_report": skill_factor_health_and_drift_report,
     "strategy_regime_sensitivity_report": skill_strategy_regime_sensitivity_report,
