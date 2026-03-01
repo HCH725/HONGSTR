@@ -103,113 +103,42 @@ jobs:
           "$PYTHON_BIN" - <<'PY'
           from __future__ import annotations
 
-          import fnmatch
           import json
           import math
           import os
-          import subprocess
           from pathlib import Path
 
           ticket = json.loads(Path("tmp/ticket.json").read_text(encoding="utf-8"))
-          allowed = [str(item).strip() for item in ticket.get("allowed_paths", []) if str(item).strip()]
-          if not allowed:
-              raise SystemExit("allowed_paths is empty")
-
-          def is_allowed(path: str, pattern: str) -> bool:
-              norm_path = path.strip().strip("/")
-              norm_pattern = pattern.strip().strip("`").replace("\\", "/")
-              if not norm_path or not norm_pattern:
-                  return False
-              if norm_pattern.endswith("/**"):
-                  base = norm_pattern[:-3].rstrip("/")
-                  return norm_path == base or norm_path.startswith(base + "/")
-              if norm_pattern.endswith("/"):
-                  base = norm_pattern.rstrip("/")
-                  return norm_path == base or norm_path.startswith(base + "/")
-              if any(ch in norm_pattern for ch in "*?["):
-                  return fnmatch.fnmatch(norm_path, norm_pattern)
-              return norm_path == norm_pattern
-
-          try:
-              tracked_files = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
-          except Exception:
-              tracked_files = []
-
-          context_candidates: list[str] = []
-          seen: set[str] = set()
-          for pattern in allowed:
-              matched = False
-              for tracked in tracked_files:
-                  if is_allowed(tracked, pattern):
-                      matched = True
-                      if tracked not in seen:
-                          seen.add(tracked)
-                          context_candidates.append(tracked)
-              if not matched and not any(ch in pattern for ch in "*?["):
-                  direct = pattern.rstrip("/")
-                  if direct and direct not in seen:
-                      seen.add(direct)
-                      context_candidates.append(direct)
-
-          context_blocks: list[str] = []
-          max_files = 20
-          max_bytes = 160000
-          bytes_used = 0
-
-          for rel_path in context_candidates[:max_files]:
-              path = Path(rel_path)
-              if not path.exists() or not path.is_file():
-                  context_blocks.append(f"FILE: {rel_path}\nSTATUS: missing (may be created if it stays inside Allowed paths)")
-                  continue
-              try:
-                  content = path.read_text(encoding="utf-8", errors="replace")
-              except Exception as exc:
-                  context_blocks.append(f"FILE: {rel_path}\nSTATUS: unreadable ({exc})")
-                  continue
-
-              remaining = max_bytes - bytes_used
-              if remaining <= 0:
-                  break
-              trimmed = content[:remaining]
-              truncated = len(trimmed) < len(content)
-              bytes_used += len(trimmed)
-              suffix = "\n[truncated]\n" if truncated else "\n"
-              context_blocks.append(f"FILE: {rel_path}\n-----\n{trimmed}{suffix}-----")
-
-          must_run = ticket.get("must_run", [])
-          if isinstance(must_run, str):
-              must_run_lines = [must_run]
-          elif isinstance(must_run, list):
-              must_run_lines = [str(item).strip() for item in must_run if str(item).strip()]
-          else:
-              must_run_lines = []
+          target_path = Path("docs/tg_cp_watchdog.md")
+          excerpt_lines = target_path.read_text(encoding="utf-8", errors="replace").splitlines()[:160]
+          excerpt = "\n".join(excerpt_lines)
 
           prompt = (
-              "Generate a valid git unified diff patch only.\n"
-              "Return patch text only. No prose, no markdown fences, no commentary.\n"
-              "You must output ONLY a unified diff. No prose, no markdown fences, no explanations.\n"
-              "The output must start with 'diff --git' and include file headers, hunks, and context lines.\n"
-              "If you cannot comply, output exactly: NO_DIFF.\n"
-              "Modify only files that match Allowed paths.\n"
-              "Keep strict guardrails and do not add any auto-merge behavior.\n"
-              "If no safe patch is possible, return an empty string.\n\n"
+              "You are a patch generator. Output ONLY a unified diff. No prose. "
+              "No markdown fences. No explanations.\n"
+              "Rules:\n"
+              "1) Modify ONLY the file: docs/tg_cp_watchdog.md\n"
+              "2) Make ONE minimal change: add a single sentence under the "
+              "'Deployment notes (macOS launchd)' section saying: "
+              "'TG_CP_MAX_AGE_SEC defaults to 7200 and can be tuned.'\n"
+              "3) The output MUST start with: diff --git\n"
+              "4) If you cannot comply, output exactly: NO_DIFF\n\n"
               f"Repository: {os.environ.get('GH_REPO', '')}\n"
               f"Ticket title: {ticket.get('title', '')}\n"
               "Allowed paths:\n"
-              + "\n".join(f"- {item}" for item in allowed)
-              + "\n\nProblem:\n"
-              + str(ticket.get("problem", ""))
-              + "\n\nExpected result:\n"
-              + str(ticket.get("expected", ""))
-              + "\n\nRequired checks:\n"
-              + ("\n".join(f"- {item}" for item in must_run_lines) if must_run_lines else "- scripts/self_heal/run_required_checks.sh")
-              + "\n\nAllowed-path file context:\n"
-              + ("\n\n".join(context_blocks) if context_blocks else "No existing allowed-path files were found in the working tree.")
+              "- docs/\n\n"
+              "Current file excerpt (first ~160 lines):\n"
+              "--- BEGIN FILE ---\n"
+              f"{excerpt}\n"
+              "--- END FILE ---\n\n"
+              "Output format skeleton (follow exactly; adjust context as needed):\n"
+              "diff --git a/docs/tg_cp_watchdog.md b/docs/tg_cp_watchdog.md\n"
+              "index 0000000..0000000 100644\n"
+              "--- a/docs/tg_cp_watchdog.md\n"
+              "+++ b/docs/tg_cp_watchdog.md\n"
+              "@@\n"
+              "+TG_CP_MAX_AGE_SEC defaults to 7200 and can be tuned.\n"
           )
-
-          max_prompt_chars = 64000
-          if len(prompt) > max_prompt_chars:
-              prompt = prompt[: max_prompt_chars - len("\n[truncated]\n")] + "\n[truncated]\n"
 
           request_payload = {
               "model": os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b-instruct"),
