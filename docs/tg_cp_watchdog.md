@@ -16,6 +16,7 @@ Ensure tg_cp is restarted automatically when it is not healthy. Health is determ
 - Ensure the log directory exists before bootstrap (e.g., /Users/<user>/Library/Logs/hongstr)
 - Repo root should be an absolute path (e.g., /Users/<user>/Projects/HONGSTR) or a clearly documented configurable location
 - Python invocation should prefer repo venv (./.venv/bin/python) and fall back to python3 when venv is unavailable
+TG_CP_MAX_AGE_SEC defaults to 7200 and can be tuned.
 
 ## Install (local)
 
