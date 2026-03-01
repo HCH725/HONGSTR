@@ -19,7 +19,7 @@ Ensure tg_cp is restarted automatically when it is not healthy. Health is determ
 
 ## Install (local)
 
-- Copy _local/launchd/com.hongstr.tg_cp_watchdog.plist to ~/Library/LaunchAgents/
+- Copy ops/launchagents/com.hongstr.tg_cp_watchdog.plist to ~/Library/LaunchAgents/
 - launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.hongstr.tg_cp_watchdog.plist
 - launchctl enable gui/$(id -u)/com.hongstr.tg_cp_watchdog
 
