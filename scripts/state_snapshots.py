@@ -61,6 +61,7 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "governance.today_gate_summary": {"zh": "今日Gate摘要", "en": "governance.today_gate_summary"},
     "sources.worker_inbox": {"zh": "Worker 收件匣來源", "en": "sources.worker_inbox"},
     "latest_backtest_head.source": {"zh": "最新回測來源", "en": "latest_backtest_head.source"},
+    "ssot_components.cost_sensitivity": {"zh": "成本敏感度摘要", "en": "ssot_components.cost_sensitivity"},
     "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
     "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
     "ssot_components.regime_signal.threshold_policy_sha": {"zh": "RegimeSignal門檻版本SHA", "en": "ssot_components.regime_signal.threshold_policy_sha"},
@@ -1310,7 +1311,37 @@ def main():
         }
         write_json(STATE_DIR / "brake_health_latest.json", brake_data)
 
-    # 12. Optional Health Pack Aggregator (SSOT summary only)
+    # 12. Cost Sensitivity Matrix (read-only, derived from existing backtest artifacts)
+    try:
+        from cost_sensitivity_matrix import build_cost_sensitivity_matrix_payload
+
+        cost_sensitivity_matrix = build_cost_sensitivity_matrix_payload(
+            repo_root=Path(".").resolve(),
+            generated_utc=now_utc,
+        )
+        if not isinstance(cost_sensitivity_matrix, dict):
+            raise TypeError("cost_sensitivity_matrix payload must be a dict")
+    except Exception as exc:
+        logging.warning("Cost sensitivity matrix unavailable: %s", exc)
+        cost_sensitivity_matrix = {
+            "schema_version": "cost_sensitivity_matrix.v1",
+            "producer_git_sha": "UNKNOWN",
+            "generated_utc": now_utc,
+            "candidates_source": "index",
+            "overall": "UNKNOWN",
+            "totals": {
+                "rows_total": 0,
+                "scenario_rows": 0,
+                "baseline_only_rows": 0,
+                "status_counts": {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0},
+            },
+            "source_inputs": [],
+            "rows": [],
+            "notes": ["SNAPSHOT_BUILD_FAILED"],
+        }
+    write_json(STATE_DIR / "cost_sensitivity_matrix_latest.json", cost_sensitivity_matrix)
+
+    # 13. Optional Health Pack Aggregator (SSOT summary only)
     fresh_rows = freshness_table.get("rows", [])
     freshness_statuses = []
     freshness_non_ok = 0
@@ -1429,9 +1460,16 @@ def main():
     if regime_age_h is not None:
         regime_monitor_status = "OK" if regime_age_h <= regime_ok_h else "WARN"
 
+    cost_totals = cost_sensitivity_matrix.get("totals", {}) if isinstance(cost_sensitivity_matrix, dict) else {}
+    cost_status = _normalize_simple_status(cost_sensitivity_matrix.get("overall"))
+    if cost_status == "PASS":
+        cost_status = "OK"
+    if cost_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        cost_status = "UNKNOWN"
+
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
     ssot_status = _collapse_system_status(
-        [freshness_status, coverage_as_health, brake_status, regime_monitor_status]
+        [freshness_status, coverage_as_health, brake_status, regime_monitor_status, cost_status]
     )
 
     system_health = {
@@ -1457,6 +1495,12 @@ def main():
             "brake": {
                 "status": brake_status,
             },
+            "cost_sensitivity": {
+                "status": cost_status,
+                "rows_total": int(cost_totals.get("rows_total", 0) or 0),
+                "scenario_rows": int(cost_totals.get("scenario_rows", 0) or 0),
+                "baseline_only_rows": int(cost_totals.get("baseline_only_rows", 0) or 0),
+            },
             "regime_monitor": {
                 "status": regime_monitor_status,
                 "age_h": round(regime_age_h, 1) if regime_age_h is not None else None,
@@ -1477,12 +1521,13 @@ def main():
             "freshness_table.json": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
             "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
+            "cost_sensitivity_matrix_latest.json": _source_meta(STATE_DIR / "cost_sensitivity_matrix_latest.json", now_ts),
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
         },
     }
     write_json(STATE_DIR / "system_health_latest.json", system_health)
 
-    # 13. Daily Report SSOT (single entrypoint for tg_cp/dashboard daily reporting)
+    # 14. Daily Report SSOT (single entrypoint for tg_cp/dashboard daily reporting)
     research_leaderboard = read_json(STATE_DIR / "_research/leaderboard.json") or {}
     loop_state = read_json(STATE_DIR / "_research/loop_state.json") or {}
     overfit_policy = read_json(Path("research/policy/overfit_gates_aggressive.json")) or {}
