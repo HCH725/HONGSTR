@@ -68,6 +68,12 @@ jobs:
                   raise SystemExit("ERROR: cannot find JSON object in comment body")
               raw = match.group(1)
           ticket = json.loads(raw)
+          if isinstance(ticket, dict):
+              task_text = str(ticket.get("task") or "").strip()
+              if task_text:
+                  ticket.setdefault("problem", task_text)
+                  ticket.setdefault("expected", task_text)
+              ticket.setdefault("must_run", ["scripts/self_heal/run_required_checks.sh"])
           Path("tmp/ticket.json").write_text(json.dumps(ticket, ensure_ascii=False, indent=2), encoding="utf-8")
           print("tmp/ticket.json written")
           PY
