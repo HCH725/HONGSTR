@@ -63,8 +63,8 @@ Worker 本地輸出（不改 main SSOT writer semantics）：
 
 ```bash
 # run on main host
-rsync -avz hong@<worker-tailnet-ip>:/Users/hong/Projects/HONGSTR/_local/worker_state/*.json \
-  /Users/hong/Projects/HONGSTR/_local/worker_state_workers/worker-air-m4/
+rsync -avz <user>@<worker-tailnet-ip>:<REPO_DIR>/_local/worker_state/*.json \
+  <REPO_DIR>/_local/worker_state_workers/worker-air-m4/
 ```
 
 ## Connectivity (Default)
