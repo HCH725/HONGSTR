@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# SECURITY NOTE: This script uses 'curl | bash' to install upstream tooling.
+# Review the remote script URL before running in production environments.
+# Prefer pinned versions and verified checksums where possible.
+
 set -e
 
 cd ~/Projects/HONGSTR
