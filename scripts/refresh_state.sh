@@ -55,7 +55,10 @@ else
     echo -e "\n---> [SKIP] scripts/strategy_pool_update.py (Not implemented, skipping smoothly)"
 fi
 
-run_step "7. Generate Dashboard Snapshots (Canonical data/state Writer)" \
+run_step "7. Generate Cost Sensitivity Matrix Snapshot (P1-2)" \
+    .venv/bin/python scripts/cost_sensitivity_matrix.py
+
+run_step "8. Generate Dashboard Snapshots (Canonical data/state Writer)" \
     .venv/bin/python scripts/state_snapshots.py
 
 echo -e "\n=========================================="

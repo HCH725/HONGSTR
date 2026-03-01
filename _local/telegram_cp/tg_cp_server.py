@@ -1794,6 +1794,83 @@ def skill_logs_tail_hint(lines: int = 60) -> str:
     ])
 
 
+def skill_cost_sensitivity() -> str:
+    """Read-only formatter for Cost Sensitivity Matrix SSOT."""
+    path = REPO / "data/state/cost_sensitivity_matrix_latest.json"
+    if not path.exists():
+        return "⚠️ Cost Sensitivity Matrix 建構中或遺失。\n(`data/state/cost_sensitivity_matrix_latest.json`)"
+    
+    try:
+        data = json.loads(path.read_bytes())
+    except Exception:
+        return "❌ 無法解析 `cost_sensitivity_matrix_latest.json` (JSON format error)"
+        
+    overall = str(data.get("overall", "UNKNOWN")).upper()
+    indicator = "✅" if overall == "OK" else ("⚠️" if overall == "WARN" else "❌")
+    
+    totals = data.get("totals", {})
+    t_seen = totals.get("runs_seen", 0)
+    t_rows = totals.get("rows", 0)
+    t_ok = totals.get("ok", 0)
+    t_warn = totals.get("warn", 0)
+    
+    lines = [
+        f"💸 **Cost Sensitivity Matrix** [{indicator} {overall}]",
+        f"Target: `data/backtests/**/summary.json` (N={t_seen}, 7d)",
+        "---",
+        f"📊 **Totals**: {t_rows} candidate rows evaluated",
+        f"  • OK: {t_ok}  |  WARN: {t_warn}  |  UNKNOWN: {totals.get('unknown', 0)}"
+    ]
+    
+    rows = data.get("rows", [])
+    if not rows:
+        lines.append("\n⚠️ **沒有可用的候選策略資料**")
+    else:
+        # Check if we have ANY deltas
+        has_deltas = any(isinstance(r.get("deltas"), dict) and r["deltas"] for r in rows)
+        
+        if has_deltas:
+            lines.append("\n⚠️ **Top 3 成本敏感度最高 (Sharpe Drop 20%)**:")
+            # Sort by sharpe_drop_20 (descending)
+            def sort_key(x):
+                d = x.get("deltas") or {}
+                return float(d.get("sharpe_drop_20", -999) or -999)
+            
+            sorted_rows = sorted(rows, key=sort_key, reverse=True)
+            for r in sorted_rows[:3]:
+                strat = r.get("strategy", "UNKNOWN")
+                sd20 = (r.get("deltas") or {}).get("sharpe_drop_20")
+                val_str = f"Drop: {sd20:.2f}" if sd20 is not None else "N/A"
+                base_shr = str((r.get("baseline") or {}).get("sharpe", "N/A"))[:5]
+                lines.append(f"  • `{strat}` -> {val_str} (Base SR: {base_shr})")
+        else:
+            lines.append("\nℹ️ **ONLY_BASELINE_AVAILABLE**\n  (Backtest summaries currently do not emit scaled cost scenarios. Sorting Top 3 by Baseline Sharpe)")
+            def sort_key_base(x):
+                b = x.get("baseline") or {}
+                return float(b.get("sharpe", -999) or -999)
+            
+            sorted_rows = sorted(rows, key=sort_key_base, reverse=True)
+            for r in sorted_rows[:3]:
+                strat = r.get("strategy", "UNKNOWN")
+                base_shr = (r.get("baseline") or {}).get("sharpe")
+                b_str = f"{base_shr:.2f}" if isinstance(base_shr, (int, float)) else "N/A"
+                base_ret = (r.get("baseline") or {}).get("ret")
+                r_str = f"{base_ret:.3f}" if isinstance(base_ret, (int, float)) else "N/A"
+                lines.append(f"  • `{strat}` -> SR: {b_str} | Ret: {r_str}")
+            
+    hint = data.get("refresh_hint")
+    if hint and overall != "OK":
+        lines.extend(["", f"💡 Hint: {hint}"])
+        
+    lines.extend([
+        "",
+        f"🕒 Generated: {data.get('generated_utc', 'UNKNOWN')}",
+        f"⚙️ version {data.get('schema_version', '1.0')}"
+    ])
+    
+    return "\n".join(lines)
+
+
 def skill_incident_timeline_builder(
     start: str,
     end: str,
@@ -2713,6 +2790,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
             "• /regime_status — 同 /regime\n"
+            "• /cost — Cost Sensitivity Matrix (成本敏感度 SSOT)\n"
             "• /ml_status — ML 流水線健康狀態\n"
             "• /research_status — Research Loop 今日狀態 + Leaderboard\n\n"
             "🔧 其他指令：\n"
@@ -2740,12 +2818,16 @@ def _handle_command(chat_id: int, text: str) -> str:
     if cmd == "/brake" or cmd == "/brake_status":
         return skill_brake_status()
 
+    if cmd == "/cost":
+        return skill_cost_sensitivity()
+
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
         lines.append("• (內建) /daily: 每日 SSOT 報告（合作夥伴友善）")
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         lines.append("• (內建) /ml_status: ML 流水線健康狀態")
         lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
+        lines.append("• (內建) /cost: 策略交易成本敏感度審查")
         return "可用 read-only 技能：\n" + "\n".join(lines)
 
     if cmd == "/run":

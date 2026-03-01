@@ -353,3 +353,69 @@ brew install gh
 gh auth login
 bash scripts/gh_pr_merge.sh "chore: <title>" "<body>"
 ```
+
+## Cost Sensitivity Matrix Audit Pack (P1-2)
+
+Provides deterministic insights into candidate strategy resilience under simulated trading cost scenarios.
+
+Location: `data/state/cost_sensitivity_matrix_latest.json`
+Consumer: Telegram command `/cost` (native command handler `skill_cost_sensitivity()`).
+
+### JSON Schema Specification
+
+```json
+{
+  "schema_version": "1.0",
+  "producer_git_sha": "UNKNOWN",
+  "generated_utc": "2026-03-01T11:21:40.000Z",
+  "source_inputs": [
+    "data/backtests/2026-02-28/20260301_050004_6723/summary.json"
+  ],
+  "overall": "OK",
+  "scenarios": [
+    { "id": "baseline", "label": "baseline" },
+    { "id": "cost_x1_2", "label": "cost +20%" },
+    { "id": "cost_x1_5", "label": "cost +50%" }
+  ],
+  "window": {
+    "lookback_days": 7,
+    "runs_considered": [
+      "20260301_050004_6723"
+    ],
+    "since_utc": "2026-02-22T11:21:40.000Z",
+    "until_utc": "2026-03-01T11:21:40.000Z"
+  },
+  "totals": {
+    "runs_seen": 1,
+    "rows": 1,
+    "ok": 1,
+    "warn": 0,
+    "unknown": 0
+  },
+  "rows": [
+    {
+      "run_id": "20260301_050004_6723",
+      "strategy": "ETHUSDT_4h",
+      "status": "OK",
+      "reasons": [
+        "ONLY_BASELINE_AVAILABLE"
+      ],
+      "baseline": {
+        "sharpe": 0.5441787134394604,
+        "mdd": -0.13000294363707385,
+        "ret": 0.25288167946870743,
+        "trades": 424
+      },
+      "cost_x1_2": null,
+      "cost_x1_5": null,
+      "deltas": {},
+      "evidence": [
+        {
+          "label": "run_summary",
+          "path": "data/backtests/2026-02-28/20260301_050004_6723/summary.json"
+        }
+      ]
+    }
+  ]
+}
+```
