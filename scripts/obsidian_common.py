@@ -8,7 +8,7 @@ import re
 import shutil
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +36,7 @@ DEFAULT_SSOT_FILES = (
 
 
 def now_utc_iso() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def parse_iso8601(value: str | None) -> datetime | None:
@@ -493,7 +493,7 @@ def build_daily_note_payload(
 ) -> dict[str, Any] | None:
     if not payloads:
         return None
-    note_dt = parse_iso8601(now_utc) or datetime.now(UTC)
+    note_dt = parse_iso8601(now_utc) or datetime.now(timezone.utc)
     note_date = note_dt.date().isoformat()
     note_path = Path("Daily") / note_date[:4] / note_date[5:7] / f"{note_date}.md"
     refs = [
@@ -737,7 +737,7 @@ def build_incident_note_payloads(
     system_health = payloads.get("system_health_latest.json")
     coverage_matrix = payloads.get("coverage_matrix_latest.json")
     brake_health = payloads.get("brake_health_latest.json")
-    note_date = (parse_iso8601(now_utc) or datetime.now(UTC)).date().isoformat()
+    note_date = (parse_iso8601(now_utc) or datetime.now(timezone.utc)).date().isoformat()
     incident_specs: list[tuple[str, str, list[str], list[str]]] = []
 
     system_rank = 0
