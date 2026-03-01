@@ -1,6 +1,17 @@
 name: L2 Self-Heal
 
 on:
+  workflow_dispatch:
+    inputs:
+      ticket_json:
+        description: "Ticket JSON (same payload as /selfheal {...})"
+        required: true
+        type: string
+      dry_run:
+        description: "If true, run gates and diff/apply but do not push PR"
+        required: false
+        default: "true"
+        type: string
   issue_comment:
     types: [created]
 
@@ -11,7 +22,7 @@ permissions:
 
 jobs:
   self_heal:
-    if: contains(github.event.comment.body, '/selfheal')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/selfheal'))
     runs-on: self-hosted
     env:
       BASE_BRANCH: ${{ github.event.repository.default_branch }}
@@ -20,6 +31,7 @@ jobs:
       OLLAMA_HOST: http://127.0.0.1:11434
       OLLAMA_MODEL: qwen2.5-coder:7b-instruct
       SELF_HEAL_BRANCH: codex/selfheal-${{ github.run_id }}
+      SELF_HEAL_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,17 +61,19 @@ jobs:
           from pathlib import Path
 
           body = os.environ.get("COMMENT_BODY", "")
-          match = re.search(r"(\{[\s\S]*\})", body)
-          if not match:
-              raise SystemExit("ERROR: cannot find JSON object in comment body")
-
-          raw = match.group(1)
+          raw = os.environ.get("INPUT_TICKET_JSON", "").strip()
+          if not raw:
+              match = re.search(r"(\{[\s\S]*\})", body)
+              if not match:
+                  raise SystemExit("ERROR: cannot find JSON object in comment body")
+              raw = match.group(1)
           ticket = json.loads(raw)
           Path("tmp/ticket.json").write_text(json.dumps(ticket, ensure_ascii=False, indent=2), encoding="utf-8")
           print("tmp/ticket.json written")
           PY
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
+          INPUT_TICKET_JSON: ${{ inputs.ticket_json }}
 
       - name: Validate ticket
         shell: bash
@@ -370,19 +384,32 @@ jobs:
           fi
           cat tmp/self_heal_allowed_paths_final.err
 
+      - name: Dry-run summary
+        if: env.SELF_HEAL_DRY_RUN == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Dry run complete. Patch applied and gates passed; skipping commit, push, and PR creation."
+          echo "::group::dry-run staged diffstat"
+          git diff --cached --stat
+          echo "::endgroup::"
+
       - name: Commit changes
+        if: env.SELF_HEAL_DRY_RUN != 'true'
         shell: bash
         run: |
           set -euo pipefail
           git commit -m "L2 self-heal: apply patch"
 
       - name: Push branch
+        if: env.SELF_HEAL_DRY_RUN != 'true'
         shell: bash
         run: |
           set -euo pipefail
           git push -u origin "$SELF_HEAL_BRANCH"
 
       - name: Open draft PR
+        if: env.SELF_HEAL_DRY_RUN != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -418,6 +445,7 @@ jobs:
           echo "Draft PR created: $PR_URL"
 
       - name: Request reviewer
+        if: env.SELF_HEAL_DRY_RUN != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -434,6 +462,7 @@ jobs:
           fi
 
       - name: Comment PR URL back to issue
+        if: env.SELF_HEAL_DRY_RUN != 'true' && github.event_name == 'issue_comment'
         shell: bash
         run: |
           set -euo pipefail
@@ -442,7 +471,7 @@ jobs:
             --body "Self-heal draft PR created: $SELF_HEAL_PR_URL"
 
       - name: Report failure back to issue
-        if: failure()
+        if: failure() && github.event_name == 'issue_comment'
         shell: bash
         run: |
           set -euo pipefail
