@@ -1430,8 +1430,13 @@ def main():
         regime_monitor_status = "OK" if regime_age_h <= regime_ok_h else "WARN"
 
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
+    
+    overfit_path = STATE_DIR / "overfit_governance_latest.json"
+    overfit_data = read_json(overfit_path) or {}
+    overfit_health = overfit_data.get("overall", "UNKNOWN")
+    
     ssot_status = _collapse_system_status(
-        [freshness_status, coverage_as_health, brake_status, regime_monitor_status]
+        [freshness_status, coverage_as_health, brake_status, regime_monitor_status, overfit_health]
     )
 
     system_health = {
@@ -1472,12 +1477,19 @@ def main():
                 "calibration_status": regime_calibration_status,
                 "last_calibrated_utc": regime_last_calibrated_utc,
             },
+            "overfit_governance": {
+                "status": overfit_health,
+                "candidates_seen": overfit_data.get("totals", {}).get("candidates_seen", 0),
+                "pass": overfit_data.get("totals", {}).get("pass", 0),
+                "fail": overfit_data.get("totals", {}).get("fail", 0),
+            },
         },
         "sources": {
             "freshness_table.json": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
             "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
+            "overfit_governance_latest.json": _source_meta(STATE_DIR / "overfit_governance_latest.json", now_ts),
         },
     }
     write_json(STATE_DIR / "system_health_latest.json", system_health)

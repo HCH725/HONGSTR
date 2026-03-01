@@ -353,3 +353,62 @@ brew install gh
 gh auth login
 bash scripts/gh_pr_merge.sh "chore: <title>" "<body>"
 ```
+
+## Overfit Governance Audit Pack (P1-1)
+
+The Overfit Governance subsystem provides deterministic insights into candidate success and failure ratios out of the testing ecosystem.
+
+Location: `data/state/overfit_governance_latest.json`
+Consumer: Telegram command `/governance` (native command handler `skill_overfit_governance()`).
+
+### JSON Schema Specification
+
+```json
+{
+  "schema_version": "1.0",
+  "producer_git_sha": "55abc12",
+  "generated_utc": "2026-03-01T04:21:40.000Z",
+  "source_inputs": [
+    {
+      "path": "data/backtests/2026-02-28/20260301_050004_6723/summary.json",
+      "mtime_utc": "2026-02-28T21:04:36Z",
+      "size_bytes": 5448,
+      "fingerprint": "run_summary"
+    }
+  ],
+  "overall": "OK",
+  "window": {
+    "lookback_days": 7,
+    "since_utc": "2026-02-23T04:21:40.000Z",
+    "until_utc": "2026-03-01T04:21:40.000Z",
+    "runs_considered": [
+        "20260301_050004_6723"
+    ]
+  },
+  "totals": {
+    "candidates_seen": 1,
+    "pass": 0,
+    "warn": 0,
+    "fail": 0,
+    "unknown": 0
+  },
+  "rows": [
+    {
+      "id": "20260301_050004_6723_benchmark",
+      "strategy": "benchmark_portfolio",
+      "status": "PASS",
+      "reasons": [],
+      "evidence": [
+        {
+          "path": "data/backtests/2026-02-28/20260301_050004_6723/gate.json"
+        },
+        {
+          "path": "data/backtests/2026-02-28/20260301_050004_6723/summary.json"
+        }
+      ]
+    }
+  ],
+  "refresh_hint": "",
+  "notes": "Overfit Governance audit."
+}
+```

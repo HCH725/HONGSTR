@@ -1794,6 +1794,63 @@ def skill_logs_tail_hint(lines: int = 60) -> str:
     ])
 
 
+def skill_overfit_governance() -> str:
+    """Read-only formatter for Overfit Governance SSOT."""
+    path = REPO / "data/state/overfit_governance_latest.json"
+    if not path.exists():
+        return "⚠️ Overfit Governance SSOT 建構中或遺失。\n(`data/state/overfit_governance_latest.json`)"
+    
+    try:
+        data = json.loads(path.read_bytes())
+    except Exception:
+        return "❌ 無法解析 `overfit_governance_latest.json` (JSON format error)"
+        
+    overall = str(data.get("overall", "UNKNOWN")).upper()
+    indicator = "✅" if overall == "OK" else ("⚠️" if overall == "WARN" else "❌")
+    
+    totals = data.get("totals", {})
+    t_seen = totals.get("candidates_seen", 0)
+    t_pass = totals.get("pass", 0)
+    t_fail = totals.get("fail", 0)
+    t_warn = totals.get("warn", 0)
+    
+    lines = [
+        f"🛡️ **Overfit Governance Audit** [{indicator} {overall}]",
+        f"Target: `data/backtests/**/summary.json` (N=5, 7d)",
+        "---",
+        f"📊 **Totals**: {t_seen} candidates evaluated",
+        f"  • PASS: {t_pass}",
+        f"  • WARN: {t_warn}",
+        f"  • FAIL: {t_fail}"
+    ]
+    
+    # Show Top 3 Failures if they exist
+    rows = data.get("rows", [])
+    fail_rows = [r for r in rows if str(r.get("status", "")).upper() == "FAIL"]
+    
+    if fail_rows:
+        lines.append("\n⚠️ **Top Failed Candidates**:")
+        for r in fail_rows[:3]:
+            strat = r.get("strategy", "UNKNOWN")
+            reasons = ", ".join(r.get("reasons", [])) or "UNKNOWN_REASON"
+            lines.append(f"  • `{strat}` ❌ -> [{reasons}]")
+        if len(fail_rows) > 3:
+            lines.append(f"  ... (and {len(fail_rows)-3} more)")
+            
+    # Hint if overall wasn't purely OK
+    hint = data.get("refresh_hint")
+    if hint and overall != "OK":
+        lines.extend(["", f"💡 Hint: {hint}"])
+        
+    lines.extend([
+        "",
+        f"🕒 Generated: {data.get('generated_utc', 'UNKNOWN')}",
+        f"⚙️ `add_ssot_meta()` version {data.get('schema_version', '1.0')}"
+    ])
+    
+    return "\n".join(lines)
+
+
 def skill_incident_timeline_builder(
     start: str,
     end: str,
@@ -2713,6 +2770,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
             "• /regime_status — 同 /regime\n"
+            "• /governance — 模型適配與過度擬合防護 SSOT\n"
             "• /ml_status — ML 流水線健康狀態\n"
             "• /research_status — Research Loop 今日狀態 + Leaderboard\n\n"
             "🔧 其他指令：\n"
@@ -2740,12 +2798,16 @@ def _handle_command(chat_id: int, text: str) -> str:
     if cmd == "/brake" or cmd == "/brake_status":
         return skill_brake_status()
 
+    if cmd == "/governance":
+        return skill_overfit_governance()
+
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
         lines.append("• (內建) /daily: 每日 SSOT 報告（合作夥伴友善）")
         lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
         lines.append("• (內建) /ml_status: ML 流水線健康狀態")
         lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
+        lines.append("• (內建) /governance: 模型適配過度擬合防護")
         return "可用 read-only 技能：\n" + "\n".join(lines)
 
     if cmd == "/run":
