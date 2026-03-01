@@ -4,7 +4,13 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-PACK_DIR = Path(__file__).resolve().parents[2] / "docs" / "prompt_packs" / "hongstr_ollama_pack" / "prompts"
+PACK_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "prompt_packs"
+    / "hongstr_ollama_pack"
+    / "prompts"
+)
 
 _DEFAULT_OVERLAY = "overlay_qwen2.5_7b_instruct.md"
 
@@ -28,9 +34,9 @@ def select_overlay(model_name: str) -> str:
 
 @lru_cache(maxsize=None)
 def build_system_prompt(model_name: str) -> str:
-    parts = [
+    parts = (
         load_text(PACK_DIR / "base_system_prompt.md"),
         load_text(PACK_DIR / select_overlay(model_name)),
         load_text(PACK_DIR / "injection_contract.md"),
-    ]
+    )
     return "\n\n".join(part for part in parts if part).strip()
