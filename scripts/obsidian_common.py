@@ -35,6 +35,33 @@ DEFAULT_SSOT_FILES = (
 )
 
 UTC = timezone.utc
+FRONTMATTER_KEY_ORDER = (
+    "type",
+    "date",
+    "strategy_id",
+    "incident_id",
+    "severity",
+    "status",
+    "generated_utc",
+    "ssot_ts_utc",
+    "first_seen_utc",
+    "last_updated_utc",
+    "detected_utc",
+    "resolved_utc",
+    "symbols",
+    "timeframes",
+    "regime_slice",
+    "ssot_refs",
+)
+RUNTIME_NOTE_METADATA_KEYS = frozenset(
+    {
+        "generated_utc",
+        "first_seen_utc",
+        "last_updated_utc",
+        "detected_utc",
+        "resolved_utc",
+    }
+)
 
 
 def utc_now() -> datetime:
@@ -220,9 +247,20 @@ def _frontmatter_scalar(value: Any) -> str:
     return json.dumps(str(value), ensure_ascii=False)
 
 
+def _frontmatter_sort_key(key: str) -> tuple[int, int, str]:
+    try:
+        return (0, FRONTMATTER_KEY_ORDER.index(key), key)
+    except ValueError:
+        return (1, len(FRONTMATTER_KEY_ORDER), key)
+
+
+def _ordered_metadata_items(metadata: dict[str, Any]) -> list[tuple[str, Any]]:
+    return sorted(metadata.items(), key=lambda item: _frontmatter_sort_key(item[0]))
+
+
 def render_frontmatter(metadata: dict[str, Any]) -> str:
     lines = ["---"]
-    for key, value in metadata.items():
+    for key, value in _ordered_metadata_items(metadata):
         if isinstance(value, list):
             if not value:
                 lines.append(f"{key}: []")
@@ -277,6 +315,25 @@ def _parse_frontmatter_scalar(raw_value: str) -> Any:
         return json.loads(raw_value)
     except json.JSONDecodeError:
         return raw_value
+
+
+def note_signature(
+    note_type: str,
+    metadata: dict[str, Any],
+    sections: list[tuple[str, list[str]]],
+) -> str:
+    stable_metadata = {
+        key: value
+        for key, value in _ordered_metadata_items(metadata)
+        if key not in RUNTIME_NOTE_METADATA_KEYS
+    }
+    return stable_json_hash(
+        {
+            "type": note_type,
+            "metadata": stable_metadata,
+            "sections": sections,
+        }
+    )
 
 
 def build_markdown_note(metadata: dict[str, Any], sections: list[tuple[str, list[str]]]) -> str:
@@ -505,9 +562,6 @@ def build_daily_note_payload(
 ) -> dict[str, Any] | None:
     if not payloads:
         return None
-    note_dt = parse_iso8601(now_utc) or utc_now()
-    note_date = note_dt.date().isoformat()
-    note_path = Path("Daily") / note_date[:4] / note_date[5:7] / f"{note_date}.md"
     refs = [
         f"data/state/{name}"
         for name in DEFAULT_SSOT_FILES
@@ -533,10 +587,13 @@ def build_daily_note_payload(
     if isinstance(regime_monitor, dict) and isinstance(regime_monitor.get("overall"), str):
         regime_slice = str(regime_monitor.get("overall") or "ALL")
     ssot_ts_utc = latest_ts_utc([extract_ts_utc(payloads.get(name)) for name in payloads])
+    note_dt = parse_iso8601(ssot_ts_utc) or parse_iso8601(now_utc) or utc_now()
+    note_date = note_dt.date().isoformat()
+    note_path = Path("Daily") / note_date[:4] / note_date[5:7] / f"{note_date}.md"
     metadata = {
         "type": "daily",
         "date": note_date,
-        "generated_utc": now_utc,
+        "generated_utc": ssot_ts_utc,
         "ssot_ts_utc": ssot_ts_utc,
         "ssot_refs": refs,
         "symbols": symbols,
@@ -548,7 +605,7 @@ def build_daily_note_payload(
             "Summary",
             [
                 f"SSOT status: {daily_report.get('ssot_status', 'UNKNOWN') if isinstance(daily_report, dict) else 'UNKNOWN'}",
-                f"Generated UTC: {now_utc}",
+                f"Generated UTC: {ssot_ts_utc or 'UNKNOWN'}",
                 _format_ref("data/state/daily_report_latest.json", daily_report),
             ],
         ),
@@ -560,13 +617,7 @@ def build_daily_note_payload(
         ("ActionsNext", _actions_next_bullets(daily_report, system_health, coverage_matrix, regime_monitor)),
     ]
     content = build_markdown_note(metadata, sections)
-    source_hash = stable_json_hash(
-        {
-            "type": "daily",
-            "metadata": metadata,
-            "sections": sections,
-        }
-    )
+    source_hash = note_signature("daily", metadata, sections)
     return {
         "vault_rel_path": note_path.as_posix(),
         "content": content,
@@ -627,6 +678,13 @@ def build_strategy_note_payloads(
         entries = entries_by_strategy[strategy_id]
         primary = entries[0]
         status = _strategy_status_for_entries(strategy_id, entries, promoted, demoted)
+        ssot_ts_utc = latest_ts_utc(
+            [
+                extract_ts_utc(daily_report),
+                extract_ts_utc(strategy_pool),
+                extract_ts_utc(regime_monitor),
+            ]
+        )
         regime_slice = (
             str(regime_monitor.get("overall"))
             if isinstance(regime_monitor, dict) and regime_monitor.get("overall")
@@ -654,17 +712,18 @@ def build_strategy_note_payloads(
                 for entry in entries
             ],
             "regime_slice": regime_slice,
-            "generated_utc": extract_ts_utc(daily_report) or now_utc,
+            "ssot_ts_utc": ssot_ts_utc,
         }
         evidence_hash = stable_json_hash(evidence_payload)
         vault_rel_path = f"Strategies/{strategy_id}.md"
         prior_note = state.get("notes", {}).get(vault_rel_path, {})
-        first_seen_utc = prior_note.get("first_seen_utc", now_utc)
+        first_seen_utc = prior_note.get("first_seen_utc", ssot_ts_utc or now_utc)
         metadata = {
             "type": "strategy",
             "strategy_id": strategy_id,
             "first_seen_utc": first_seen_utc,
-            "last_updated_utc": now_utc,
+            "last_updated_utc": ssot_ts_utc,
+            "ssot_ts_utc": ssot_ts_utc,
             "symbols": global_symbols,
             "timeframes": global_timeframes,
             "regime_slice": regime_slice,
@@ -724,16 +783,17 @@ def build_strategy_note_payloads(
                 "DecisionLog",
                 [
                     f"Evidence hash: {evidence_hash[:12]}",
-                    f"Updated: {now_utc}",
+                    f"Updated: {ssot_ts_utc or 'UNKNOWN'}",
                 ],
             ),
         ]
         content = build_markdown_note(metadata, sections)
+        source_hash = note_signature("strategy", metadata, sections)
         outputs.append(
             {
                 "vault_rel_path": vault_rel_path,
                 "content": content,
-                "source_hash": evidence_hash,
+                "source_hash": source_hash,
                 "first_seen_utc": first_seen_utc,
                 "type": "strategy",
             }
@@ -749,7 +809,14 @@ def build_incident_note_payloads(
     system_health = payloads.get("system_health_latest.json")
     coverage_matrix = payloads.get("coverage_matrix_latest.json")
     brake_health = payloads.get("brake_health_latest.json")
-    note_date = (parse_iso8601(now_utc) or utc_now()).date().isoformat()
+    ssot_ts_utc = latest_ts_utc(
+        [
+            extract_ts_utc(system_health),
+            extract_ts_utc(coverage_matrix),
+            extract_ts_utc(brake_health),
+        ]
+    )
+    note_date = (parse_iso8601(ssot_ts_utc) or parse_iso8601(now_utc) or utc_now()).date().isoformat()
     incident_specs: list[tuple[str, str, list[str], list[str]]] = []
 
     system_rank = 0
@@ -823,8 +890,9 @@ def build_incident_note_payloads(
             "type": "incident",
             "incident_id": incident_id,
             "severity": severity,
-            "detected_utc": now_utc,
+            "detected_utc": ssot_ts_utc or now_utc,
             "resolved_utc": None,
+            "ssot_ts_utc": ssot_ts_utc,
             "ssot_refs": [
                 "data/state/system_health_latest.json",
                 "data/state/coverage_matrix_latest.json",
@@ -845,11 +913,12 @@ def build_incident_note_payloads(
             ("PreventiveActions", preventive),
         ]
         content = build_markdown_note(metadata, sections)
+        source_hash = note_signature("incident", metadata, sections)
         outputs.append(
             {
                 "vault_rel_path": f"Incidents/{note_date}_{slugify(slug)}.md",
                 "content": content,
-                "source_hash": stable_json_hash({"slug": slug, "severity": severity, "sections": sections}),
+                "source_hash": source_hash,
                 "first_seen_utc": now_utc,
                 "type": "incident",
             }

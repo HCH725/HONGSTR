@@ -17,6 +17,7 @@ from obsidian_common import (
     load_sync_state,
     now_utc_iso,
     save_sync_state,
+    text_hash,
     write_text_if_changed,
 )
 
@@ -52,27 +53,60 @@ def sync_obsidian_notes(
         planned_notes.extend(build_incident_note_payloads(payloads, effective_now))
 
     changed = 0
+    state_dirty = False
     note_summaries: list[str] = []
     for note in planned_notes:
         rel_path = note["vault_rel_path"]
         abs_path = vault_root / rel_path
         prior = state["notes"].get(rel_path, {})
         first_seen_utc = prior.get("first_seen_utc", note.get("first_seen_utc", effective_now))
-        if write_text_if_changed(abs_path, note["content"], dry_run=dry_run):
-            changed += 1
-            action = "would_write" if dry_run else "wrote"
-        else:
+        prior_source_hash = prior.get("source_hash")
+        prior_content_hash = prior.get("content_hash")
+        should_skip_write = (
+            not dry_run
+            and bool(abs_path.exists())
+            and isinstance(prior_source_hash, str)
+            and prior_source_hash == note["source_hash"]
+        )
+
+        if should_skip_write:
             action = "unchanged"
+            if isinstance(prior_content_hash, str) and prior_content_hash:
+                content_hash = prior_content_hash
+            else:
+                content_hash = text_hash(abs_path.read_text(encoding="utf-8"))
+        else:
+            wrote = write_text_if_changed(abs_path, note["content"], dry_run=dry_run)
+            if wrote:
+                changed += 1
+                action = "would_write" if dry_run else "wrote"
+            else:
+                action = "unchanged"
+            if action != "unchanged":
+                content_hash = text_hash(note["content"])
+            elif isinstance(prior_content_hash, str) and prior_content_hash:
+                content_hash = prior_content_hash
+            elif abs_path.exists():
+                content_hash = text_hash(abs_path.read_text(encoding="utf-8"))
+            else:
+                content_hash = text_hash(note["content"])
+
         note_summaries.append(f"{action}: {rel_path}")
-        state["notes"][rel_path] = {
+        new_state = {
             "type": note["type"],
             "first_seen_utc": first_seen_utc,
-            "last_synced_utc": effective_now,
+            "last_synced_utc": effective_now if action != "unchanged" else prior.get("last_synced_utc"),
             "source_hash": note["source_hash"],
-            "content_hash": note["source_hash"],
+            "content_hash": content_hash,
         }
+        if action == "unchanged" and not new_state["last_synced_utc"]:
+            new_state["last_synced_utc"] = effective_now
+        if prior != new_state:
+            state["notes"][rel_path] = new_state
+            state_dirty = True
 
-    save_sync_state(state_path, state, dry_run=dry_run)
+    if state_dirty:
+        save_sync_state(state_path, state, dry_run=dry_run)
     return {
         "changed": changed,
         "warnings": [],

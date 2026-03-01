@@ -196,6 +196,36 @@ def test_obsidian_sync_writes_deterministic_notes(tmp_path: Path) -> None:
     assert "ssot_ts_utc" in daily_text
 
 
+def test_obsidian_sync_is_noop_when_ssot_is_unchanged(tmp_path: Path) -> None:
+    _seed_ssot(tmp_path)
+
+    first = obsidian_sync.sync_obsidian_notes(
+        repo_root=tmp_path,
+        now_utc=FIXED_NOW,
+        write_strategies=True,
+        write_incidents=True,
+        dry_run=False,
+    )
+
+    daily_note = tmp_path / "_local" / "obsidian_vault" / "HONGSTR" / "Daily" / "2026" / "03" / "2026-03-02.md"
+    state_path = tmp_path / "_local" / "obsidian_index_state.json"
+    first_note_bytes = daily_note.read_bytes()
+    first_state_bytes = state_path.read_bytes()
+
+    second = obsidian_sync.sync_obsidian_notes(
+        repo_root=tmp_path,
+        now_utc="2026-03-02T11:00:00Z",
+        write_strategies=True,
+        write_incidents=True,
+        dry_run=False,
+    )
+
+    assert first["changed"] >= 3
+    assert second["changed"] == 0
+    assert daily_note.read_bytes() == first_note_bytes
+    assert state_path.read_bytes() == first_state_bytes
+
+
 def test_build_note_chunks_is_deterministic() -> None:
     note_text = """---
 type: "daily"
