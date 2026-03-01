@@ -1,95 +1,474 @@
 name: L2 Self-Heal
 
 on:
+  workflow_dispatch:
+    inputs:
+      ticket_json:
+        description: "Ticket JSON (same payload as /selfheal {...})"
+        required: true
+        type: string
+      dry_run:
+        description: "If true, run gates and diff/apply but do not push PR"
+        required: false
+        default: "true"
+        type: string
   issue_comment:
     types: [created]
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
   self_heal:
-    if: contains(github.event.comment.body, '/selfheal')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/selfheal'))
     runs-on: self-hosted
+    env:
+      BASE_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      OLLAMA_HOST: http://127.0.0.1:11434
+      OLLAMA_MODEL: qwen2.5-coder:7b-instruct
+      SELF_HEAL_BRANCH: codex/selfheal-${{ github.run_id }}
+      SELF_HEAL_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Extract ticket JSON block
+      - name: Resolve Python toolchain
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import re, sys
-          body = open("BODY.txt","w",encoding="utf-8")
-          body.write(sys.stdin.read())
-          body.close()
-          PY
-        env:
-          BODY: ${{ github.event.comment.body }}
+          mkdir -p tmp
+          if [ -x ./.venv/bin/python ]; then
+            echo "PYTHON_BIN=./.venv/bin/python" >> "$GITHUB_ENV"
+            ./.venv/bin/python --version
+          else
+            echo "PYTHON_BIN=python3" >> "$GITHUB_ENV"
+            python3 --version
+          fi
 
       - name: Write ticket.json
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json, os, re, sys
-          body = os.environ.get("COMMENT_BODY","")
-          m = re.search(r'(\{[\s\S]*\})', body)
-          if not m:
-            raise SystemExit("ERROR: cannot find JSON object in comment body")
-          raw = m.group(1)
-          obj = json.loads(raw)
-          open("ticket.json","w",encoding="utf-8").write(json.dumps(obj, ensure_ascii=False, indent=2))
-          print("ticket.json written")
+          "$PYTHON_BIN" - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          body = os.environ.get("COMMENT_BODY", "")
+          raw = os.environ.get("INPUT_TICKET_JSON", "").strip()
+          if not raw:
+              match = re.search(r"(\{[\s\S]*\})", body)
+              if not match:
+                  raise SystemExit("ERROR: cannot find JSON object in comment body")
+              raw = match.group(1)
+          ticket = json.loads(raw)
+          if isinstance(ticket, dict):
+              task_text = str(ticket.get("task") or "").strip()
+              if task_text:
+                  ticket.setdefault("problem", task_text)
+                  ticket.setdefault("expected", task_text)
+              ticket.setdefault("must_run", ["scripts/self_heal/run_required_checks.sh"])
+          Path("tmp/ticket.json").write_text(json.dumps(ticket, ensure_ascii=False, indent=2), encoding="utf-8")
+          print("tmp/ticket.json written")
           PY
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
+          INPUT_TICKET_JSON: ${{ inputs.ticket_json }}
 
       - name: Validate ticket
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/self_heal/parse_ticket.py < ticket.json > /tmp/ticket_validated.json
-          mv /tmp/ticket_validated.json ticket.json
+          "$PYTHON_BIN" scripts/self_heal/parse_ticket.py < tmp/ticket.json > tmp/ticket_validated.json
+          mv tmp/ticket_validated.json tmp/ticket.json
 
       - name: Create branch
         shell: bash
         run: |
           set -euo pipefail
-          git checkout -b "selfheal/${{ github.run_id }}"
+          git checkout -b "$SELF_HEAL_BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Generate patch placeholder
+      - name: Build self-heal prompt
         shell: bash
         run: |
           set -euo pipefail
-          echo "TODO: integrate local model patch generation here (ollama/qwen-coder) using ticket.json"
-          exit 1
+          "$PYTHON_BIN" - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          ticket = json.loads(Path("tmp/ticket.json").read_text(encoding="utf-8"))
+          target_path = Path("docs/tg_cp_watchdog.md")
+          file_lines = target_path.read_text(encoding="utf-8", errors="replace").splitlines()
+          anchor_key = "Deployment notes"
+          anchor_index = next(
+              (index for index, line in enumerate(file_lines) if anchor_key in line),
+              0,
+          )
+          anchor_start = max(0, anchor_index - 15)
+          anchor_end = min(len(file_lines), anchor_index + 25)
+          anchor_excerpt = "\n".join(file_lines[anchor_start:anchor_end])
+          anchor_excerpt_path = Path("tmp/anchor_excerpt.txt")
+          anchor_excerpt_path.write_text(anchor_excerpt, encoding="utf-8")
+
+          prompt = (
+              "You are selecting an anchor line for a deterministic patch "
+              "builder. Output ONLY one exact line copied from the excerpt. "
+              "No prose. No markdown fences. No explanations.\n"
+              "Rules:\n"
+              "1) Output EXACTLY one non-empty line copied from the excerpt "
+              "below that should remain immediately before the new sentence.\n"
+              "2) The new sentence to insert is: "
+              "'TG_CP_MAX_AGE_SEC defaults to 7200 and can be tuned.'\n"
+              "3) Stay within docs/tg_cp_watchdog.md and the Deployment notes "
+              "section.\n"
+              "4) If you cannot comply, output exactly: NO_DIFF\n\n"
+              f"Repository: {os.environ.get('GH_REPO', '')}\n"
+              f"Ticket title: {ticket.get('title', '')}\n"
+              "Allowed paths:\n"
+              "- docs/\n\n"
+              "Anchor excerpt around the target section (you MUST copy context "
+              "lines from this excerpt exactly):\n"
+              "--- BEGIN FILE ---\n"
+              f"{anchor_excerpt}\n"
+              "--- END FILE ---\n\n"
+              "Return format:\n"
+              "<one exact anchor line copied from the excerpt>\n"
+          )
+
+          request_payload = {
+              "model": os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b-instruct"),
+              "messages": [
+                  {
+                      "role": "system",
+                      "content": "You are selecting an exact anchor line for a deterministic patch builder. Output ONLY one exact line copied from the user's excerpt, or output exactly 'NO_DIFF'.",
+                  },
+                  {
+                      "role": "user",
+                      "content": prompt,
+                  },
+              ],
+              "stream": False,
+              "options": {
+                  "temperature": 0,
+                  "num_predict": 4000,
+              },
+          }
+
+          Path("tmp/self_heal_prompt.txt").write_text(prompt, encoding="utf-8")
+          Path("tmp/self_heal_ollama_request.json").write_text(
+              json.dumps(request_payload, ensure_ascii=False),
+              encoding="utf-8",
+          )
+          print(f"prompt ready ({math.ceil(len(prompt) / 4)} estimated tokens)")
+          PY
+
+      - name: Generate patch with local Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! curl -fsS "${OLLAMA_HOST%/}/api/chat" \
+            -H "Content-Type: application/json" \
+            -d @tmp/self_heal_ollama_request.json \
+            > tmp/self_heal_ollama_response.json 2> tmp/self_heal_ollama.err; then
+            {
+              echo "Ollama request failed."
+              sed -n '1,40p' tmp/self_heal_ollama.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::ollama stderr"
+            sed -n '1,120p' tmp/self_heal_ollama.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          "$PYTHON_BIN" - <<'PY' > tmp/self_heal_model_output.txt
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("tmp/self_heal_ollama_response.json").read_text(encoding="utf-8"))
+
+          def extract_text(obj: dict) -> str:
+              message = obj.get("message")
+              if isinstance(message, dict) and isinstance(message.get("content"), str):
+                  return message["content"]
+              choices = obj.get("choices")
+              if isinstance(choices, list) and choices:
+                  message = choices[0].get("message") or {}
+                  content = message.get("content")
+                  if isinstance(content, str):
+                      return content
+              return ""
+
+          def strip_fences(text: str) -> str:
+              value = text.strip()
+              if value.startswith("```"):
+                  lines = value.splitlines()
+                  if lines:
+                      lines = lines[1:]
+                  while lines and lines[-1].strip() == "```":
+                      lines = lines[:-1]
+                  value = "\n".join(lines).strip()
+              return value
+
+          model_text = strip_fences(extract_text(payload)).replace("\r\n", "\n")
+          if model_text:
+              print(model_text)
+          PY
+
+          echo "::group::model anchor hint preview"
+          sed -n '1,40p' tmp/self_heal_model_output.txt || true
+          echo "::endgroup::"
+
+          if ! "$PYTHON_BIN" scripts/self_heal/build_patch_from_anchor.py \
+            "$PWD" \
+            tmp/ticket.json \
+            tmp/anchor_excerpt.txt \
+            tmp/self_heal.patch \
+            2> tmp/self_heal_build_patch.err; then
+            {
+              echo "Deterministic patch builder failed."
+              sed -n '1,80p' tmp/self_heal_build_patch.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::build patch stderr"
+            sed -n '1,200p' tmp/self_heal_build_patch.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          if [ "$(head -n 1 tmp/self_heal.patch 2>/dev/null || true)" = "NO_DIFF" ]; then
+            echo "Deterministic patch builder reported no changes to apply." | tee tmp/self_heal_failure_reason.txt
+            exit 1
+          fi
+
+          echo "::group::generated patch preview"
+          sed -n '1,200p' tmp/self_heal.patch
+          echo "::endgroup::"
+
+      - name: Apply generated patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH_IN="tmp/self_heal.patch"
+          PATCH_OUT="tmp/self_heal.patch.sanitized"
+          export PATCH_IN PATCH_OUT
+          "$PYTHON_BIN" - <<'PY'
+          import os
+          from pathlib import Path
+
+          input_lines = Path(os.environ["PATCH_IN"]).read_text(
+              encoding="utf-8", errors="replace"
+          ).splitlines(True)
+          output_lines = []
+          for line in input_lines:
+              if line.startswith("index ") and ".." in line:
+                  continue
+              output_lines.append(line.replace("\ufeff", ""))
+          Path(os.environ["PATCH_OUT"]).write_text(
+              "".join(output_lines),
+              encoding="utf-8",
+          )
+          PY
+          if ! git apply --check "$PATCH_OUT" 2> tmp/self_heal_git_apply.err; then
+            {
+              echo "git apply rejected the generated patch."
+              sed -n '1,40p' tmp/self_heal_git_apply.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::git apply stderr"
+            sed -n '1,120p' tmp/self_heal_git_apply.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          git apply --index "$PATCH_OUT"
+          echo "::group::staged diffstat after apply"
+          git diff --cached --stat
+          echo "::endgroup::"
+
+      - name: Enforce allowed_paths gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! "$PYTHON_BIN" scripts/self_heal/enforce_allowed_paths.py tmp/ticket.json 2> tmp/self_heal_allowed_paths.err; then
+            {
+              echo "allowed_paths gate rejected the generated diff."
+              sed -n '1,40p' tmp/self_heal_allowed_paths.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::allowed_paths stderr"
+            sed -n '1,120p' tmp/self_heal_allowed_paths.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          cat tmp/self_heal_allowed_paths.err
 
       - name: Required checks
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/self_heal/run_required_checks.sh
+          if ! bash scripts/self_heal/run_required_checks.sh > tmp/self_heal_checks.log 2>&1; then
+            {
+              echo "Required checks failed."
+              sed -n '1,80p' tmp/self_heal_checks.log
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::required checks log"
+            sed -n '1,200p' tmp/self_heal_checks.log || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          echo "::group::required checks log"
+          sed -n '1,120p' tmp/self_heal_checks.log
+          echo "::endgroup::"
+
+      - name: Restage final diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Self-heal patch did not leave any staged changes." | tee tmp/self_heal_failure_reason.txt
+            exit 1
+          fi
+          echo "::group::final staged diffstat"
+          git diff --cached --stat
+          echo "::endgroup::"
+
+      - name: Re-run allowed_paths gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! "$PYTHON_BIN" scripts/self_heal/enforce_allowed_paths.py tmp/ticket.json 2> tmp/self_heal_allowed_paths_final.err; then
+            {
+              echo "Final allowed_paths gate rejected the staged diff."
+              sed -n '1,40p' tmp/self_heal_allowed_paths_final.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::final allowed_paths stderr"
+            sed -n '1,120p' tmp/self_heal_allowed_paths_final.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          cat tmp/self_heal_allowed_paths_final.err
+
+      - name: Dry-run summary
+        if: env.SELF_HEAL_DRY_RUN == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Dry run complete. Patch applied and gates passed; skipping commit, push, and PR creation."
+          echo "::group::dry-run staged diffstat"
+          git diff --cached --stat
+          echo "::endgroup::"
 
       - name: Commit changes
+        if: env.SELF_HEAL_DRY_RUN != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          git status --porcelain
-          git add -A
-          git commit -m "L2 self-heal: apply patch" || true
+          git commit -m "L2 self-heal: apply patch"
 
       - name: Push branch
+        if: env.SELF_HEAL_DRY_RUN != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          git push -u origin HEAD
+          git push -u origin "$SELF_HEAL_BRANCH"
 
       - name: Open draft PR
+        if: env.SELF_HEAL_DRY_RUN != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          gh pr create --draft --title "L2 self-heal: ${{ github.run_id }}" --body-file .github/PULL_REQUEST_TEMPLATE/self_heal.md
+          pr_title="$("$PYTHON_BIN" - <<'PY'
+          import json
+          from pathlib import Path
+
+          ticket = json.loads(Path("tmp/ticket.json").read_text(encoding="utf-8"))
+          title = " ".join(str(ticket.get("title") or "apply patch").split())
+          print(f"L2 self-heal: {title}"[:120])
+          PY
+          )"
+
+          if ! PR_URL="$(GH_PROMPT_DISABLED=1 GIT_TERMINAL_PROMPT=0 gh pr create \
+            --repo "$GH_REPO" \
+            --base "$BASE_BRANCH" \
+            --head "$SELF_HEAL_BRANCH" \
+            --draft \
+            --title "$pr_title" \
+            --body-file .github/PULL_REQUEST_TEMPLATE/self_heal.md 2> tmp/self_heal_pr.err)"; then
+            {
+              echo "gh pr create failed."
+              sed -n '1,40p' tmp/self_heal_pr.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::gh pr create stderr"
+            sed -n '1,120p' tmp/self_heal_pr.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          echo "SELF_HEAL_PR_URL=$PR_URL" >> "$GITHUB_ENV"
+          printf '%s\n' "$PR_URL" > tmp/self_heal_pr_url.txt
+          echo "Draft PR created: $PR_URL"
+
+      - name: Request reviewer
+        if: env.SELF_HEAL_DRY_RUN != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          reviewer="${{ github.event.comment.user.login }}"
+          if [ -z "$reviewer" ] || [ "$reviewer" = "github-actions[bot]" ]; then
+            echo "Skipping reviewer request."
+            exit 0
+          fi
+          if ! gh pr edit "$SELF_HEAL_PR_URL" --repo "$GH_REPO" --add-reviewer "$reviewer" 2> tmp/self_heal_reviewer.err; then
+            echo "::warning::Could not request review from $reviewer"
+            echo "::group::gh pr edit stderr"
+            sed -n '1,120p' tmp/self_heal_reviewer.err || true
+            echo "::endgroup::"
+          fi
+
+      - name: Comment PR URL back to issue
+        if: env.SELF_HEAL_DRY_RUN != 'true' && github.event_name == 'issue_comment'
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment "${{ github.event.issue.number }}" \
+            --repo "$GH_REPO" \
+            --body "Self-heal draft PR created: $SELF_HEAL_PR_URL"
+
+      - name: Report failure back to issue
+        if: failure() && github.event_name == 'issue_comment'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          {
+            echo "Self-heal failed for this ticket."
+            echo
+            if [ -s tmp/self_heal_failure_reason.txt ]; then
+              echo "Failure summary:"
+              sed -n '1,20p' tmp/self_heal_failure_reason.txt
+              echo
+            fi
+            if [ -s tmp/self_heal.patch ]; then
+              echo "Patch preview (first 80 lines):"
+              echo '```diff'
+              sed -n '1,80p' tmp/self_heal.patch
+              echo '```'
+              echo
+            fi
+            echo "Actions run: $run_url"
+          } > tmp/self_heal_failure_comment.md
+
+          gh issue comment "${{ github.event.issue.number }}" \
+            --repo "$GH_REPO" \
+            --body-file tmp/self_heal_failure_comment.md || true
