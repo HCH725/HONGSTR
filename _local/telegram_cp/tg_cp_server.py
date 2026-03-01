@@ -1740,44 +1740,48 @@ def skill_regime_status() -> str:
 def skill_brake_status() -> str:
     path = REPO / "data/state/brake_health_latest.json"
     if not path.exists():
-        return (
-            "❌ NOT FOUND: Brake health report missing.\n"
-            "💡 Hint: Please run this on your Mac:\n"
-            "./.venv/bin/python scripts/brake_healthcheck.py"
-        )
+        return "❓ UNKNOWN: Brake health report missing.\n💡 Hint: bash scripts/refresh_state.sh"
     
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as e:
-        return f"⚠️ WARN: Failed to parse brake health report: {str(e)[:50]}"
+        return "❓ UNKNOWN: Failed to parse brake health report.\n💡 Hint: bash scripts/refresh_state.sh"
     
-    results = data.get("results", [])
-    if not results:
-        return "⚠️ WARN: Brake health report contains no results."
+    status = data.get("status", "UNKNOWN") if "status" in data else ("FAIL" if data.get("overall_fail") else "OK")
+    icon = "✅" if status == "OK" else ("⚠️" if status == "WARN" else "🛑")
+    if status == "UNKNOWN": icon = "❓"
 
-    # Map results for specific display requirements
-    res_map = {r["item"]: r for r in results}
-    
-    def get_line(item_name, label):
-        r = res_map.get(item_name)
-        if not r: return f"- {label}: MISSING (not in report)"
-        icon = "OK" if r["status"] == "OK" else ("WARN" if r["status"] == "WARN" else "FAIL")
-        return f"- {label}: {icon} ({r['note']})"
+    lines = [f"{icon} Brake Overall Status: {status}"]
 
-    lines = ["Brake Health (latest)"]
-    lines.append(get_line("Freshness Table", "freshness"))
-    lines.append(get_line("Regime Monitor", "regime"))
-    
-    # Run artifacts check (scan summary/selection/gate)
-    arts = [r for r in results if r["item"].startswith("Backtest")]
-    if not arts:
-        lines.append("- artifacts: MISSING (no backtest data)")
-    else:
-        fails = [r["item"].split()[-1] for r in arts if r["status"] == "FAIL"]
-        status = "FAIL" if fails else "OK"
-        note = f"missing: {', '.join(fails)}" if fails else "all present"
-        lines.append(f"- artifacts: {status} ({note})")
+    reasons = data.get("breach_reason_codes", [])
+    if reasons:
+        lines.append(f"Codes: {', '.join(reasons)}")
         
+    evidence = data.get("evidence", [])
+    if evidence:
+        lines.append("\n[ Evidence ]")
+        for ev in evidence[:3]:
+            label = ev.get("label", "Item")
+            epath = ev.get("path", "Unknown")
+            note = ev.get("note", "")
+            lines.append(f"• {label}: {epath} ({note})")
+            
+    actions = data.get("recommended_actions", [])
+    if actions:
+        lines.append("\n[ Recommended Actions ]")
+        for act in actions[:5]:
+            lines.append(f"• {act}")
+            
+    if not reasons and not evidence and not actions:
+        # Fallback render if old payload structure
+        results = data.get("results", [])
+        if results:
+            lines.append("\n[ Standard Checks ]")
+            for r in results:
+                st = r.get("status", "UNKNOWN")
+                st_icon = "OK" if st == "OK" else ("WARN" if st == "WARN" else "FAIL")
+                lines.append(f"- {r.get('item', 'Item')}: {st_icon} ({r.get('note', '')})")
+                
     return "\n".join(lines)
 
 

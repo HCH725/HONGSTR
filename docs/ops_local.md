@@ -302,14 +302,51 @@ To run a complete benchmark (FULL and SHORT runs) with consolidated reporting:
    ```
 
    This will execute `run_and_verify.sh` for both timeframes, generate all artifacts, and save the summary to `reports/benchmark_latest.json`.
+2. **Observability**: The schema check status is read and gracefully reported via the system health component in `data/state/system_health_latest.json` globally.
 
-2. **View CLI Report**:
+## Brake Evidence Pack
+
+The brake health output (`data/state/brake_health_latest.json`) functions as a rich "Evidence Pack" detailing any system pauses or degradation. It strictly acts as a snapshot producer without interactive computation.
+
+**Sample Output Schema:**
+
+```json
+{
+  "schema_version": "1.0",
+  "producer_git_sha": "a1b2c3d",
+  "generated_utc": "2026-03-01T00:00:00Z",
+  ...
+  "breach_reason_codes": ["STALE_DATA"],
+  "evidence": [
+    {
+      "label": "Freshness Table",
+      "path": "data/state/freshness_table.json",
+      "note": "STALE (lag=14.0h > 12.0h)",
+      "ts_utc": "2026-02-28T10:00:00Z"
+    }
+  ],
+  "recommended_actions": [...]
+}
+```
+
+**Telegram Rendering (`/brake`)**
+The `tg_cp` consumer parses the structured arrays and renders them without executing external processes:
+
+```text
+⚠️ Brake Overall Status: WARN
+Codes: STALE_DATA
+
+[ Evidence ]
+• Freshness Table: data/state/freshness_table.json (STALE (lag=14.0h > 12.0h))
+```
+
+1. **View CLI Report**:
 
    ```bash
    python3 scripts/report_benchmark.py
    ```
 
-3. **Dashboard View**:
+2. **Dashboard View**:
    Section **F. Benchmark (Latest)** displays a side-by-side comparison of FULL and SHORT results, including Gate status.
 
 ## Regime-Aware Optimization Persistence

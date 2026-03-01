@@ -12,6 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+try:
+    from scripts._ssot_meta import add_ssot_meta
+except ImportError:
+    import sys
+    sys.path.append(str(Path(__file__).parent))
+    from _ssot_meta import add_ssot_meta
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 STATE_DIR = Path("data/state")
@@ -1297,7 +1304,7 @@ def main():
     # 11. Canonicalize Brake Health (state_snapshots is the final writer to data/state)
     brake_data = _normalize_brake_snapshot(read_json(ATOMIC_BRAKE_HEALTH), now_utc)
     if isinstance(brake_data, dict) and brake_data:
-        write_json(STATE_DIR / "brake_health_latest.json", brake_data)
+        write_json(STATE_DIR / "brake_health_latest.json", add_ssot_meta(brake_data, notes="Canonicalized from brake health atomic"))
     else:
         brake_data = {
             "timestamp": now_utc,
@@ -1308,7 +1315,7 @@ def main():
             "strict_mode": False,
             "status": "UNKNOWN",
         }
-        write_json(STATE_DIR / "brake_health_latest.json", brake_data)
+        write_json(STATE_DIR / "brake_health_latest.json", add_ssot_meta(brake_data, notes="Fallback for missing brake health atomic"))
 
     # 12. Optional Health Pack Aggregator (SSOT summary only)
     fresh_rows = freshness_table.get("rows", [])
