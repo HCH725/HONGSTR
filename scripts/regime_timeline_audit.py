@@ -13,12 +13,12 @@ from pathlib import Path
 
 # Paths
 REPO = Path(__file__).parent.parent
-try:
-    from scripts._ssot_meta import add_ssot_meta
-except ImportError:
-    import sys
-    sys.path.append(str(Path(__file__).parent))
-    from _ssot_meta import add_ssot_meta
+REPO_ROOT = str(REPO.resolve())
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from scripts._ssot_meta import add_ssot_meta
+
 
 CANDIDATES = [
     REPO / "research/policy/regime_timeline.json",
