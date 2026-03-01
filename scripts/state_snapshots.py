@@ -1430,8 +1430,13 @@ def main():
         regime_monitor_status = "OK" if regime_age_h <= regime_ok_h else "WARN"
 
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
+
+    backtest_idx_path = STATE_DIR / "backtest_runs_index_latest.json"
+    backtest_idx_data = read_json(backtest_idx_path) or {}
+    backtest_idx_health = backtest_idx_data.get("overall", "UNKNOWN")
+
     ssot_status = _collapse_system_status(
-        [freshness_status, coverage_as_health, brake_status, regime_monitor_status]
+        [freshness_status, coverage_as_health, brake_status, regime_monitor_status, backtest_idx_health]
     )
 
     system_health = {
@@ -1472,12 +1477,18 @@ def main():
                 "calibration_status": regime_calibration_status,
                 "last_calibrated_utc": regime_last_calibrated_utc,
             },
+            "backtest_runs_index": {
+                "status": backtest_idx_health,
+                "runs_indexed": backtest_idx_data.get("totals", {}).get("runs_indexed", 0),
+                "parse_errors": backtest_idx_data.get("totals", {}).get("parse_errors", 0),
+            },
         },
         "sources": {
             "freshness_table.json": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
             "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
+            "backtest_runs_index_latest.json": _source_meta(STATE_DIR / "backtest_runs_index_latest.json", now_ts),
         },
     }
     write_json(STATE_DIR / "system_health_latest.json", system_health)

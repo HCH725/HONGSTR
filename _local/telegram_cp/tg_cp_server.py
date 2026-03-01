@@ -1229,6 +1229,10 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
         regime_monitor = {}
     if not isinstance(regime_signal, dict):
         regime_signal = {}
+        
+    backtest_idx = components.get("backtest_runs_index", {})
+    if not isinstance(backtest_idx, dict):
+        backtest_idx = {}
 
     fresh_status = str(fresh.get("status", "UNKNOWN")).upper()
     if fresh_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
@@ -1265,6 +1269,13 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
     if regime_top_reason:
         regime_signal_line += f" ({regime_top_reason})"
 
+    idx_status = str(backtest_idx.get("status", "UNKNOWN")).upper()
+    if idx_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        idx_status = "UNKNOWN"
+    idx_indexed = backtest_idx.get("runs_indexed", 0)
+    idx_errors = backtest_idx.get("parse_errors", 0)
+    backtest_idx_line = f"Backtest Index: {idx_status} | runs_indexed={_fmt_num(idx_indexed)} (90d) | parse_errors={_fmt_num(idx_errors)}"
+
     refresh_hint = str(health_pack.get("refresh_hint") or _status_refresh_hint())
     sources_line = "Sources: system_health_latest.json (preferred), " + ", ".join(
         name for name, _ in _status_ssot_sources()
@@ -1279,6 +1290,7 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
             f"Brake: {brake_status}",
             f"RegimeMonitor: {regime_monitor_status} age_h={_fmt_num(regime_monitor_age)} (<= {float(regime_ok_h or REGIME_MONITOR_FRESH_OK_H):.0f}h OK)",
             regime_signal_line,
+            backtest_idx_line,
             f"Action: run `{refresh_hint}` if snapshots look stale",
             sources_line,
         ]

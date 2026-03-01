@@ -353,3 +353,57 @@ brew install gh
 gh auth login
 bash scripts/gh_pr_merge.sh "chore: <title>" "<body>"
 ```
+
+## Backtest Runs Index SSOT (P1-3)
+
+Provides a stable, read-only ledger of evaluated runs spanning a 90-day window to augment downstream governance evaluation counts.
+
+Location: `data/state/backtest_runs_index_latest.json`
+Consumer: Telegram command `/status` (via `system_health_latest.json` embedding natively).
+
+### JSON Schema Specification
+
+```json
+{
+  "schema_version": "1.0",
+  "producer_git_sha": "UNKNOWN",
+  "generated_utc": "2026-03-01T11:42:15.000Z",
+  "source_inputs": [
+    "data/backtests/2026-02-28/20260301_050004_6723/summary.json",
+    "data/backtests/2026-02-28/20260301_050004_6723/gate.json"
+  ],
+  "overall": "OK",
+  "window": {
+    "lookback_days": 90,
+    "since_utc": "2025-12-01T11:42:15.000Z",
+    "until_utc": "2026-03-01T11:42:15.000Z"
+  },
+  "totals": {
+    "runs_found": 80,
+    "runs_indexed": 80,
+    "parse_errors": 0,
+    "missing_gate": 12,
+    "missing_fields": 0
+  },
+  "rows": [
+    {
+      "run_id": "20260301_050004_6723",
+      "run_date": "2026-02-28",
+      "summary_path": "data/backtests/2026-02-28/20260301_050004_6723/summary.json",
+      "ts_utc": "2026-03-01T05:00:25+00:00",
+      "strategy": "ETHUSDT_4h",
+      "timeframe": "4h",
+      "regime": "NEUTRAL",
+      "metrics": {
+        "sharpe": 0.5441787134394604,
+        "mdd": -0.13000294363707385,
+        "ret": 0.25288167946870743,
+        "trades": 424
+      },
+      "has_gate": true,
+      "gate_status": "PASS",
+      "notes": null
+    }
+  ]
+}
+```
