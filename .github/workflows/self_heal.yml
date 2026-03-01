@@ -6,44 +6,57 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
   self_heal:
     if: contains(github.event.comment.body, '/selfheal')
     runs-on: self-hosted
+    env:
+      BASE_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      OLLAMA_HOST: http://127.0.0.1:11434
+      OLLAMA_MODEL: qwen2.5-coder:7b-instruct
+      SELF_HEAL_BRANCH: codex/selfheal-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Extract ticket JSON block
+      - name: Resolve Python toolchain
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import re, sys
-          body = open("BODY.txt","w",encoding="utf-8")
-          body.write(sys.stdin.read())
-          body.close()
-          PY
-        env:
-          BODY: ${{ github.event.comment.body }}
+          mkdir -p tmp
+          if [ -x ./.venv/bin/python ]; then
+            echo "PYTHON_BIN=./.venv/bin/python" >> "$GITHUB_ENV"
+            ./.venv/bin/python --version
+          else
+            echo "PYTHON_BIN=python3" >> "$GITHUB_ENV"
+            python3 --version
+          fi
 
       - name: Write ticket.json
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json, os, re, sys
-          body = os.environ.get("COMMENT_BODY","")
-          m = re.search(r'(\{[\s\S]*\})', body)
-          if not m:
-            raise SystemExit("ERROR: cannot find JSON object in comment body")
-          raw = m.group(1)
-          obj = json.loads(raw)
-          open("ticket.json","w",encoding="utf-8").write(json.dumps(obj, ensure_ascii=False, indent=2))
-          print("ticket.json written")
+          "$PYTHON_BIN" - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          body = os.environ.get("COMMENT_BODY", "")
+          match = re.search(r"(\{[\s\S]*\})", body)
+          if not match:
+              raise SystemExit("ERROR: cannot find JSON object in comment body")
+
+          raw = match.group(1)
+          ticket = json.loads(raw)
+          Path("tmp/ticket.json").write_text(json.dumps(ticket, ensure_ascii=False, indent=2), encoding="utf-8")
+          print("tmp/ticket.json written")
           PY
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
@@ -52,44 +65,407 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/self_heal/parse_ticket.py < ticket.json > /tmp/ticket_validated.json
-          mv /tmp/ticket_validated.json ticket.json
+          "$PYTHON_BIN" scripts/self_heal/parse_ticket.py < tmp/ticket.json > tmp/ticket_validated.json
+          mv tmp/ticket_validated.json tmp/ticket.json
 
       - name: Create branch
         shell: bash
         run: |
           set -euo pipefail
-          git checkout -b "selfheal/${{ github.run_id }}"
+          git checkout -b "$SELF_HEAL_BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Generate patch placeholder
+      - name: Build self-heal prompt
         shell: bash
         run: |
           set -euo pipefail
-          echo "TODO: integrate local model patch generation here (ollama/qwen-coder) using ticket.json"
-          exit 1
+          "$PYTHON_BIN" - <<'PY'
+          from __future__ import annotations
+
+          import fnmatch
+          import json
+          import math
+          import os
+          import subprocess
+          from pathlib import Path
+
+          ticket = json.loads(Path("tmp/ticket.json").read_text(encoding="utf-8"))
+          allowed = [str(item).strip() for item in ticket.get("allowed_paths", []) if str(item).strip()]
+          if not allowed:
+              raise SystemExit("allowed_paths is empty")
+
+          def is_allowed(path: str, pattern: str) -> bool:
+              norm_path = path.strip().strip("/")
+              norm_pattern = pattern.strip().strip("`").replace("\\", "/")
+              if not norm_path or not norm_pattern:
+                  return False
+              if norm_pattern.endswith("/**"):
+                  base = norm_pattern[:-3].rstrip("/")
+                  return norm_path == base or norm_path.startswith(base + "/")
+              if norm_pattern.endswith("/"):
+                  base = norm_pattern.rstrip("/")
+                  return norm_path == base or norm_path.startswith(base + "/")
+              if any(ch in norm_pattern for ch in "*?["):
+                  return fnmatch.fnmatch(norm_path, norm_pattern)
+              return norm_path == norm_pattern
+
+          try:
+              tracked_files = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+          except Exception:
+              tracked_files = []
+
+          context_candidates: list[str] = []
+          seen: set[str] = set()
+          for pattern in allowed:
+              matched = False
+              for tracked in tracked_files:
+                  if is_allowed(tracked, pattern):
+                      matched = True
+                      if tracked not in seen:
+                          seen.add(tracked)
+                          context_candidates.append(tracked)
+              if not matched and not any(ch in pattern for ch in "*?["):
+                  direct = pattern.rstrip("/")
+                  if direct and direct not in seen:
+                      seen.add(direct)
+                      context_candidates.append(direct)
+
+          context_blocks: list[str] = []
+          max_files = 20
+          max_bytes = 160000
+          bytes_used = 0
+
+          for rel_path in context_candidates[:max_files]:
+              path = Path(rel_path)
+              if not path.exists() or not path.is_file():
+                  context_blocks.append(f"FILE: {rel_path}\nSTATUS: missing (may be created if it stays inside Allowed paths)")
+                  continue
+              try:
+                  content = path.read_text(encoding="utf-8", errors="replace")
+              except Exception as exc:
+                  context_blocks.append(f"FILE: {rel_path}\nSTATUS: unreadable ({exc})")
+                  continue
+
+              remaining = max_bytes - bytes_used
+              if remaining <= 0:
+                  break
+              trimmed = content[:remaining]
+              truncated = len(trimmed) < len(content)
+              bytes_used += len(trimmed)
+              suffix = "\n[truncated]\n" if truncated else "\n"
+              context_blocks.append(f"FILE: {rel_path}\n-----\n{trimmed}{suffix}-----")
+
+          must_run = ticket.get("must_run", [])
+          if isinstance(must_run, str):
+              must_run_lines = [must_run]
+          elif isinstance(must_run, list):
+              must_run_lines = [str(item).strip() for item in must_run if str(item).strip()]
+          else:
+              must_run_lines = []
+
+          prompt = (
+              "Generate a valid git unified diff patch only.\n"
+              "Return patch text only. No prose, no markdown fences, no commentary.\n"
+              "Modify only files that match Allowed paths.\n"
+              "Keep strict guardrails and do not add any auto-merge behavior.\n"
+              "If no safe patch is possible, return an empty string.\n\n"
+              f"Repository: {os.environ.get('GH_REPO', '')}\n"
+              f"Ticket title: {ticket.get('title', '')}\n"
+              "Allowed paths:\n"
+              + "\n".join(f"- {item}" for item in allowed)
+              + "\n\nProblem:\n"
+              + str(ticket.get("problem", ""))
+              + "\n\nExpected result:\n"
+              + str(ticket.get("expected", ""))
+              + "\n\nRequired checks:\n"
+              + ("\n".join(f"- {item}" for item in must_run_lines) if must_run_lines else "- scripts/self_heal/run_required_checks.sh")
+              + "\n\nAllowed-path file context:\n"
+              + ("\n\n".join(context_blocks) if context_blocks else "No existing allowed-path files were found in the working tree.")
+          )
+
+          max_prompt_chars = 64000
+          if len(prompt) > max_prompt_chars:
+              prompt = prompt[: max_prompt_chars - len("\n[truncated]\n")] + "\n[truncated]\n"
+
+          request_payload = {
+              "model": os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b-instruct"),
+              "messages": [
+                  {
+                      "role": "system",
+                      "content": "You are a repository patch generator. Return only a valid unified git diff patch.",
+                  },
+                  {
+                      "role": "user",
+                      "content": prompt,
+                  },
+              ],
+              "stream": False,
+              "options": {
+                  "temperature": 0,
+                  "num_predict": 4000,
+              },
+          }
+
+          Path("tmp/self_heal_prompt.txt").write_text(prompt, encoding="utf-8")
+          Path("tmp/self_heal_ollama_request.json").write_text(
+              json.dumps(request_payload, ensure_ascii=False),
+              encoding="utf-8",
+          )
+          print(f"prompt ready ({math.ceil(len(prompt) / 4)} estimated tokens)")
+          PY
+
+      - name: Generate patch with local Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! curl -fsS "${OLLAMA_HOST%/}/api/chat" \
+            -H "Content-Type: application/json" \
+            -d @tmp/self_heal_ollama_request.json \
+            > tmp/self_heal_ollama_response.json 2> tmp/self_heal_ollama.err; then
+            {
+              echo "Ollama request failed."
+              sed -n '1,40p' tmp/self_heal_ollama.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::ollama stderr"
+            sed -n '1,120p' tmp/self_heal_ollama.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          "$PYTHON_BIN" - <<'PY' > tmp/self_heal.patch
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("tmp/self_heal_ollama_response.json").read_text(encoding="utf-8"))
+
+          def extract_text(obj: dict) -> str:
+              message = obj.get("message")
+              if isinstance(message, dict) and isinstance(message.get("content"), str):
+                  return message["content"]
+              choices = obj.get("choices")
+              if isinstance(choices, list) and choices:
+                  message = choices[0].get("message") or {}
+                  content = message.get("content")
+                  if isinstance(content, str):
+                      return content
+              return ""
+
+          def strip_fences(text: str) -> str:
+              value = text.strip()
+              if value.startswith("```"):
+                  lines = value.splitlines()
+                  if lines:
+                      lines = lines[1:]
+                  while lines and lines[-1].strip() == "```":
+                      lines = lines[:-1]
+                  value = "\n".join(lines).strip()
+              return value
+
+          patch = strip_fences(extract_text(payload)).replace("\r\n", "\n")
+          if patch:
+              print(patch)
+          PY
+
+          if [ ! -s tmp/self_heal.patch ]; then
+            echo "Self-heal model returned an empty patch." | tee tmp/self_heal_failure_reason.txt
+            exit 1
+          fi
+
+          if ! grep -q '^diff --git ' tmp/self_heal.patch; then
+            {
+              echo "Model response was not a unified diff."
+              sed -n '1,40p' tmp/self_heal.patch
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::invalid patch preview"
+            sed -n '1,120p' tmp/self_heal.patch
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          echo "::group::generated patch preview"
+          sed -n '1,200p' tmp/self_heal.patch
+          echo "::endgroup::"
+
+      - name: Apply generated patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git apply --check tmp/self_heal.patch 2> tmp/self_heal_git_apply.err; then
+            {
+              echo "git apply rejected the generated patch."
+              sed -n '1,40p' tmp/self_heal_git_apply.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::git apply stderr"
+            sed -n '1,120p' tmp/self_heal_git_apply.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          git apply --index tmp/self_heal.patch
+          echo "::group::staged diffstat after apply"
+          git diff --cached --stat
+          echo "::endgroup::"
+
+      - name: Enforce allowed_paths gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! "$PYTHON_BIN" scripts/self_heal/enforce_allowed_paths.py tmp/ticket.json 2> tmp/self_heal_allowed_paths.err; then
+            {
+              echo "allowed_paths gate rejected the generated diff."
+              sed -n '1,40p' tmp/self_heal_allowed_paths.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::allowed_paths stderr"
+            sed -n '1,120p' tmp/self_heal_allowed_paths.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          cat tmp/self_heal_allowed_paths.err
 
       - name: Required checks
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/self_heal/run_required_checks.sh
+          if ! bash scripts/self_heal/run_required_checks.sh > tmp/self_heal_checks.log 2>&1; then
+            {
+              echo "Required checks failed."
+              sed -n '1,80p' tmp/self_heal_checks.log
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::required checks log"
+            sed -n '1,200p' tmp/self_heal_checks.log || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          echo "::group::required checks log"
+          sed -n '1,120p' tmp/self_heal_checks.log
+          echo "::endgroup::"
+
+      - name: Restage final diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Self-heal patch did not leave any staged changes." | tee tmp/self_heal_failure_reason.txt
+            exit 1
+          fi
+          echo "::group::final staged diffstat"
+          git diff --cached --stat
+          echo "::endgroup::"
+
+      - name: Re-run allowed_paths gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! "$PYTHON_BIN" scripts/self_heal/enforce_allowed_paths.py tmp/ticket.json 2> tmp/self_heal_allowed_paths_final.err; then
+            {
+              echo "Final allowed_paths gate rejected the staged diff."
+              sed -n '1,40p' tmp/self_heal_allowed_paths_final.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::final allowed_paths stderr"
+            sed -n '1,120p' tmp/self_heal_allowed_paths_final.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          cat tmp/self_heal_allowed_paths_final.err
 
       - name: Commit changes
         shell: bash
         run: |
           set -euo pipefail
-          git status --porcelain
-          git add -A
-          git commit -m "L2 self-heal: apply patch" || true
+          git commit -m "L2 self-heal: apply patch"
 
       - name: Push branch
         shell: bash
         run: |
           set -euo pipefail
-          git push -u origin HEAD
+          git push -u origin "$SELF_HEAL_BRANCH"
 
       - name: Open draft PR
         shell: bash
         run: |
           set -euo pipefail
-          gh pr create --draft --title "L2 self-heal: ${{ github.run_id }}" --body-file .github/PULL_REQUEST_TEMPLATE/self_heal.md
+          pr_title="$("$PYTHON_BIN" - <<'PY'
+          import json
+          from pathlib import Path
+
+          ticket = json.loads(Path("tmp/ticket.json").read_text(encoding="utf-8"))
+          title = " ".join(str(ticket.get("title") or "apply patch").split())
+          print(f"L2 self-heal: {title}"[:120])
+          PY
+          )"
+
+          if ! PR_URL="$(GH_PROMPT_DISABLED=1 GIT_TERMINAL_PROMPT=0 gh pr create \
+            --repo "$GH_REPO" \
+            --base "$BASE_BRANCH" \
+            --head "$SELF_HEAL_BRANCH" \
+            --draft \
+            --title "$pr_title" \
+            --body-file .github/PULL_REQUEST_TEMPLATE/self_heal.md 2> tmp/self_heal_pr.err)"; then
+            {
+              echo "gh pr create failed."
+              sed -n '1,40p' tmp/self_heal_pr.err
+            } | tee tmp/self_heal_failure_reason.txt
+            echo "::group::gh pr create stderr"
+            sed -n '1,120p' tmp/self_heal_pr.err || true
+            echo "::endgroup::"
+            exit 1
+          fi
+
+          echo "SELF_HEAL_PR_URL=$PR_URL" >> "$GITHUB_ENV"
+          printf '%s\n' "$PR_URL" > tmp/self_heal_pr_url.txt
+          echo "Draft PR created: $PR_URL"
+
+      - name: Request reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          reviewer="${{ github.event.comment.user.login }}"
+          if [ -z "$reviewer" ] || [ "$reviewer" = "github-actions[bot]" ]; then
+            echo "Skipping reviewer request."
+            exit 0
+          fi
+          if ! gh pr edit "$SELF_HEAL_PR_URL" --repo "$GH_REPO" --add-reviewer "$reviewer" 2> tmp/self_heal_reviewer.err; then
+            echo "::warning::Could not request review from $reviewer"
+            echo "::group::gh pr edit stderr"
+            sed -n '1,120p' tmp/self_heal_reviewer.err || true
+            echo "::endgroup::"
+          fi
+
+      - name: Comment PR URL back to issue
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment "${{ github.event.issue.number }}" \
+            --repo "$GH_REPO" \
+            --body "Self-heal draft PR created: $SELF_HEAL_PR_URL"
+
+      - name: Report failure back to issue
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          {
+            echo "Self-heal failed for this ticket."
+            echo
+            if [ -s tmp/self_heal_failure_reason.txt ]; then
+              echo "Failure summary:"
+              sed -n '1,20p' tmp/self_heal_failure_reason.txt
+              echo
+            fi
+            if [ -s tmp/self_heal.patch ]; then
+              echo "Patch preview (first 80 lines):"
+              echo '```diff'
+              sed -n '1,80p' tmp/self_heal.patch
+              echo '```'
+              echo
+            fi
+            echo "Actions run: $run_url"
+          } > tmp/self_heal_failure_comment.md
+
+          gh issue comment "${{ github.event.issue.number }}" \
+            --repo "$GH_REPO" \
+            --body-file tmp/self_heal_failure_comment.md || true
