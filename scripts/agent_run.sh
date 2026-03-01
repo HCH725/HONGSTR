@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_AGENT_PROVIDER="openai"
+DEFAULT_AGENT_PROVIDER="ollama"
 DEFAULT_AGENT_MODEL="gpt-5.3-codex"
+DEFAULT_OLLAMA_HOST="http://127.0.0.1:11434"
+DEFAULT_OLLAMA_MODEL="qwen2.5-coder:7b-instruct"
 DEFAULT_MAX_TOKENS="4000"
 DEFAULT_MAX_COST_USD="2.00"
 DEFAULT_INPUT_COST_PER_1M="5.00"
@@ -34,6 +36,8 @@ AGENT_PROVIDER="${AGENT_PROVIDER:-$DEFAULT_AGENT_PROVIDER}"
 AGENT_MODEL="${AGENT_MODEL:-$DEFAULT_AGENT_MODEL}"
 MAX_TOKENS="${MAX_TOKENS:-$DEFAULT_MAX_TOKENS}"
 MAX_COST_USD="${MAX_COST_USD:-$DEFAULT_MAX_COST_USD}"
+OLLAMA_HOST="${OLLAMA_HOST:-$DEFAULT_OLLAMA_HOST}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-$DEFAULT_OLLAMA_MODEL}"
 OPENAI_INPUT_COST_PER_1M="${OPENAI_INPUT_COST_PER_1M:-$DEFAULT_INPUT_COST_PER_1M}"
 OPENAI_OUTPUT_COST_PER_1M="${OPENAI_OUTPUT_COST_PER_1M:-$DEFAULT_OUTPUT_COST_PER_1M}"
 
@@ -85,8 +89,9 @@ issue = payload.get("issue") or {}
 issue_body = str(issue.get("body") or "")
 issue_title = str(issue.get("title") or "")
 
-agent_provider = os.environ.get("AGENT_PROVIDER", "openai")
-agent_model = os.environ.get("AGENT_MODEL", "gpt-5.3-codex")
+agent_provider = os.environ.get("AGENT_PROVIDER", "ollama").strip().lower()
+openai_model = os.environ.get("AGENT_MODEL", "gpt-5.3-codex")
+ollama_model = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b-instruct")
 max_tokens = int(float(os.environ.get("MAX_TOKENS", "4000")))
 
 
@@ -236,30 +241,51 @@ prompt = (
     + "\n\n".join(context_blocks)
 )
 
+max_prompt_chars = max(8000, max_tokens * 16)
+if len(prompt) > max_prompt_chars:
+    prompt = prompt[: max_prompt_chars - len("\n[truncated]\n")] + "\n[truncated]\n"
+
 estimated_prompt_tokens = max(1, math.ceil(len(prompt) / 4))
 
-request_payload = {
-    "model": agent_model,
-    "messages": [
-        {
-            "role": "system",
-            "content": "You are a repository patch generator. Return only a valid unified git diff patch.",
+messages = [
+    {
+        "role": "system",
+        "content": "You are a repository patch generator. Return only a valid unified git diff patch.",
+    },
+    {
+        "role": "user",
+        "content": prompt,
+    },
+]
+
+if agent_provider == "openai":
+    resolved_model = openai_model
+    request_payload = {
+        "model": resolved_model,
+        "messages": messages,
+        "temperature": 0,
+        "max_completion_tokens": max_tokens,
+    }
+elif agent_provider == "ollama":
+    resolved_model = ollama_model
+    request_payload = {
+        "model": resolved_model,
+        "messages": messages,
+        "stream": False,
+        "options": {
+            "temperature": 0,
+            "num_predict": max_tokens,
         },
-        {
-            "role": "user",
-            "content": prompt,
-        },
-    ],
-    "temperature": 0,
-    "max_completion_tokens": max_tokens,
-}
+    }
+else:
+    raise SystemExit(f"unsupported AGENT_PROVIDER: {agent_provider}")
 
 request_json_path.write_text(json.dumps(request_payload, ensure_ascii=False), encoding="utf-8")
 meta_json_path.write_text(
     json.dumps(
         {
             "agent_provider": agent_provider,
-            "agent_model": agent_model,
+            "agent_model": resolved_model,
             "agent_name": agent_name,
             "task_text": task_text,
             "issue_title": issue_title,
@@ -272,7 +298,7 @@ meta_json_path.write_text(
 )
 PY
 then
-  fail "agent prompt build failed"
+  exit 1
 fi
 
 if ! python3 - "$meta_json" "$MAX_COST_USD" "$MAX_TOKENS" "$OPENAI_INPUT_COST_PER_1M" "$OPENAI_OUTPUT_COST_PER_1M" <<'PY'
@@ -287,17 +313,28 @@ input_cost_per_1m = float(sys.argv[4])
 output_cost_per_1m = float(sys.argv[5])
 
 prompt_tokens = float(meta.get("estimated_prompt_tokens") or 0)
-estimated_max_cost = ((prompt_tokens * input_cost_per_1m) + (max_tokens * output_cost_per_1m)) / 1_000_000.0
+if str(meta.get("agent_provider") or "").strip().lower() == "ollama":
+    estimated_max_cost = 0.0
+else:
+    estimated_max_cost = ((prompt_tokens * input_cost_per_1m) + (max_tokens * output_cost_per_1m)) / 1_000_000.0
 if estimated_max_cost > max_cost:
     raise SystemExit(
         f"budget gate blocked before API call: estimated max cost ${estimated_max_cost:.4f} exceeds MAX_COST_USD=${max_cost:.4f}"
     )
 PY
 then
-  fail "budget gate blocked before API call"
+  exit 1
 fi
 
 case "$AGENT_PROVIDER" in
+  ollama)
+    if ! curl -fsS "${OLLAMA_HOST%/}/api/chat" \
+      -H "Content-Type: application/json" \
+      -d @"$request_json" \
+      > "$response_json"; then
+      fail "ollama API request failed"
+    fi
+    ;;
   openai)
     [[ -n "${OPENAI_API_KEY:-}" ]] || fail "OPENAI_API_KEY is required for AGENT_PROVIDER=openai"
     openai_base_url="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
@@ -329,6 +366,10 @@ output_cost_per_1m = float(sys.argv[5])
 
 
 def extract_text(payload: dict) -> str:
+    message = payload.get("message")
+    if isinstance(message, dict) and isinstance(message.get("content"), str):
+        return message["content"]
+
     choices = payload.get("choices")
     if isinstance(choices, list) and choices:
         message = choices[0].get("message") or {}
@@ -386,9 +427,36 @@ def strip_code_fences(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def extract_unified_diff(text: str) -> str:
+    value = strip_code_fences(text)
+    if not value:
+        return ""
+
+    diff_index = value.find("diff --git ")
+    if diff_index != -1:
+        return value[diff_index:].strip()
+
+    lines = value.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("--- ") and any(candidate.startswith("+++ ") for candidate in lines[index + 1 :]):
+            return "\n".join(lines[index:]).strip()
+
+    return ""
+
+
 usage = response.get("usage") or {}
-prompt_tokens = usage.get("prompt_tokens") or usage.get("input_tokens") or usage.get("prompt_token_count")
-completion_tokens = usage.get("completion_tokens") or usage.get("output_tokens") or usage.get("completion_token_count")
+prompt_tokens = (
+    usage.get("prompt_tokens")
+    or usage.get("input_tokens")
+    or usage.get("prompt_token_count")
+    or response.get("prompt_eval_count")
+)
+completion_tokens = (
+    usage.get("completion_tokens")
+    or usage.get("output_tokens")
+    or usage.get("completion_token_count")
+    or response.get("eval_count")
+)
 
 if prompt_tokens is None:
     prompt_tokens = meta.get("estimated_prompt_tokens") or 0
@@ -397,18 +465,21 @@ if completion_tokens is None:
 
 prompt_tokens = float(prompt_tokens)
 completion_tokens = float(completion_tokens)
-actual_cost = ((prompt_tokens * input_cost_per_1m) + (completion_tokens * output_cost_per_1m)) / 1_000_000.0
+if str(meta.get("agent_provider") or "").strip().lower() == "ollama":
+    actual_cost = 0.0
+else:
+    actual_cost = ((prompt_tokens * input_cost_per_1m) + (completion_tokens * output_cost_per_1m)) / 1_000_000.0
 if actual_cost > max_cost:
     raise SystemExit(f"budget gate blocked after API call: actual cost ${actual_cost:.4f} exceeds MAX_COST_USD=${max_cost:.4f}")
 
-text = strip_code_fences(extract_text(response))
+text = extract_unified_diff(extract_text(response))
 if not text:
-    raise SystemExit("agent model returned an empty patch")
+    raise SystemExit("agent model did not return a unified diff")
 
 sys.stdout.write(text)
 if not text.endswith("\n"):
     sys.stdout.write("\n")
 PY
 then
-  fail "agent response processing failed"
+  exit 1
 fi
