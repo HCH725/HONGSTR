@@ -48,4 +48,14 @@ if [[ -z "${TG_CHAT_ID:-}" && -n "${TELEGRAM_CHAT_ID:-}" ]]; then
   export TG_CHAT_ID="${TELEGRAM_CHAT_ID}"
 fi
 
+# Backward/forward compatibility for Binance secret env naming.
+# Canonical (recommended): BINANCE_API_KEY + BINANCE_API_SECRET
+# Compat: BINANCE_SECRET_KEY (legacy in some modules)
+if [[ -z "${BINANCE_API_SECRET:-}" && -n "${BINANCE_SECRET_KEY:-}" ]]; then
+  export BINANCE_API_SECRET="${BINANCE_SECRET_KEY}"
+fi
+if [[ -z "${BINANCE_SECRET_KEY:-}" && -n "${BINANCE_API_SECRET:-}" ]]; then
+  export BINANCE_SECRET_KEY="${BINANCE_API_SECRET}"
+fi
+
 return 0 2>/dev/null || exit 0
