@@ -123,14 +123,16 @@ jobs:
           anchor_excerpt_path.write_text(anchor_excerpt, encoding="utf-8")
 
           prompt = (
-              "You are a patch generator. Output ONLY a unified diff. No prose. "
-              "No markdown fences. No explanations.\n"
+              "You are selecting an anchor line for a deterministic patch "
+              "builder. Output ONLY one exact line copied from the excerpt. "
+              "No prose. No markdown fences. No explanations.\n"
               "Rules:\n"
-              "1) Modify ONLY the file: docs/tg_cp_watchdog.md\n"
-              "2) Make ONE minimal change: add a single sentence under the "
-              "'Deployment notes (macOS launchd)' section saying: "
+              "1) Output EXACTLY one non-empty line copied from the excerpt "
+              "below that should remain immediately before the new sentence.\n"
+              "2) The new sentence to insert is: "
               "'TG_CP_MAX_AGE_SEC defaults to 7200 and can be tuned.'\n"
-              "3) The output MUST start with: diff --git\n"
+              "3) Stay within docs/tg_cp_watchdog.md and the Deployment notes "
+              "section.\n"
               "4) If you cannot comply, output exactly: NO_DIFF\n\n"
               f"Repository: {os.environ.get('GH_REPO', '')}\n"
               f"Ticket title: {ticket.get('title', '')}\n"
@@ -141,14 +143,8 @@ jobs:
               "--- BEGIN FILE ---\n"
               f"{anchor_excerpt}\n"
               "--- END FILE ---\n\n"
-              "Output format skeleton (follow exactly):\n"
-              "diff --git a/docs/tg_cp_watchdog.md b/docs/tg_cp_watchdog.md\n"
-              "--- a/docs/tg_cp_watchdog.md\n"
-              "+++ b/docs/tg_cp_watchdog.md\n"
-              "@@ @@\n"
-              " <context line 1 copied EXACTLY from the excerpt>\n"
-              " <context line 2 copied EXACTLY from the excerpt>\n"
-              "+TG_CP_MAX_AGE_SEC defaults to 7200 and can be tuned.\n"
+              "Return format:\n"
+              "<one exact anchor line copied from the excerpt>\n"
           )
 
           request_payload = {
@@ -156,7 +152,7 @@ jobs:
               "messages": [
                   {
                       "role": "system",
-                      "content": "You are a repository patch generator. You must output ONLY a valid unified git diff patch. The first line must start with 'diff --git', or output exactly 'NO_DIFF'.",
+                      "content": "You are selecting an exact anchor line for a deterministic patch builder. Output ONLY one exact line copied from the user's excerpt, or output exactly 'NO_DIFF'.",
                   },
                   {
                       "role": "user",
@@ -230,17 +226,28 @@ jobs:
               print(model_text)
           PY
 
-          if ! "$PYTHON_BIN" scripts/self_heal/extract_unified_diff.py \
-            tmp/self_heal_model_output.txt \
+          echo "::group::model anchor hint preview"
+          sed -n '1,40p' tmp/self_heal_model_output.txt || true
+          echo "::endgroup::"
+
+          if ! "$PYTHON_BIN" scripts/self_heal/build_patch_from_anchor.py \
+            "$PWD" \
+            tmp/ticket.json \
+            tmp/anchor_excerpt.txt \
             tmp/self_heal.patch \
-            2> tmp/self_heal_extract.err; then
+            2> tmp/self_heal_build_patch.err; then
             {
-              echo "Model response did not contain a unified diff."
-              sed -n '1,80p' tmp/self_heal_extract.err
+              echo "Deterministic patch builder failed."
+              sed -n '1,80p' tmp/self_heal_build_patch.err
             } | tee tmp/self_heal_failure_reason.txt
-            echo "::group::extractor stderr"
-            sed -n '1,200p' tmp/self_heal_extract.err || true
+            echo "::group::build patch stderr"
+            sed -n '1,200p' tmp/self_heal_build_patch.err || true
             echo "::endgroup::"
+            exit 1
+          fi
+
+          if [ "$(head -n 1 tmp/self_heal.patch 2>/dev/null || true)" = "NO_DIFF" ]; then
+            echo "Deterministic patch builder reported no changes to apply." | tee tmp/self_heal_failure_reason.txt
             exit 1
           fi
 
