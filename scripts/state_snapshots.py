@@ -1429,9 +1429,16 @@ def main():
     if regime_age_h is not None:
         regime_monitor_status = "OK" if regime_age_h <= regime_ok_h else "WARN"
 
+    regime_audit_path = STATE_DIR / "regime_timeline_audit_latest.json"
+    regime_audit_data = read_json(regime_audit_path) or {}
+    regime_audit_status = str(regime_audit_data.get("overall", "UNKNOWN")).upper()
+    if regime_audit_status not in {"OK", "WARN", "FAIL"}:
+        regime_audit_status = "UNKNOWN"
+
+
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
     ssot_status = _collapse_system_status(
-        [freshness_status, coverage_as_health, brake_status, regime_monitor_status]
+        [freshness_status, coverage_as_health, brake_status, regime_monitor_status, regime_audit_status]
     )
 
     system_health = {
@@ -1462,6 +1469,12 @@ def main():
                 "age_h": round(regime_age_h, 1) if regime_age_h is not None else None,
                 "ok_within_h": regime_ok_h,
             },
+            "regime_timeline_audit": {
+                "status": regime_audit_status,
+                "gaps": len(regime_audit_data.get("gaps", [])),
+                "overlaps": len(regime_audit_data.get("overlaps", []))
+            },
+
             "regime_signal": {
                 "status": regime_signal,
                 "top_reason": regime_top_reason,
@@ -1478,6 +1491,7 @@ def main():
             "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
+            "regime_timeline_audit_latest.json": _source_meta(STATE_DIR / "regime_timeline_audit_latest.json", now_ts),
         },
     }
     write_json(STATE_DIR / "system_health_latest.json", system_health)

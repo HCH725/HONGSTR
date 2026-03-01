@@ -353,3 +353,46 @@ brew install gh
 gh auth login
 bash scripts/gh_pr_merge.sh "chore: <title>" "<body>"
 ```
+
+## Regime Timeline Audit Pack
+
+The Regime Timeline Audit system ensures chronological and semantic integrity of the interval-based `regime_timeline_policy.json` (or variants). It falls back elegantly if missing.
+
+1. **How to Generate:**
+    Automatically executed via scripts/refresh_state.sh before canonicalization into the system health pack.
+
+2. **Schema & Location:**
+   `data/state/regime_timeline_audit_latest.json`
+
+   ```json
+    {
+      "schema_version": "1.0",
+      "producer_git_sha": "abc1234",
+      "generated_utc": "2026-03-01T01:50:00Z",
+      ...
+      "overall": "UNKNOWN",
+      "coverage_pct": 0.0,
+      "gaps": [],
+      "overlaps": [],
+      "slices_summary": {
+        "lookback_days": 180,
+        "bull_days": 0.0,
+        "bear_days": 0.0,
+        "sideways_days": 0.0,
+        "unknown_days": 0.0
+      },
+      "policy_source_path": null,
+      "policy_sha": "UNKNOWN",
+      "source_reason": "missing_policy",
+      "refresh_hint": "no interval-based regime timeline policy file found; cannot audit gaps/overlaps",
+      "gaps_seconds_total": 0,
+      "overlaps_seconds_total": 0,
+      "thresholds": {
+        "gap_fail_seconds": 86400,
+        "overlap_fail_seconds": 0
+      }
+    }
+   ```
+
+3. **Telegram Consumer (`/regime_audit`):**
+    Displays the aggregated coverage over a 180d window, structural gaps, overlaps, and duration metrics. Falls back to a safe `❓ UNKNOWN` state natively if the internal file structure breaks.
