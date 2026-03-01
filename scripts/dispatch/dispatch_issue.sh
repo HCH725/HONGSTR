@@ -259,10 +259,10 @@ mkdir -p "$(dirname "$SMOKE_PATH")"
 {
   printf "# Dispatcher Smoke\n\n"
   printf "This file is updated by the guarded issue-comment dispatcher.\n\n"
-  printf "- Issue: #%s\n" "$ISSUE_NUMBER"
-  printf "- Actor: %s\n" "$COMMENT_AUTHOR"
-  printf "- Updated UTC: %s\n" "$timestamp_utc"
-  printf "- Allowed paths:\n"
+  printf -- "- Issue: #%s\n" "$ISSUE_NUMBER"
+  printf -- "- Actor: %s\n" "$COMMENT_AUTHOR"
+  printf -- "- Updated UTC: %s\n" "$timestamp_utc"
+  printf '%s\n' '- Allowed paths:'
   while IFS= read -r allowed_path; do
     [[ -n "$allowed_path" ]] || continue
     printf "  - %s\n" "$allowed_path"
