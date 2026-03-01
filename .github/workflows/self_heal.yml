@@ -131,12 +131,13 @@ jobs:
               "--- BEGIN FILE ---\n"
               f"{excerpt}\n"
               "--- END FILE ---\n\n"
-              "Output format skeleton (follow exactly; adjust context as needed):\n"
+              "Output format skeleton (follow exactly):\n"
               "diff --git a/docs/tg_cp_watchdog.md b/docs/tg_cp_watchdog.md\n"
-              "index 0000000..0000000 100644\n"
               "--- a/docs/tg_cp_watchdog.md\n"
               "+++ b/docs/tg_cp_watchdog.md\n"
-              "@@\n"
+              "@@ <old_line>,<old_count> +<new_line>,<new_count> @@\n"
+              " <context line 1 copied EXACTLY from the excerpt>\n"
+              " <context line 2 copied EXACTLY from the excerpt>\n"
               "+TG_CP_MAX_AGE_SEC defaults to 7200 and can be tuned.\n"
           )
 
@@ -241,7 +242,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! git apply --check tmp/self_heal.patch 2> tmp/self_heal_git_apply.err; then
+          PATCH_IN="tmp/self_heal.patch"
+          PATCH_OUT="tmp/self_heal.patch.sanitized"
+          export PATCH_IN PATCH_OUT
+          "$PYTHON_BIN" - <<'PY'
+          import os
+          from pathlib import Path
+
+          input_lines = Path(os.environ["PATCH_IN"]).read_text(
+              encoding="utf-8", errors="replace"
+          ).splitlines(True)
+          output_lines = []
+          for line in input_lines:
+              if line.startswith("index ") and ".." in line:
+                  continue
+              output_lines.append(line.replace("\ufeff", ""))
+          Path(os.environ["PATCH_OUT"]).write_text(
+              "".join(output_lines),
+              encoding="utf-8",
+          )
+          PY
+          if ! git apply --check "$PATCH_OUT" 2> tmp/self_heal_git_apply.err; then
             {
               echo "git apply rejected the generated patch."
               sed -n '1,40p' tmp/self_heal_git_apply.err
@@ -252,7 +273,7 @@ jobs:
             exit 1
           fi
 
-          git apply --index tmp/self_heal.patch
+          git apply --index "$PATCH_OUT"
           echo "::group::staged diffstat after apply"
           git diff --cached --stat
           echo "::endgroup::"
