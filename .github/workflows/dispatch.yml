@@ -1,69 +1,54 @@
-name: dispatcher
+name: dispatch
 
 on:
   issue_comment:
-    types: [created]
+    types:
+      - created
 
 permissions:
+  contents: write
   issues: write
   pull-requests: write
-  contents: read
 
 jobs:
   dispatch:
-    if: contains(github.event.comment.body, '/dispatch')
-    runs-on: [self-hosted, macOS, ARM64]
+    if: >
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '/dispatch') &&
+      contains(fromJson('["HCH725"]'), github.event.comment.user.login)
+    runs-on:
+      - self-hosted
+      - macOS
+      - ARM64
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_EVENT_PATH: ${{ github.event_path }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      DISPATCH_ALLOWLIST: HCH725
+      DISPATCH_BASE_BRANCH: main
     steps:
-      - name: Guard - allowlist comment author
+      - name: Check gh CLI
         shell: bash
         run: |
-          set -euo pipefail
-          AUTHOR="${{ github.event.comment.user.login }}"
-          ALLOWLIST="HCH725"
-          if [[ ",${ALLOWLIST}," != *",${AUTHOR},"* ]]; then
-            echo "Blocked: author not allowlisted: ${AUTHOR}"
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "::error::gh CLI is required on the self-hosted runner for /dispatch"
             exit 1
           fi
 
-      - name: Mark issue running
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          ISSUE: ${{ github.event.issue.number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api -X POST "repos/${REPO}/issues/${ISSUE}/labels" -f labels[]="dispatch:running" >/dev/null || true
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
 
       - name: Acknowledge dispatch
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          ISSUE: ${{ github.event.issue.number }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
-          set -euo pipefail
-          gh api -X POST "repos/${REPO}/issues/${ISSUE}/comments" -f body="✅ Dispatcher accepted /dispatch. Run: ${RUN_URL}" >/dev/null
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Dispatch accepted for issue #$ISSUE_NUMBER. Starting guarded PR stub run."
 
-      - name: Mark issue done
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          ISSUE: ${{ github.event.issue.number }}
+      - name: Run guarded dispatcher
         shell: bash
         run: |
-          set -euo pipefail
-          gh api -X POST "repos/${REPO}/issues/${ISSUE}/labels" -f labels[]="dispatch:done" >/dev/null || true
-
-      - name: Mark issue blocked
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          ISSUE: ${{ github.event.issue.number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api -X POST "repos/${REPO}/issues/${ISSUE}/labels" -f labels[]="dispatch:blocked" >/dev/null || true
+          bash scripts/dispatch/dispatch_issue.sh
