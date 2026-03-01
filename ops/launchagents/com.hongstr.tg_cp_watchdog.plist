@@ -9,7 +9,7 @@
     <array>
       <string>/bin/bash</string>
       <string>-lc</string>
-      <string>cd "$HOME/Projects/HONGSTR" &amp;&amp; ./.venv/bin/python scripts/tg_cp_healthcheck.py || launchctl kickstart -k gui/$(id -u)/com.hongstr.tg_cp</string>
+      <string>cd "/Users/hong/Projects/HONGSTR" &amp;&amp; ( [ -x ./.venv/bin/python ] && ./.venv/bin/python scripts/tg_cp_healthcheck.py || python3 scripts/tg_cp_healthcheck.py ) || launchctl kickstart -k gui/$(id -u)/com.hongstr.tg_cp</string>
     </array>
 
     <key>StartInterval</key>
@@ -19,8 +19,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>$HOME/Library/Logs/hongstr/tg_cp_watchdog.out.log</string>
+    <string>/Users/hong/Library/Logs/hongstr/tg_cp_watchdog.out.log</string>
     <key>StandardErrorPath</key>
-    <string>$HOME/Library/Logs/hongstr/tg_cp_watchdog.err.log</string>
+    <string>/Users/hong/Library/Logs/hongstr/tg_cp_watchdog.err.log</string>
   </dict>
 </plist>
