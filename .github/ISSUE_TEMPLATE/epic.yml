@@ -1,0 +1,88 @@
+name: "Epic — Feature Scope & Workstreams"
+description: "Scope an approved PRD into workstreams and declare dependencies before tasks are created."
+labels: ["epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Epic Template
+        An Epic must reference an approved PRD issue.  
+        Decompose into Tasks only after Epic scope is reviewed.
+
+  - type: input
+    id: prd_ref
+    attributes:
+      label: PRD Issue Reference
+      placeholder: "e.g., #42"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What files/components are in scope? List explicitly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: allowed_paths
+    attributes:
+      label: allowed_paths
+      description: |
+        **Required for dispatcher.** Files/globs the agent is allowed to modify.  
+        The dispatcher will reject any diff outside this list.
+        ```
+        allowed_paths:
+          - scripts/my_script.py
+          - docs/governance/*.md
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: workstreams
+    attributes:
+      label: Workstreams
+      description: |
+        Label parallel workstreams for multi-agent execution.
+        ```
+        WS-A: Data ingestion changes
+        WS-B: Dashboard UI
+        WS-C: Docs update
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What must be merged/ready before this Epic can start?
+    validations:
+      required: false
+
+  - type: textarea
+    id: gates
+    attributes:
+      label: Gates (Definition of Done)
+      description: |
+        Binary conditions that must all be true before Epic is closed.
+        ```
+        GATE-1: bash scripts/guardrail_check.sh exits 0
+        GATE-2: git diff origin/main...HEAD -- src/hongstr | wc -l == 0
+        GATE-3: All linked Task PRs merged
+        ```
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk Level
+      options:
+        - Low (docs/templates only)
+        - Medium (scripts/research, no core)
+        - High (touches execution semantics)
+    validations:
+      required: true
