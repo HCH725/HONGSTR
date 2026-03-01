@@ -28,6 +28,11 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       DISPATCH_ALLOWLIST: HCH725
       DISPATCH_BASE_BRANCH: main
+      AGENT_PROVIDER: openai
+      AGENT_MODEL: gpt-5.3-codex
+      MAX_TOKENS: "4000"
+      MAX_COST_USD: "2.00"
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - name: Check gh CLI
         shell: bash
@@ -46,7 +51,7 @@ jobs:
       - name: Acknowledge dispatch
         shell: bash
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Dispatch accepted for issue #$ISSUE_NUMBER. Starting guarded PR stub run."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Dispatch accepted for issue #$ISSUE_NUMBER. Starting guarded dispatcher run."
 
       - name: Run guarded dispatcher
         shell: bash
