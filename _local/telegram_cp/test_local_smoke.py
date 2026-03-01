@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
+from _local.telegram_cp.prompt_pack import build_system_prompt as build_prompt_pack_system_prompt, select_overlay
 
 INCIDENT_FIXTURES = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/incident_timeline")
 
@@ -859,6 +860,20 @@ def test_system_prompt_includes_user_memories(monkeypatch, tmp_path):
 
     prompt = s._build_system_prompt()
     assert "洪老爺" in prompt
+
+
+def test_prompt_pack_overlay_selection():
+    assert select_overlay("qwen2.5-coder:7b-instruct") == "overlay_qwen2.5-coder_7b_instruct.md"
+    assert select_overlay("deepseek-r1:7b") == "overlay_deepseek-r1_7b.md"
+    assert select_overlay("qwen2.5:7b-instruct") == "overlay_qwen2.5_7b_instruct.md"
+    assert select_overlay("unknown-model") == "overlay_qwen2.5_7b_instruct.md"
+
+
+def test_prompt_pack_builds_for_supported_models():
+    for model_name in ("qwen2.5-coder:7b-instruct", "deepseek-r1:7b", "qwen2.5:7b-instruct"):
+        prompt = build_prompt_pack_system_prompt(model_name)
+        assert prompt
+        assert "HARD RED LINES" in prompt
 
 
 # ── secret redaction ──

@@ -7,7 +7,7 @@ Models:
 - deepseek-r1:7b (reasoning specialist)
 - qwen2.5:7b-instruct (ops/partner-friendly)
 
-This pack is **docs-only** in v1: it defines contracts and templates. Runtime injection (tg_cp / dispatcher) is a later PR.
+This pack is **spec-first** in v1: it defines contracts and templates, and tg_cp may inject the prompt files directly at runtime. Dispatcher wiring is a later PR.
 
 Contents:
 - base_system.md: global mission + red lines + procedure + output contract
@@ -22,3 +22,6 @@ Non-negotiables:
 - ML/Research report_only
 - no data/** artifacts committed
 - GitHub PR-based governance
+
+Runtime note:
+- tg_cp prepends base_system_prompt + model overlay + injection_contract when TG_PROMPT_PACK_ENABLED is not 0 (default 1).
