@@ -16,8 +16,11 @@ import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
+from _local.telegram_cp.prompt_pack import build_system_prompt as build_prompt_pack_system_prompt, select_overlay
 
-INCIDENT_FIXTURES = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/incident_timeline")
+TEST_DIR = Path(__file__).resolve().parent
+FIXTURES_DIR = TEST_DIR / "tests" / "fixtures"
+INCIDENT_FIXTURES = FIXTURES_DIR / "incident_timeline"
 
 
 def _sandbox_state(monkeypatch, tmp_path, s):
@@ -33,7 +36,7 @@ def _sandbox_state(monkeypatch, tmp_path, s):
 
 
 def _load_server():
-    p = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tg_cp_server.py")
+    p = TEST_DIR / "tg_cp_server.py"
     spec = importlib.util.spec_from_file_location("tg_cp_server_testmod", p)
     mod = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
@@ -66,8 +69,8 @@ def test_guardrail_blocks_trade_request(monkeypatch, tmp_path):
 # ── policy + skills contract ──
 
 def test_policy_and_skills_contract():
-    policy = json.loads(Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/policy.json").read_text(encoding="utf-8"))
-    skills = json.loads(Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/skills_registry.json").read_text(encoding="utf-8"))["skills"]
+    policy = json.loads((TEST_DIR / "policy.json").read_text(encoding="utf-8"))
+    skills = json.loads((TEST_DIR / "skills_registry.json").read_text(encoding="utf-8"))["skills"]
 
     assert policy["mode"] == "read_only"
     assert policy["allowed_actions"] == []
@@ -861,6 +864,20 @@ def test_system_prompt_includes_user_memories(monkeypatch, tmp_path):
     assert "洪老爺" in prompt
 
 
+def test_prompt_pack_overlay_selection():
+    assert select_overlay("qwen2.5-coder:7b-instruct") == "overlay_qwen2.5-coder_7b_instruct.md"
+    assert select_overlay("deepseek-r1:7b") == "overlay_deepseek-r1_7b.md"
+    assert select_overlay("qwen2.5:7b-instruct") == "overlay_qwen2.5_7b_instruct.md"
+    assert select_overlay("unknown-model") == "overlay_qwen2.5_7b_instruct.md"
+
+
+def test_prompt_pack_builds_for_supported_models():
+    for model_name in ("qwen2.5-coder:7b-instruct", "deepseek-r1:7b", "qwen2.5:7b-instruct"):
+        prompt = build_prompt_pack_system_prompt(model_name)
+        assert prompt
+        assert "HARD RED LINES" in prompt
+
+
 # ── secret redaction ──
 
 def test_reply_does_not_leak_token():
@@ -1489,7 +1506,7 @@ def test_morning_brief_full_pack(monkeypatch, tmp_path):
     state_dir.mkdir(parents=True)
     
     # Use fixture content
-    fixture_path = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/health_brief/system_health_latest_ok.json")
+    fixture_path = FIXTURES_DIR / "health_brief" / "system_health_latest_ok.json"
     (state_dir / "system_health_latest.json").write_text(fixture_path.read_text())
     
     monkeypatch.setattr(s, "REPO", repo)

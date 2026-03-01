@@ -44,6 +44,15 @@ except Exception:
     from guardrail import is_action_request, refusal_message, redact_secrets  # type: ignore
 
 try:
+    from _local.telegram_cp.prompt_pack import build_system_prompt as build_prompt_pack_system_prompt  # type: ignore
+except Exception:
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from prompt_pack import build_system_prompt as build_prompt_pack_system_prompt  # type: ignore
+    except Exception:
+        build_prompt_pack_system_prompt = None  # type: ignore
+
+try:
     from _local.telegram_cp.router import should_use_specialist
     from _local.telegram_cp.reasoning_client import call_reasoning_specialist
 except Exception:
@@ -90,6 +99,7 @@ TG_BOT_USERNAME = os.environ.get("TG_BOT_USERNAME", "").lstrip("@")
 OLLAMA_ENDPOINT = os.environ.get("HONGSTR_LLM_ENDPOINT", "http://127.0.0.1:11434").rstrip("/")
 OLLAMA_MODEL = os.environ.get("HONGSTR_LLM_MODEL", "qwen2.5:7b-instruct")
 OLLAMA_TEMPERATURE = float(os.environ.get("HONGSTR_LLM_TEMPERATURE", "0.45"))
+TG_PROMPT_PACK_ENABLED = os.environ.get("TG_PROMPT_PACK_ENABLED", "1") != "0"
 MAX_REPLY_CHARS = int(os.environ.get("HONGSTR_TG_MAX_REPLY_CHARS", "1800"))
 HISTORY_MAX_TURNS = int(os.environ.get("HONGSTR_TG_HISTORY_TURNS", "10"))
 
@@ -2400,9 +2410,24 @@ def _build_system_prompt() -> str:
     return "\n".join(parts)
 
 
+def _build_ollama_system_prompt(model_name: str) -> str:
+    existing_system = _build_system_prompt()
+    if not TG_PROMPT_PACK_ENABLED or build_prompt_pack_system_prompt is None:
+        return existing_system
+    try:
+        pack_system = build_prompt_pack_system_prompt(model_name)
+    except Exception as exc:
+        logger.warning("Prompt pack unavailable; falling back to existing system prompt (%s)", type(exc).__name__)
+        return existing_system
+    if not pack_system.strip():
+        logger.warning("Prompt pack returned empty content; falling back to existing system prompt")
+        return existing_system
+    return pack_system.strip() + "\n\n" + existing_system
+
+
 def _llm_chat(chat_id: int, user_text: str, history: list[dict]) -> tuple[str, str | None]:
     """Call Ollama /api/chat with system prompt + conversation history + new user message."""
-    system_prompt = _build_system_prompt()
+    system_prompt = _build_ollama_system_prompt(OLLAMA_MODEL)
 
     messages = [{"role": "system", "content": system_prompt}]
     # Add conversation history (already contains {role, content} dicts)
