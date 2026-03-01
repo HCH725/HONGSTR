@@ -116,7 +116,7 @@ def parse_allowed_paths(body: str) -> list[str]:
             in_section = True
             trailing = heading_match.group(1).strip()
             if trailing:
-                candidate = re.sub(r"^[-*+]\s*", "", trailing)
+                candidate = re.sub(r"^[•\-*+]\s*", "", trailing)
                 candidate = re.sub(r"^\d+\.\s*", "", candidate)
                 candidate = candidate.strip().strip("`")
                 if candidate:
@@ -138,8 +138,8 @@ def parse_allowed_paths(body: str) -> list[str]:
             continue
 
         candidate = stripped
-        candidate = re.sub(r"^- \[[ xX]\]\s*", "", candidate)
-        candidate = re.sub(r"^[-*+]\s*", "", candidate)
+        candidate = re.sub(r"^[•\-*+] \[[ xX]\]\s*", "", candidate)
+        candidate = re.sub(r"^[•\-*+]\s*", "", candidate)
         candidate = re.sub(r"^\d+\.\s*", "", candidate)
         candidate = candidate.strip().strip("`")
         if candidate:
@@ -201,6 +201,7 @@ if [[ "$author_allowed" != "true" ]]; then
 fi
 
 if [[ ! -s "$allowed_paths_file" ]]; then
+  gh issue comment "$ISSUE_NUMBER" --repo "$REPO_FULL_NAME" --body $'Allowed paths:\n- docs/dispatcher_smoke.md' >/dev/null 2>&1 || true
   die "issue #$ISSUE_NUMBER is missing an Allowed paths section"
 fi
 
