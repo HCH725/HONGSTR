@@ -12,6 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+try:
+    from scripts._ssot_meta import add_ssot_meta
+except ImportError:
+    import sys
+    sys.path.append(str(Path(__file__).parent))
+    from _ssot_meta import add_ssot_meta
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 STATE_DIR = Path("data/state")
@@ -1102,7 +1109,7 @@ def main():
     # 5. Canonicalize Regime Monitor (state_snapshots is the final writer to data/state)
     regime_data = _normalize_regime_snapshot(read_json(ATOMIC_REGIME_MONITOR), now_utc)
     if isinstance(regime_data, dict) and regime_data:
-        write_json(STATE_DIR / "regime_monitor_latest.json", regime_data)
+        write_json(STATE_DIR / "regime_monitor_latest.json", add_ssot_meta(regime_data, notes="Canonicalized from atomic snapshot"))
     else:
         regime_data = {
             "ts_utc": now_utc,
@@ -1111,7 +1118,7 @@ def main():
             "reason": ["missing_regime_atomic"],
             "current": {},
         }
-        write_json(STATE_DIR / "regime_monitor_latest.json", regime_data)
+        write_json(STATE_DIR / "regime_monitor_latest.json", add_ssot_meta(regime_data, notes="Fallback for missing regime atomic"))
 
     # 6. Regime Monitor Summary
     if regime_data:
@@ -1176,7 +1183,7 @@ def main():
 
     freshness_table = _build_freshness_table(now_utc, freshness_matrix)
 
-    write_json(STATE_DIR / "freshness_table.json", freshness_table)
+    write_json(STATE_DIR / "freshness_table.json", add_ssot_meta(freshness_table))
 
     # 8. Execution Mode Snapshot
     execution_mode = {
@@ -1290,14 +1297,13 @@ def main():
     matrix_snapshot = {
         "ts_utc": now_utc,
         "rows": sorted(matrix_rows, key=lambda x: (x["symbol"], x["tf"])),
-        "totals": totals
     }
-    write_json(STATE_DIR / "coverage_matrix_latest.json", matrix_snapshot)
+    write_json(STATE_DIR / "coverage_matrix_latest.json", add_ssot_meta(matrix_snapshot))
 
     # 11. Canonicalize Brake Health (state_snapshots is the final writer to data/state)
     brake_data = _normalize_brake_snapshot(read_json(ATOMIC_BRAKE_HEALTH), now_utc)
     if isinstance(brake_data, dict) and brake_data:
-        write_json(STATE_DIR / "brake_health_latest.json", brake_data)
+        write_json(STATE_DIR / "brake_health_latest.json", add_ssot_meta(brake_data, notes="Canonicalized from brake health atomic"))
     else:
         brake_data = {
             "timestamp": now_utc,
@@ -1308,7 +1314,7 @@ def main():
             "strict_mode": False,
             "status": "UNKNOWN",
         }
-        write_json(STATE_DIR / "brake_health_latest.json", brake_data)
+        write_json(STATE_DIR / "brake_health_latest.json", add_ssot_meta(brake_data, notes="Fallback for missing brake health atomic"))
 
     # 12. Optional Health Pack Aggregator (SSOT summary only)
     fresh_rows = freshness_table.get("rows", [])
@@ -1430,8 +1436,16 @@ def main():
         regime_monitor_status = "OK" if regime_age_h <= regime_ok_h else "WARN"
 
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
+    
+    schema_check = read_json(STATE_DIR / "state_schema_check_latest.json")
+    schema_status = "UNKNOWN"
+    if isinstance(schema_check, dict):
+        # The schema checker returns OK/WARN/FAIL/UNKNOWN
+        schema_status = str(schema_check.get("status") or "UNKNOWN").upper()
+    effective_schema_status = "WARN" if schema_status == "FAIL" else schema_status
+
     ssot_status = _collapse_system_status(
-        [freshness_status, coverage_as_health, brake_status, regime_monitor_status]
+        [freshness_status, coverage_as_health, brake_status, regime_monitor_status, effective_schema_status]
     )
 
     system_health = {
@@ -1472,6 +1486,9 @@ def main():
                 "calibration_status": regime_calibration_status,
                 "last_calibrated_utc": regime_last_calibrated_utc,
             },
+            "schema_check": {
+                "status": schema_status,
+            }
         },
         "sources": {
             "freshness_table.json": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
@@ -1480,7 +1497,7 @@ def main():
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
         },
     }
-    write_json(STATE_DIR / "system_health_latest.json", system_health)
+    write_json(STATE_DIR / "system_health_latest.json", add_ssot_meta(system_health))
 
     # 13. Daily Report SSOT (single entrypoint for tg_cp/dashboard daily reporting)
     research_leaderboard = read_json(STATE_DIR / "_research/leaderboard.json") or {}
@@ -1498,7 +1515,7 @@ def main():
         policy_payload=overfit_policy if isinstance(overfit_policy, dict) else {},
         repo_root=Path(".").resolve(),
     )
-    write_json(STATE_DIR / "daily_report_latest.json", daily_report_payload)
+    write_json(STATE_DIR / "daily_report_latest.json", add_ssot_meta(daily_report_payload))
 
     logging.info("Snapshots successfully written to data/state/")
 

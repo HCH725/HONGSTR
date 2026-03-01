@@ -353,3 +353,11 @@ brew install gh
 gh auth login
 bash scripts/gh_pr_merge.sh "chore: <title>" "<body>"
 ```
+
+## SSOT Provenance and Schema Gate
+
+Key state outputs in `data/state/` are injected with robust provenance metadata (`_ssot_meta.py`), such as `schema_version` and `producer_git_sha`. To ensure data integrity, a schema gate runs at the end of the `bash scripts/refresh_state.sh` pipeline:
+
+1. **Gate Script**: `scripts/state_schema_check.py` validates the required keys (e.g. `schema_version="1.0"`) on top-level JSON fields without blocking pipelines.
+2. **Artifact**: The validation output is stored as `data/state/state_schema_check_latest.json`.
+3. **Observability**: The schema check status is read and gracefully reported via the system health component in `data/state/system_health_latest.json` globally.

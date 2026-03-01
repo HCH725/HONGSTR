@@ -58,6 +58,9 @@ fi
 run_step "7. Generate Dashboard Snapshots (Canonical data/state Writer)" \
     .venv/bin/python scripts/state_snapshots.py
 
+run_step "8. State Schema Gate Validation" \
+    .venv/bin/python scripts/state_schema_check.py || true
+
 echo -e "\n=========================================="
 echo "               TL;DR REPORT               "
 echo "=========================================="
