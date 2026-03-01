@@ -1,1 +1,9 @@
-The Ollama default model is qwen2.5-coder:7b-instruct and no OpenAI API key is required.
+# Dispatcher Smoke
+
+This file is updated by the guarded issue-comment dispatcher.
+
+- Issue: #181
+- Actor: HCH725
+- Updated UTC: 2026-03-01T23:40:26Z
+- Allowed paths:
+  - docs/
