@@ -256,7 +256,7 @@ jobs:
             exit 1
           fi
 
-          "$PYTHON_BIN" - <<'PY' > tmp/self_heal.patch
+          "$PYTHON_BIN" - <<'PY' > tmp/self_heal_model_output.txt
           import json
           from pathlib import Path
 
@@ -285,23 +285,21 @@ jobs:
                   value = "\n".join(lines).strip()
               return value
 
-          patch = strip_fences(extract_text(payload)).replace("\r\n", "\n")
-          if patch:
-              print(patch)
+          model_text = strip_fences(extract_text(payload)).replace("\r\n", "\n")
+          if model_text:
+              print(model_text)
           PY
 
-          if [ ! -s tmp/self_heal.patch ]; then
-            echo "Self-heal model returned an empty patch." | tee tmp/self_heal_failure_reason.txt
-            exit 1
-          fi
-
-          if ! grep -q '^diff --git ' tmp/self_heal.patch; then
+          if ! "$PYTHON_BIN" scripts/self_heal/extract_unified_diff.py \
+            tmp/self_heal_model_output.txt \
+            tmp/self_heal.patch \
+            2> tmp/self_heal_extract.err; then
             {
-              echo "Model response was not a unified diff."
-              sed -n '1,40p' tmp/self_heal.patch
+              echo "Model response did not contain a unified diff."
+              sed -n '1,80p' tmp/self_heal_extract.err
             } | tee tmp/self_heal_failure_reason.txt
-            echo "::group::invalid patch preview"
-            sed -n '1,120p' tmp/self_heal.patch
+            echo "::group::extractor stderr"
+            sed -n '1,200p' tmp/self_heal_extract.err || true
             echo "::endgroup::"
             exit 1
           fi
