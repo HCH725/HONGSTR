@@ -1,0 +1,95 @@
+name: L2 Self-Heal
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  self_heal:
+    if: contains(github.event.comment.body, '/selfheal')
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract ticket JSON block
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re, sys
+          body = open("BODY.txt","w",encoding="utf-8")
+          body.write(sys.stdin.read())
+          body.close()
+          PY
+        env:
+          BODY: ${{ github.event.comment.body }}
+
+      - name: Write ticket.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, re, sys
+          body = os.environ.get("COMMENT_BODY","")
+          m = re.search(r'(\{[\s\S]*\})', body)
+          if not m:
+            raise SystemExit("ERROR: cannot find JSON object in comment body")
+          raw = m.group(1)
+          obj = json.loads(raw)
+          open("ticket.json","w",encoding="utf-8").write(json.dumps(obj, ensure_ascii=False, indent=2))
+          print("ticket.json written")
+          PY
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+
+      - name: Validate ticket
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/self_heal/parse_ticket.py < ticket.json > /tmp/ticket_validated.json
+          mv /tmp/ticket_validated.json ticket.json
+
+      - name: Create branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -b "selfheal/${{ github.run_id }}"
+
+      - name: Generate patch placeholder
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "TODO: integrate local model patch generation here (ollama/qwen-coder) using ticket.json"
+          exit 1
+
+      - name: Required checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/self_heal/run_required_checks.sh
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain
+          git add -A
+          git commit -m "L2 self-heal: apply patch" || true
+
+      - name: Push branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push -u origin HEAD
+
+      - name: Open draft PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr create --draft --title "L2 self-heal: ${{ github.run_id }}" --body-file .github/PULL_REQUEST_TEMPLATE/self_heal.md
