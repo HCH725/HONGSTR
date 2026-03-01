@@ -122,6 +122,43 @@ bash scripts/guardrail_check.sh
 .venv/bin/python -m pytest tests/test_obsidian_rag.py
 ```
 
+## Hourly launchd Schedule
+
+Install or reload the user LaunchAgent:
+
+```bash
+bash scripts/install_obsidian_rag_launchd.sh
+```
+
+Force a run immediately:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.hongstr.obsidian_rag
+```
+
+Stop and unload the job:
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.hongstr.obsidian_rag.plist
+```
+
+Logs live at:
+
+- `~/Library/Logs/hongstr/obsidian_rag.out.log`
+- `~/Library/Logs/hongstr/obsidian_rag.err.log`
+
+Provider auto-select:
+
+- `scripts/obsidian_rag_run.sh` probes `http://127.0.0.1:11434/api/embeddings` with model `nomic-embed-text`.
+- If the probe succeeds, the hourly run uses `--provider ollama --ollama-model nomic-embed-text`.
+- If the probe fails, the run automatically falls back to `--provider fallback`.
+
+Safety:
+
+- Failures are warn-only by default: the wrapper prints a `WARN` line and exits `0`, so the hourly schedule stays non-blocking.
+- Notes, index state, and lock state stay local-only: the sync/index scripts write under `_local/**`, and the overlap lock lives under `/tmp/`.
+- The tracked plist is a template with placeholders; the installer renders absolute paths only into `~/Library/LaunchAgents/`.
+
 ## Operational Notes
 
 - The query path reads from the local index manifest and computes similarity locally.
