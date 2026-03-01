@@ -28,8 +28,10 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       DISPATCH_ALLOWLIST: HCH725
       DISPATCH_BASE_BRANCH: main
-      AGENT_PROVIDER: openai
+      AGENT_PROVIDER: ollama
       AGENT_MODEL: gpt-5.3-codex
+      OLLAMA_HOST: http://127.0.0.1:11434
+      OLLAMA_MODEL: qwen2.5-coder:7b-instruct
       MAX_TOKENS: "4000"
       MAX_COST_USD: "2.00"
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

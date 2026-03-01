@@ -1,6 +1,7 @@
 # Dispatcher Agent SOP
 
 Phase 2B extends `/dispatch` so an allowlisted issue comment can run a guarded LLM-backed patch flow.
+The default provider is local Ollama, so the runner does not need an OpenAI API key for the standard path.
 
 ## Issue Template
 
@@ -16,6 +17,8 @@ Task:
 
 If `Agent:` is omitted, the dispatcher keeps the existing smoke-stub behavior.
 `Task:` and `Agent plan:` are both accepted as the task section heading.
+The default model is `qwen2.5-coder:7b-instruct` through `OLLAMA_MODEL`.
+If you need a prose-oriented fallback on the runner, override `OLLAMA_MODEL=qwen2.5:7b-instruct`.
 
 ## Manual E2E Recipe
 
@@ -41,7 +44,7 @@ If `Agent:` is omitted, the dispatcher keeps the existing smoke-stub behavior.
   The estimated or actual model spend exceeded `MAX_COST_USD` or `MAX_TOKENS`. Reduce task scope or raise the workflow budget.
 
 - Missing `OPENAI_API_KEY`
-  The agent runner cannot call the provider API. Add the secret in GitHub Actions settings before retrying.
+  This only applies when you explicitly switch `AGENT_PROVIDER=openai`. The default Ollama path does not require an API key.
 
 - Draft PR creation blocked
   The runner finished patch generation but could not open the PR because of permissions or branch policy. Check the issue comment for the Actions run link and fix the GitHub-side restriction.
