@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.hongstr.tg_cp_watchdog</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/bash</string>
+      <string>-lc</string>
+      <string>cd "$HOME/Projects/HONGSTR" &amp;&amp; ./.venv/bin/python scripts/tg_cp_healthcheck.py || launchctl kickstart -k gui/$(id -u)/com.hongstr.tg_cp</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>120</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>$HOME/Library/Logs/hongstr/tg_cp_watchdog.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>$HOME/Library/Logs/hongstr/tg_cp_watchdog.err.log</string>
+  </dict>
+</plist>
