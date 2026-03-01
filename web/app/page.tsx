@@ -1,139 +1,71 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
-interface ServiceHeartbeat {
-  name: string;
-  status: string;
+interface KpiMetrics {
+  cagr: number | null;
+  sharpe: number | null;
+  max_dd: number | null;
+  total_return: number | null;
 }
 
-interface StatusPayload {
-  executionMode: string;
-  detail: string;
-  offlineMode: string;
-  portfolioId: string;
-  updatedAtUtc: string | null;
-  services: ServiceHeartbeat[];
-}
-
-interface HongVsBh {
-  hongReturn: number | null;
-  buyHoldReturn: number | null;
-  delta: number | null;
-  source: string;
-}
-
-interface CoverageSummary {
-  windowsTotal: number | null;
-  windowsCompleted: number | null;
-  windowsFailed: number | null;
-  latestBacktestTs: string | null;
-  source: string;
-}
-
-interface TimelineEvent {
-  ts: string;
-  type: 'signal' | 'execution' | 'system';
-  summary: string;
-  status: 'ok' | 'warn' | 'error';
-}
-
-interface SelectionArtifact {
-  schema_version: string;
-  portfolio_id: string;
-  timestamp_gmt8: string;
-  selection: {
-    BULL: string[];
-    BEAR: string[];
-    NEUTRAL: string[];
-  };
-}
-
-interface StrategyPoolSummary {
-  poolId: string;
-  candidatesCount: number;
-  promotedCount: number;
-  leaderboard: { id: string; score: number; sharpe: number }[];
-}
-
-interface CoverageMatrixSummary {
-  done: number;
-  inProgress: number;
-  blocked: number;
-  rebase: number;
-}
-
-interface RegimeMonitorSummary {
-  status: 'OK' | 'WARN' | 'FAIL' | 'UNKNOWN';
-  updatedAtUtc: string | null;
-  topReason: string | null;
-}
-
-interface FreshnessItem {
-  symbol: string;
-  tf: string;
-  age_h: number | null;
-  status: 'OK' | 'WARN' | 'FAIL';
-  reason?: string | null;
-  source?: string | null;
-}
-
-interface FreshnessTable {
-  generated_utc: string;
-  thresholds: { ok_h: number; warn_h: number };
-  rows: FreshnessItem[];
-}
-
-interface BacktestRun {
+interface StrategyItem {
   id: string;
-  date: string;
-  runId: string;
-  mtime: string;
-  isFull: boolean;
-  flags: {
-    selection: boolean;
-    summary: boolean;
-    gate: boolean;
-    regime: boolean;
-    optimizer: boolean;
-  };
+  sharpe: number | null;
+  return: number | null;
+}
+
+interface Regime {
+  strategies: StrategyItem[];
+  kpis: any;
 }
 
 interface DashboardData {
-  ok: boolean;
-  status: StatusPayload;
-  hongVsBh: HongVsBh;
-  top3: string[];
-  coverage: CoverageSummary;
-  timeline: TimelineEvent[];
-  selection: SelectionArtifact | null;
-  warnings: string[];
-  timestamp: string;
-  strategyPool: StrategyPoolSummary | null;
-  coverageMatrix: CoverageMatrixSummary | null;
-  regimeMonitor: RegimeMonitorSummary | null;
-  allRuns: BacktestRun[];
-  topFullRuns: BacktestRun[];
-  currentRunId: string | null;
-  freshnessTable: FreshnessTable | null;
+  schema: string;
+  generated_utc: string;
+  window: {
+    start_utc: string;
+    end_utc: string;
+  };
+  series: any[];
+  kpis: {
+    btc: KpiMetrics;
+    hong: KpiMetrics;
+    delta_total_return: number | null;
+  };
+  regimes: {
+    BULL: Regime;
+    BEAR: Regime;
+    SIDEWAYS: Regime;
+  };
+  blend: {
+    kpis: KpiMetrics;
+    notes: string[];
+  };
+  sources: {
+    regime_timeline: string;
+    selection_or_leaderboard: string;
+    equity_curve_source: string;
+  };
 }
 
-function formatPct(value: number | null): string {
-  if (value === null || Number.isNaN(value)) return 'N/A';
+function formatPct(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return 'N/A';
   return `${(value * 100).toFixed(2)}%`;
 }
 
-function formatDateTime(value: string | null): string {
-  if (!value) return 'N/A';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString();
+function formatNum(value: number | null | undefined, decimals = 2): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return 'N/A';
+  return value.toFixed(decimals);
 }
 
-function statusTone(status: TimelineEvent['status']): string {
-  if (status === 'ok') return 'text-emerald-400';
-  if (status === 'warn') return 'text-amber-400';
-  return 'text-rose-400';
+function formatDateTimeShort(isoStr: string | null): string {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function Dashboard() {
@@ -146,349 +78,304 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const url = new URL('/api/status', window.location.origin);
-        const savedRun = localStorage.getItem('selectedBacktestRun');
-        if (savedRun) url.searchParams.set('run', savedRun);
-
+        const url = new URL('/api/strategy_dashboard', window.location.origin);
         const res = await fetch(url.toString(), { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error(e.error || `HTTP ${res.status}`);
+        }
         const json = (await res.json()) as DashboardData;
         if (!mounted) return;
         setData(json);
         setError(null);
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
         if (!mounted) return;
-        setError('Failed to fetch dashboard status');
+        setError(err.message || 'Failed to fetch strategy dashboard state');
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
     fetchData();
-    const timer = setInterval(fetchData, 10000);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
   }, []);
 
-  const handleSelectRun = (runId: string) => {
-    localStorage.setItem('selectedBacktestRun', runId);
-    setLoading(true);
-    window.location.reload(); // Simple way to re-trigger fetch and sync UI
-  };
-
   if (loading && !data) {
-    return <main className="min-h-screen bg-slate-950 p-6 text-slate-100">Loading dashboard...</main>;
-  }
-
-  if (error && !data) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
-        <div className="mx-auto max-w-6xl rounded-xl border border-rose-700/40 bg-rose-950/30 p-4 text-rose-200">
-          {error}
+      <main className="min-h-screen bg-slate-950 p-6 flex items-center justify-center text-slate-100">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-cyan-400 font-mono text-sm tracking-widest">LOADING ENGINE STATE</p>
         </div>
       </main>
     );
   }
 
-  if (!data) return null;
+  if (error || !data) {
+    return (
+      <main className="min-h-screen bg-[#0A0D14] flex items-center justify-center p-6 text-slate-100 font-sans">
+        <div className="max-w-xl w-full rounded-2xl border border-rose-900/50 bg-rose-950/20 p-8 text-center shadow-xl backdrop-blur-xl">
+          <div className="w-16 h-16 bg-rose-900/40 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/30">
+            <span className="text-2xl">🚨</span>
+          </div>
+          <h1 className="text-xl font-bold text-rose-100 mb-2">Strategy Dashboard Unavailable</h1>
+          <p className="text-sm text-rose-300 font-mono bg-rose-950/50 p-3 rounded mb-6 break-all">
+            {error || 'No strategy data returned.'}
+          </p>
+          <div className="bg-slate-900/80 rounded-xl p-4 text-left border border-slate-800">
+            <p className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-2">Resolution Hint</p>
+            <p className="text-sm text-slate-300">
+              Run the canonical state refresher in the repository root to compile the latest SSOT:
+            </p>
+            <code className="block mt-2 bg-black/50 text-cyan-400 p-2 rounded text-xs font-mono border border-cyan-900/30">
+              bash scripts/refresh_state.sh
+            </code>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
-  const offline = data.status.offlineMode.toLowerCase() === 'true' || data.status.offlineMode === '1';
+  // Formatting series data for Recharts
+  const chartData = (data.series || []).map(pt => ({
+    date: formatDateTimeShort(pt.ts_utc),
+    BTC: pt.btc_bh,
+    HONG: pt.hong
+  }));
+
+  const hasHongCurve = chartData.some(d => d.HONG !== null && d.HONG !== undefined);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100 md:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">HONGSTR Dashboard (Read-only)</h1>
-              <p className="mt-1 text-sm text-slate-400">Updated: {formatDateTime(data.timestamp)}</p>
-            </div>
-            <div className={`rounded-lg px-3 py-2 text-sm font-semibold ${offline ? 'bg-amber-600/20 text-amber-300' : 'bg-emerald-600/20 text-emerald-300'}`}>
-              {offline ? 'OFFLINE MODE' : `LIVE (${data.status.executionMode})`}
+    <main className="min-h-screen bg-[#0A0D14] text-slate-200 font-sans selection:bg-cyan-900 selection:text-cyan-50 relative overflow-hidden">
+      {/* Background ambient light */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-900/20 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none"></div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 flex flex-col gap-8">
+
+        {/* Header */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800/80 pb-6">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+              HONGSTR Strategy Explorer
+            </h1>
+            <p className="text-sm text-slate-400 mt-2 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+              Live Synthetic State • Generated {new Date(data.generated_utc).toLocaleString()}
+            </p>
+          </div>
+          <div className="flex gap-4 text-xs font-mono text-slate-500">
+            <div className="bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 backdrop-blur">
+              <span className="text-slate-400 block mb-0.5">Time Window</span>
+              <span className="text-slate-300">{formatDateTimeShort(data.window.start_utc)} → {formatDateTimeShort(data.window.end_utc)}</span>
             </div>
           </div>
-          {data.warnings.length > 0 && (
-            <div className="mt-4 rounded-lg border border-amber-600/40 bg-amber-950/40 p-3 text-xs text-amber-200">
-              <p className="mb-2 font-semibold">Warnings</p>
-              <ul className="list-disc space-y-1 pl-5">
-                {data.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </header>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="mb-3 text-lg font-semibold">狀態列</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-slate-400">Portfolio</span>
-                <span className="font-mono">{data.status.portfolioId}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-slate-400">Execution Mode</span>
-                <span className="font-mono">{data.status.executionMode}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-slate-400">Detail</span>
-                <span className="font-mono">{data.status.detail}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-slate-400">Mode Updated</span>
-                <span className="font-mono">{formatDateTime(data.status.updatedAtUtc)}</span>
-              </div>
-              <div className="pt-2">
-                <p className="mb-1 text-slate-400">Services</p>
-                {data.status.services.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {data.status.services.map((service) => (
-                      <span key={`${service.name}:${service.status}`} className="rounded bg-slate-800 px-2 py-1 text-xs">
-                        {service.name}: {service.status}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500">No service heartbeat found.</p>
-                )}
-              </div>
-
-              {data.freshnessTable && (
-                <div className="mt-4 pt-4 border-t border-slate-800">
-                  <p className="mb-2 text-sm font-semibold text-slate-300">Data Freshness (3×3)</p>
-                  <div className="grid grid-cols-4 gap-1 text-[10px] items-center">
-                    <div className="text-slate-500 font-bold uppercase">Sym</div>
-                    <div className="text-center text-slate-500 font-bold uppercase">1m</div>
-                    <div className="text-center text-slate-500 font-bold uppercase">1h</div>
-                    <div className="text-center text-slate-500 font-bold uppercase">4h</div>
-
-                    {['BTCUSDT', 'ETHUSDT', 'BNBUSDT'].map(sym => (
-                      <React.Fragment key={sym}>
-                        <div className="font-mono text-slate-400">{sym.replace('USDT', '')}</div>
-                        {['1m', '1h', '4h'].map(tf => {
-                          const item = data.freshnessTable?.rows.find(m => m.symbol === sym && m.tf === tf);
-                          const color = item?.status === 'OK' ? 'text-emerald-400' : (item?.status === 'WARN' ? 'text-amber-400' : 'text-rose-400');
-                          const title = item?.reason || item?.source || '';
-                          return (
-                            <div key={tf} className={`text-center font-mono ${color} bg-slate-800/40 rounded py-0.5`} title={title}>
-                              {item?.age_h !== null && item?.age_h !== undefined ? `${item.age_h}h` : 'N/A'}
-                            </div>
-                          );
-                        })}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </article>
-
-          <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="mb-3 text-lg font-semibold">HONG vs B&amp;H</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-slate-800/70 p-3">
-                <p className="text-xs text-slate-400">HONG Return</p>
-                <p className="mt-1 text-xl font-semibold">{formatPct(data.hongVsBh.hongReturn)}</p>
-              </div>
-              <div className="rounded-xl bg-slate-800/70 p-3">
-                <p className="text-xs text-slate-400">B&amp;H Return</p>
-                <p className="mt-1 text-xl font-semibold">{formatPct(data.hongVsBh.buyHoldReturn)}</p>
-              </div>
-              <div className="rounded-xl bg-slate-800/70 p-3">
-                <p className="text-xs text-slate-400">Delta</p>
-                <p className="mt-1 text-xl font-semibold">{formatPct(data.hongVsBh.delta)}</p>
-              </div>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">Source: {data.hongVsBh.source}</p>
-          </article>
-        </section>
-
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="mb-3 text-lg font-semibold">Top3 Selected</h2>
-            {!data.selection && (
-              <div className="mb-4 rounded-lg border border-amber-600/40 bg-amber-950/40 p-4">
-                <p className="text-sm font-bold text-amber-200">⚠️ Fragment Run Detected</p>
-                <p className="mt-1 text-xs text-amber-300/80">
-                  你選到的是 Fragment Run (walkforward 片段)，因此沒有 selection.json。
-                </p>
-                {data.topFullRuns.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-[10px] uppercase tracking-wider text-amber-400/60 font-bold mb-2">切換至最近的完整 Run:</p>
-                    <div className="flex flex-col gap-2">
-                      {data.topFullRuns.map(run => (
-                        <button
-                          key={run.id}
-                          onClick={() => handleSelectRun(run.id)}
-                          className="text-left px-3 py-2 text-xs rounded bg-amber-900/30 border border-amber-800/50 hover:bg-amber-800/40 transition-colors text-amber-100 font-mono"
-                        >
-                          {run.id}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {data.top3.length > 0 ? (
-              <ol className="space-y-2">
-                {data.top3.map((name, idx) => (
-                  <li key={name} className="flex items-center gap-3 rounded-lg bg-slate-800/60 p-2 text-sm">
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-700/40 text-xs font-semibold">
-                      {idx + 1}
-                    </span>
-                    <span className="font-mono">{name}</span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="text-sm text-slate-500">No strategy selection available for run: <span className="font-mono text-xs">{data.currentRunId || 'GLOBAL'}</span></p>
-            )}
-            {data.allRuns.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-slate-800">
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">變更 Backtest Run:</label>
-                <select
-                  className="w-full bg-slate-800 text-sm py-2 px-3 rounded border border-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                  value={data.currentRunId || ''}
-                  onChange={(e) => handleSelectRun(e.target.value)}
-                >
-                  {data.allRuns.map(run => (
-                    <option key={run.id} value={run.id}>
-                      {run.isFull ? '✅' : '📄'} {run.id}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-2 text-[10px] text-slate-500 italic">標記 ✅ 代表具備完整 artifacts (selection.json)。</p>
-              </div>
-            )}
-          </article>
-
-          <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="mb-3 text-lg font-semibold">Coverage 摘要</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-slate-800/70 p-3">
-                <p className="text-xs text-slate-400">Windows</p>
-                <p className="mt-1 text-lg font-semibold">
-                  {data.coverage.windowsCompleted ?? 'N/A'} / {data.coverage.windowsTotal ?? 'N/A'}
-                </p>
-              </div>
-              <div className="rounded-xl bg-slate-800/70 p-3">
-                <p className="text-xs text-slate-400">Failed</p>
-                <p className="mt-1 text-lg font-semibold">{data.coverage.windowsFailed ?? 'N/A'}</p>
-              </div>
-              <div className="rounded-xl bg-slate-800/70 p-3">
-                <p className="text-xs text-slate-400">Latest Backtest</p>
-                <p className="mt-1 text-sm font-semibold">{formatDateTime(data.coverage.latestBacktestTs)}</p>
-              </div>
-            </div>
-            {data.coverageMatrix && (
-              <div className="mt-4 flex gap-3 text-sm">
-                <span className="rounded bg-emerald-900/40 px-2 py-1 text-emerald-300">DONE: {data.coverageMatrix.done}</span>
-                <span className="rounded bg-blue-900/40 px-2 py-1 text-blue-300">IN_PROG: {data.coverageMatrix.inProgress}</span>
-                <span className="rounded bg-amber-900/40 px-2 py-1 text-amber-300">REBASE: {data.coverageMatrix.rebase}</span>
-              </div>
-            )}
-            <p className="mt-3 text-xs text-slate-500">Source: {data.coverage.source}</p>
-          </article>
-
-          {data.regimeMonitor && (
-            <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-              <h2 className="mb-3 text-lg font-semibold">Regime Monitor</h2>
-              <div className="flex items-center gap-4">
-                <div className={`rounded-xl px-4 py-3 text-2xl font-bold ${data.regimeMonitor.status === 'OK' ? 'bg-emerald-600/20 text-emerald-400' :
-                  data.regimeMonitor.status === 'WARN' ? 'bg-amber-600/20 text-amber-400' :
-                    data.regimeMonitor.status === 'FAIL' ? 'bg-rose-600/20 text-rose-400' :
-                      'bg-slate-800 text-slate-400'
-                  }`}>
-                  {data.regimeMonitor.status}
-                </div>
-                <div className="flex-1 text-sm">
-                  <p className="text-slate-400">Latest Observation:</p>
-                  <p className="font-medium">{data.regimeMonitor.topReason || 'No issues detected'}</p>
-                </div>
-              </div>
-              <p className="mt-4 text-xs text-slate-500">Updated: {formatDateTime(data.regimeMonitor.updatedAtUtc)}</p>
-            </article>
-          )}
-        </section>
-
-        {data.strategyPool && (
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">策略池看板 (Strategy Pool)</h2>
-              <span className="text-sm text-slate-400 font-mono">Pool: {data.strategyPool.poolId}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mb-4 sm:grid-cols-4">
-              <div className="rounded-lg bg-slate-800/40 p-3 text-center">
-                <p className="text-xs text-slate-400">Candidates</p>
-                <p className="mt-1 text-xl font-bold">{data.strategyPool.candidatesCount}</p>
-              </div>
-              <div className="rounded-lg bg-slate-800/40 p-3 text-center">
-                <p className="text-xs text-slate-400">Promoted</p>
-                <p className="mt-1 text-xl font-bold text-amber-400">{data.strategyPool.promotedCount}</p>
-              </div>
-            </div>
-
-            <h3 className="mb-2 text-sm font-semibold text-slate-300">Leaderboard</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="text-xs tracking-wide text-slate-400 border-b border-slate-800">
-                  <tr>
-                    <th className="pb-2 font-medium">Strategy ID</th>
-                    <th className="pb-2 font-medium">Score</th>
-                    <th className="pb-2 font-medium">OOS Sharpe</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {data.strategyPool.leaderboard.map((strat) => (
-                    <tr key={strat.id}>
-                      <td className="py-2 font-mono text-cyan-400">{strat.id}</td>
-                      <td className="py-2 text-slate-300">{strat.score.toFixed(3)}</td>
-                      <td className="py-2 text-slate-300">{strat.sharpe.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  {data.strategyPool.leaderboard.length === 0 && (
-                    <tr><td colSpan={3} className="py-4 text-center text-slate-500">No candidates available</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+        {/* Global Warnings / Data Missing Overlays */}
+        {data.blend.notes && data.blend.notes.length > 0 && (
+          <div className="bg-amber-950/30 border border-amber-800/50 rounded-xl p-4 backdrop-blur-sm">
+            <h3 className="text-amber-500 font-bold text-sm tracking-wide uppercase mb-2 flex items-center gap-2">
+              ⚠️ Data Completeness Notice
+            </h3>
+            <ul className="list-disc pl-5 space-y-1 text-amber-200/80 text-sm">
+              {data.blend.notes.map((note, i) => (
+                <li key={i}>{note}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-          <h2 className="mb-3 text-lg font-semibold">事件時間軸</h2>
-          {data.timeline.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="text-xs uppercase tracking-wide text-slate-400">
-                  <tr>
-                    <th className="pb-2 pr-4">Time</th>
-                    <th className="pb-2 pr-4">Type</th>
-                    <th className="pb-2 pr-4">Summary</th>
-                    <th className="pb-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.timeline.map((event) => (
-                    <tr key={`${event.ts}:${event.type}:${event.summary}`} className="border-t border-slate-800">
-                      <td className="py-2 pr-4 font-mono text-xs text-slate-300">{formatDateTime(event.ts)}</td>
-                      <td className="py-2 pr-4 uppercase text-slate-400">{event.type}</td>
-                      <td className="py-2 pr-4">{event.summary}</td>
-                      <td className={`py-2 font-semibold uppercase ${statusTone(event.status)}`}>{event.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* Hero Chart Section */}
+        <section className="bg-slate-900/40 border border-slate-800/60 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl">
+          <div className="p-6 border-b border-slate-800/60 bg-slate-900/80 flex flex-col lg:flex-row justify-between gap-6">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-white mb-4">Portfolio Equity Comparison (Normalized)</h2>
+
+              <div className="flex flex-wrap gap-x-8 gap-y-4">
+
+                {/* HONG KPIs */}
+                <div className="space-y-1 relative pl-3">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-full"></div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-500">HONG Blended</span>
+                  <div className="flex gap-4 text-sm mt-1">
+                    <div><span className="text-slate-500 mr-2">TR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.hong.total_return)}</span></div>
+                    <div><span className="text-slate-500 mr-2">CAGR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.hong.cagr)}</span></div>
+                    <div><span className="text-slate-500 mr-2">MDD</span><span className="font-mono text-rose-400">{formatPct(data.kpis.hong.max_dd)}</span></div>
+                    <div><span className="text-slate-500 mr-2">SHR</span><span className="font-mono text-emerald-400">{formatNum(data.kpis.hong.sharpe)}</span></div>
+                  </div>
+                </div>
+
+                {/* BTC KPIs */}
+                <div className="space-y-1 relative pl-3">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 rounded-full"></div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-orange-500">BTC Buy & Hold</span>
+                  <div className="flex gap-4 text-sm mt-1">
+                    <div><span className="text-slate-500 mr-2">TR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.btc.total_return)}</span></div>
+                    <div><span className="text-slate-500 mr-2">CAGR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.btc.cagr)}</span></div>
+                    <div><span className="text-slate-500 mr-2">MDD</span><span className="font-mono text-rose-400">{formatPct(data.kpis.btc.max_dd)}</span></div>
+                  </div>
+                </div>
+
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-slate-500">No recent events.</p>
-          )}
+
+            <div className="bg-slate-950/50 rounded-xl border border-slate-800/80 p-4 flex flex-col justify-center min-w-[200px]">
+              <span className="text-xs text-slate-500 uppercase font-bold tracking-wider text-center block mb-1">Delta vs BTC</span>
+              <div className={`text-3xl font-mono font-bold text-center ${data.kpis.delta_total_return && data.kpis.delta_total_return >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {data.kpis.delta_total_return && data.kpis.delta_total_return > 0 ? '+' : ''}{formatPct(data.kpis.delta_total_return)}
+              </div>
+            </div>
+          </div>
+
+          <div className="h-[400px] w-full p-4 relative">
+            {!hasHongCurve && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/60 backdrop-blur-sm pointer-events-none">
+                <span className="text-3xl mb-3">👻</span>
+                <span className="text-slate-300 font-bold bg-slate-900/80 px-4 py-2 border border-slate-700 rounded-lg shadow-lg uppercase tracking-widest text-sm">HONG Curve Unavailable in SSOT</span>
+              </div>
+            )}
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorBTC" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorHONG" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickMargin={10}
+                  tickFormatter={(val: string) => val.substring(0, 7)} // Just show YYYY-MM
+                  minTickGap={30}
+                />
+                <YAxis
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickFormatter={(val) => val.toFixed(1) + 'x'}
+                  domain={['auto', 'auto']}
+                  orientation="right"
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
+                  itemStyle={{ fontFamily: 'monospace' }}
+                  labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontWeight: 'bold' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                <Line type="monotone" dataKey="BTC" name="Buy & Hold (BTC)" stroke="#f97316" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                {hasHongCurve && (
+                  <Line type="monotone" dataKey="HONG" name="HONG Blended" stroke="#06b6d4" strokeWidth={3} dot={false} activeDot={{ r: 8 }} />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </section>
+
+        {/* Strategy Portfolio Section */}
+        <section>
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <span className="text-xl">🛡️</span>
+              Strategy Portfolio
+            </h2>
+            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase border border-slate-800 px-3 py-1 rounded bg-slate-900/50">
+              Live Compositions
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            {/* BULL Card */}
+            <div className="bg-gradient-to-br from-emerald-950/40 to-slate-900/80 border border-emerald-900/30 rounded-2xl overflow-hidden backdrop-blur-md hover:border-emerald-700/50 transition-colors">
+              <div className="bg-emerald-900/20 py-3 px-5 border-b border-emerald-900/30">
+                <h3 className="text-emerald-400 font-bold uppercase tracking-wider flex justify-between items-center">
+                  BULL Regime
+                  <span className="bg-emerald-950 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-800/50">{data.regimes.BULL.strategies.length} Strats</span>
+                </h3>
+              </div>
+              <div className="p-5">
+                {data.regimes.BULL.strategies.length > 0 ? (
+                  <ul className="space-y-3">
+                    {data.regimes.BULL.strategies.map(s => (
+                      <li key={s.id} className="bg-slate-950/50 rounded-lg p-3 border border-emerald-900/10 hover:border-emerald-500/20 transition-all">
+                        <div className="font-mono text-sm text-emerald-100/90 break-all mb-2">{s.id}</div>
+                        <div className="flex justify-between text-xs font-mono text-emerald-400/70 bg-emerald-950/30 rounded px-2 py-1">
+                          <span>SR: {formatNum(s.sharpe)}</span>
+                          <span>Ret: {formatPct(s.return)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500 italic text-center py-8">No strategies assigned.</p>
+                )}
+              </div>
+            </div>
+
+            {/* SIDEWAYS Card */}
+            <div className="bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-900/30 rounded-2xl overflow-hidden backdrop-blur-md hover:border-indigo-700/50 transition-colors">
+              <div className="bg-indigo-900/20 py-3 px-5 border-b border-indigo-900/30">
+                <h3 className="text-indigo-400 font-bold uppercase tracking-wider flex justify-between items-center">
+                  SIDEWAYS Regime
+                  <span className="bg-indigo-950 text-indigo-300 text-[10px] px-2 py-0.5 rounded-full border border-indigo-800/50">{data.regimes.SIDEWAYS.strategies.length} Strats</span>
+                </h3>
+              </div>
+              <div className="p-5">
+                {data.regimes.SIDEWAYS.strategies.length > 0 ? (
+                  <ul className="space-y-3">
+                    {data.regimes.SIDEWAYS.strategies.map(s => (
+                      <li key={s.id} className="bg-slate-950/50 rounded-lg p-3 border border-indigo-900/10 hover:border-indigo-500/20 transition-all">
+                        <div className="font-mono text-sm text-indigo-100/90 break-all mb-2">{s.id}</div>
+                        <div className="flex justify-between text-xs font-mono text-indigo-400/70 bg-indigo-950/30 rounded px-2 py-1">
+                          <span>SR: {formatNum(s.sharpe)}</span>
+                          <span>Ret: {formatPct(s.return)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500 italic text-center py-8">No strategies assigned.</p>
+                )}
+              </div>
+            </div>
+
+            {/* BEAR Card */}
+            <div className="bg-gradient-to-br from-rose-950/40 to-slate-900/80 border border-rose-900/30 rounded-2xl overflow-hidden backdrop-blur-md hover:border-rose-700/50 transition-colors">
+              <div className="bg-rose-900/20 py-3 px-5 border-b border-rose-900/30">
+                <h3 className="text-rose-400 font-bold uppercase tracking-wider flex justify-between items-center">
+                  BEAR Regime
+                  <span className="bg-rose-950 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-800/50">{data.regimes.BEAR.strategies.length} Strats</span>
+                </h3>
+              </div>
+              <div className="p-5">
+                {data.regimes.BEAR.strategies.length > 0 ? (
+                  <ul className="space-y-3">
+                    {data.regimes.BEAR.strategies.map(s => (
+                      <li key={s.id} className="bg-slate-950/50 rounded-lg p-3 border border-rose-900/10 hover:border-rose-500/20 transition-all">
+                        <div className="font-mono text-sm text-rose-100/90 break-all mb-2">{s.id}</div>
+                        <div className="flex justify-between text-xs font-mono text-rose-400/70 bg-rose-950/30 rounded px-2 py-1">
+                          <span>SR: {formatNum(s.sharpe)}</span>
+                          <span>Ret: {formatPct(s.return)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500 italic text-center py-8">No strategies assigned.</p>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </section>
+
       </div>
     </main>
   );
