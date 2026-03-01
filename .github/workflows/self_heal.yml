@@ -187,6 +187,9 @@ jobs:
           prompt = (
               "Generate a valid git unified diff patch only.\n"
               "Return patch text only. No prose, no markdown fences, no commentary.\n"
+              "You must output ONLY a unified diff. No prose, no markdown fences, no explanations.\n"
+              "The output must start with 'diff --git' and include file headers, hunks, and context lines.\n"
+              "If you cannot comply, output exactly: NO_DIFF.\n"
               "Modify only files that match Allowed paths.\n"
               "Keep strict guardrails and do not add any auto-merge behavior.\n"
               "If no safe patch is possible, return an empty string.\n\n"
@@ -213,7 +216,7 @@ jobs:
               "messages": [
                   {
                       "role": "system",
-                      "content": "You are a repository patch generator. Return only a valid unified git diff patch.",
+                      "content": "You are a repository patch generator. You must output ONLY a valid unified git diff patch. The first line must start with 'diff --git', or output exactly 'NO_DIFF'.",
                   },
                   {
                       "role": "user",
