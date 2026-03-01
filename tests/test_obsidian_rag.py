@@ -12,6 +12,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import obsidian_common  # noqa: E402
 import obsidian_lancedb_index  # noqa: E402
+import obsidian_rag_lib  # noqa: E402
 import obsidian_sync  # noqa: E402
 
 
@@ -248,6 +249,55 @@ symbols:
     assert [chunk.chunk_hash for chunk in first] == [chunk.chunk_hash for chunk in second]
     assert [chunk.heading_path for chunk in first] == [chunk.heading_path for chunk in second]
     assert first
+
+
+def test_rag_search_returns_ranked_chunks_with_pointers(tmp_path: Path) -> None:
+    db_dir = tmp_path / "_local" / "lancedb" / "hongstr_obsidian.lancedb"
+    rows = [
+        {
+            "id": "a",
+            "vault_rel_path": "Daily/2026/03/2026-03-02.md",
+            "heading_path": "Daily/2026/03/2026-03-02.md#Summary",
+            "chunk_text": "Freshness status is WARN and coverage remains blocked for BTCUSDT.",
+            "chunk_hash": "hash-a",
+            "created_utc": FIXED_NOW,
+            "metadata": {"type": "daily", "date": "2026-03-02"},
+            "embedding": [],
+        },
+        {
+            "id": "b",
+            "vault_rel_path": "Strategies/alpha_trend.md",
+            "heading_path": "Strategies/alpha_trend.md#Evidence",
+            "chunk_text": "Alpha trend evidence focuses on Sharpe and MDD, not freshness.",
+            "chunk_hash": "hash-b",
+            "created_utc": FIXED_NOW,
+            "metadata": {"type": "strategy", "strategy_id": "alpha_trend"},
+            "embedding": [],
+        },
+    ]
+    obsidian_common.save_index_rows(
+        db_dir,
+        rows,
+        provider_name="ollama",
+        ollama_model="nomic-embed-text",
+    )
+
+    payload = obsidian_rag_lib.rag_search_from_repo(
+        tmp_path,
+        query="freshness status",
+        k=5,
+        filter_type="daily",
+        since_date="2026-03-01",
+    )
+
+    assert payload["status"] == "OK"
+    assert payload["provider"] == "lancedb"
+    assert payload["db_path"] == "_local/lancedb/hongstr_obsidian.lancedb"
+    assert len(payload["chunks"]) == 1
+    top = payload["chunks"][0]
+    assert top["pointer"] == "Daily/2026/03/2026-03-02.md#Summary"
+    assert top["vault_rel_path"] == "Daily/2026/03/2026-03-02.md"
+    assert "Freshness status is WARN" in top["text"]
 
 
 def test_index_dedupes_and_updates_changed_note(tmp_path: Path) -> None:

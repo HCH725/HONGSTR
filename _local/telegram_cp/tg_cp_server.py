@@ -195,6 +195,16 @@ SKILL_MAP = {s.get("name"): s for s in SKILLS if isinstance(s, dict)}
 REFUSAL_TXT = _load_text(REFUSAL_PATH, "")
 SAFE_SOP_TXT = _load_text(SAFE_SOP_PATH, "")
 MAX_QUESTIONS = 1
+RAG_SEARCH_TOOL_NAME = "rag_search"
+RAG_SEARCH_TOOL_SCHEMA = {
+    "tool": "rag_search",
+    "args": {
+        "query": "string (required, <=512 chars)",
+        "k": "int (optional, 1..12)",
+        "filter_type": "daily|strategy|incident (optional)",
+        "since_date": "YYYY-MM-DD (optional)",
+    },
+}
 
 
 def _allowed_chats() -> set[int]:
@@ -1896,6 +1906,16 @@ def skill_strategy_regime_sensitivity_report(args: dict) -> dict:
     return payload
 
 
+def skill_rag_search(args: dict) -> dict:
+    try:
+        from _local.telegram_cp.skills.rag_search import run_rag_search
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent / "skills"))
+        from rag_search import run_rag_search
+    payload = run_rag_search(REPO, args)
+    return payload
+
+
 def skill_signal_leakage_audit(args: dict) -> str:
     artifact_path = str(args.get("artifact_path", "research/audit/tests/fixtures/clean.json"))
     max_lookahead_ms = int(args.get("max_lookahead_ms", 0))
@@ -1926,6 +1946,7 @@ SKILL_IMPL = {
     "backtest_reproducibility_audit": skill_backtest_reproducibility_audit,
     "factor_health_and_drift_report": skill_factor_health_and_drift_report,
     "strategy_regime_sensitivity_report": skill_strategy_regime_sensitivity_report,
+    "rag_search": skill_rag_search,
     "execution_quality_report_readonly": skill_execution_quality_report_readonly,
     "data_freshness_watchdog_report": skill_data_freshness_watchdog_report,
     "config_drift_auditor": skill_config_drift_auditor,
@@ -1946,6 +1967,75 @@ SKILL_IMPL = {
         str(args.get("services", "")),
     ),
 }
+
+
+def _rag_search_warn_payload(message: str) -> dict:
+    return {
+        "status": "WARN",
+        "provider": "lancedb",
+        "db_path": "_local/lancedb/hongstr_obsidian.lancedb",
+        "chunks": [],
+        "warn": message,
+    }
+
+
+def _execute_llm_tool_call(tool_name: str, args: dict) -> dict:
+    if tool_name != RAG_SEARCH_TOOL_NAME:
+        return _rag_search_warn_payload(f"unsupported_tool: {tool_name}")
+
+    skill_cfg = SKILL_MAP.get(tool_name)
+    if not isinstance(skill_cfg, dict) or tool_name not in SKILL_IMPL:
+        return _rag_search_warn_payload("tool_unavailable")
+
+    try:
+        valid_args = validate(skill_cfg.get("args_schema", {}), args if isinstance(args, dict) else {})
+    except Exception as exc:
+        return _rag_search_warn_payload(f"invalid_tool_args: {exc}")
+
+    try:
+        result = SKILL_IMPL[tool_name](valid_args)
+    except Exception as exc:
+        return _rag_search_warn_payload(f"tool_execution_failed: {type(exc).__name__}")
+
+    if isinstance(result, dict):
+        return result
+    if isinstance(result, str):
+        try:
+            decoded = json.loads(result)
+        except Exception:
+            decoded = None
+        if isinstance(decoded, dict):
+            return decoded
+    return _rag_search_warn_payload("tool_returned_non_object")
+
+
+def _format_tool_fallback_reply(tool_name: str, tool_result: dict) -> str:
+    if tool_name != RAG_SEARCH_TOOL_NAME or not isinstance(tool_result, dict):
+        return "⚠️ 工具結果不可用。"
+
+    lines = ["📚 本地 RAG 搜尋結果"]
+    status = str(tool_result.get("status", "WARN") or "WARN").upper()
+    warn = str(tool_result.get("warn", "") or "").strip()
+    if warn:
+        lines.append(f"狀態: {status} ({warn})")
+    else:
+        lines.append(f"狀態: {status}")
+
+    chunks = tool_result.get("chunks")
+    chunks = chunks if isinstance(chunks, list) else []
+    if not chunks:
+        lines.append("沒有可用片段。")
+        return "\n".join(lines)
+
+    for chunk in chunks[:4]:
+        if not isinstance(chunk, dict):
+            continue
+        pointer = str(chunk.get("pointer") or chunk.get("vault_rel_path") or "UNKNOWN")
+        snippet = str(chunk.get("text") or "").strip()
+        if len(snippet) > 180:
+            snippet = snippet[:177].rstrip() + "..."
+        lines.append(f"• {pointer}: {snippet}")
+    return "\n".join(lines)
 
 
 # ────────────────────── alert channel (C) ──────────────────────
@@ -2367,6 +2457,70 @@ def _memory_stats() -> tuple[int, int, list[str]]:
     return len(ops), len(user), [x for x in recent if x]
 
 
+def _extract_first_json_object(text: str) -> dict | None:
+    if not isinstance(text, str):
+        return None
+    decoder = json.JSONDecoder()
+    for idx, ch in enumerate(text):
+        if ch != "{":
+            continue
+        try:
+            obj, _ = decoder.raw_decode(text[idx:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return None
+
+
+def _extract_llm_tool_call(text: str) -> tuple[str, dict] | None:
+    payload = None
+    stripped = str(text or "").strip()
+    if stripped.startswith("{") and stripped.endswith("}"):
+        try:
+            payload = json.loads(stripped)
+        except Exception:
+            payload = None
+    if payload is None:
+        payload = _extract_first_json_object(str(text or ""))
+    if not isinstance(payload, dict):
+        return None
+
+    tool_name = None
+    tool_args = None
+    nested = payload.get("tool_call")
+    if isinstance(nested, dict):
+        tool_name = nested.get("name") or nested.get("tool")
+        tool_args = nested.get("args")
+    else:
+        tool_name = payload.get("tool") or payload.get("name")
+        tool_args = payload.get("args")
+
+    if str(tool_name or "").strip() != RAG_SEARCH_TOOL_NAME:
+        return None
+    if not isinstance(tool_args, dict):
+        tool_args = {}
+    return RAG_SEARCH_TOOL_NAME, tool_args
+
+
+def _rag_search_tool_contract_block() -> str:
+    return (
+        "If you need local research context from the Obsidian plus LanceDB index before answering, "
+        "you may first output exactly one JSON object that calls the read-only `rag_search` tool. "
+        "The system will run it, return the result, and then you must finalize your answer with plain-text pointer citations.\n"
+        + json.dumps(RAG_SEARCH_TOOL_SCHEMA, ensure_ascii=False)
+    )
+
+
+def _build_tool_followup_prompt(tool_name: str, tool_result: dict) -> str:
+    return (
+        f"Tool `{tool_name}` result (JSON):\n"
+        f"{json.dumps(tool_result, ensure_ascii=False, separators=(',', ':'))}\n\n"
+        "Use this tool result to answer the original user request now. "
+        "Reply in normal prose, and cite relevant `pointer` values in plain text."
+    )
+
+
 # ────────────────────── LLM (Ollama /api/chat) ──────────────────────
 def _build_system_prompt() -> str:
     """Assemble the full system prompt with persona + snapshot + memories + guardrails."""
@@ -2387,6 +2541,8 @@ def _build_system_prompt() -> str:
     if skill_lines:
         parts.append("\n[可用技能（read-only）]")
         parts.extend(skill_lines)
+        parts.append("\n[工具呼叫 — rag_search]")
+        parts.append(_rag_search_tool_contract_block())
 
     # instruct LLM to emit strict tags if followup is needed
     parts.append(
@@ -2505,7 +2661,7 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
         logger.info(f"Routing to Reasoning Specialist: {text[:50]}...")
         # Prepare context for specialist
         specialist_prompt = f"User Query: {text}\n\nSystem Snapshot:\n{json.dumps(snapshot, indent=2)}"
-        analysis = call_reasoning_specialist(specialist_prompt)
+        analysis = call_reasoning_specialist(specialist_prompt, tool_handler=_execute_llm_tool_call)
         
         if analysis:
             # Format specialist output for user (Chinese Template)
@@ -2541,6 +2697,25 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
 
     if not llm_resp:
         llm_resp, llm_err = _llm_chat(chat_id, text, history)
+
+    if llm_resp and route == "LLM":
+        tool_call = _extract_llm_tool_call(llm_resp)
+        if tool_call is not None:
+            tool_name, tool_args = tool_call
+            tool_result = _execute_llm_tool_call(tool_name, tool_args)
+            tool_history = list(history)
+            tool_history.append({"role": "user", "content": text})
+            tool_history.append({"role": "assistant", "content": llm_resp})
+            followup_prompt = _build_tool_followup_prompt(tool_name, tool_result)
+            followup_resp, followup_err = _llm_chat(chat_id, followup_prompt, tool_history)
+            if followup_resp:
+                llm_resp = followup_resp
+                llm_err = followup_err
+                route = "LLM_TOOL"
+            else:
+                llm_resp = _format_tool_fallback_reply(tool_name, tool_result)
+                llm_err = followup_err
+                route = "LLM_TOOL_FALLBACK"
 
     if llm_resp:
         # ── extract and process FOLLOWUP tag before guardrail check ──

@@ -698,8 +698,45 @@ def test_skills_command(monkeypatch, tmp_path):
     resp = s._handle_command(50, "/skills")
     assert "status_overview" in resp
     assert "logs_tail_hint" in resp
+    assert "rag_search" in resp
     assert "signal_leakage_and_lookahead_audit" in resp
     assert "incident_timeline_builder" in resp
+
+
+def test_rag_search_run_accepts_quoted_query(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    db_dir = repo / "_local" / "lancedb" / "hongstr_obsidian.lancedb"
+
+    from scripts.obsidian_common import save_index_rows
+
+    save_index_rows(
+        db_dir,
+        [
+            {
+                "id": "chunk-1",
+                "vault_rel_path": "Daily/2026/03/2026-03-02.md",
+                "heading_path": "Daily/2026/03/2026-03-02.md#Summary",
+                "chunk_text": "Freshness status is WARN and the ETL backlog needs review.",
+                "chunk_hash": "hash-1",
+                "created_utc": "2026-03-02T10:00:00Z",
+                "metadata": {"type": "daily", "date": "2026-03-02"},
+                "embedding": [],
+            }
+        ],
+        provider_name="ollama",
+        ollama_model="nomic-embed-text",
+    )
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run('/run rag_search query="freshness status" k=5')
+    assert ok is True
+    payload = json.loads(out)
+    assert payload["status"] == "OK"
+    assert payload["chunks"]
+    assert payload["chunks"][0]["pointer"] == "Daily/2026/03/2026-03-02.md#Summary"
 
 
 def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):
@@ -1015,6 +1052,57 @@ def test_build_chat_reply_enqueues_followup(monkeypatch, tmp_path):
     assert task["done"] is False
     assert task["chat_id"] == 600
     assert task["chat_id"] == 600
+
+
+def test_build_chat_reply_executes_rag_search_tool_call(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    fake_snap = {
+        "dashboard_ok": True,
+        "regime_monitor": {"status": "OK"},
+        "freshness": {},
+        "cp_status": "OK",
+        "overall_gate": "OK",
+        "cp_age_hours": 1.0,
+        "cp_summary": "Summary",
+        "top_action": "None",
+        "pending_alerts": 0,
+        "etl_ok": True,
+        "etl_fail": False,
+        "log_ages": {"etl": 1.0, "healthcheck": 1.0},
+    }
+    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
+    calls = []
+
+    def fake_llm(chat_id, user_text, history):
+        calls.append(user_text)
+        if len(calls) == 1:
+            return ('{"tool":"rag_search","args":{"query":"freshness status","k":5}}', None)
+        assert "Tool `rag_search` result" in user_text
+        return ("Freshness is WARN. See Daily/2026/03/2026-03-02.md#Summary", None)
+
+    monkeypatch.setattr(s, "_llm_chat", fake_llm)
+    monkeypatch.setattr(
+        s,
+        "_execute_llm_tool_call",
+        lambda *args, **kwargs: {
+            "status": "OK",
+            "provider": "lancedb",
+            "db_path": "_local/lancedb/hongstr_obsidian.lancedb",
+            "chunks": [
+                {
+                    "pointer": "Daily/2026/03/2026-03-02.md#Summary",
+                    "text": "Freshness status is WARN.",
+                    "score": 3.0,
+                    "metadata": {"type": "daily"},
+                }
+            ],
+        },
+    )
+
+    resp, route = s.build_chat_reply(601, "請先查 freshness status 再回答")
+    assert route == "LLM_TOOL"
+    assert "Daily/2026/03/2026-03-02.md#Summary" in resp
 
 
 # ── freshness ──

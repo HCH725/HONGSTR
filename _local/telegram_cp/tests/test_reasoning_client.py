@@ -108,6 +108,67 @@ class TestReasoningClient(unittest.TestCase):
         self.assertEqual(analysis.actions, [])
         self.assertTrue(any("refresh_state.sh" in x for x in analysis.recommended_next_steps))
 
+    def test_call_tool_roundtrip_then_final_json(self):
+        first_payload = {
+            "message": {
+                "content": json.dumps(
+                    {
+                        "tool": "rag_search",
+                        "args": {"query": "freshness status", "k": 5},
+                    }
+                )
+            }
+        }
+        second_payload = {
+            "message": {
+                "content": json.dumps(
+                    {
+                        "status": "OK",
+                        "problem": "freshness diagnosis",
+                        "key_findings": ["Freshness is degraded"],
+                        "hypotheses": ["ETL lag"],
+                        "recommended_next_steps": ["Review the daily freshness report."],
+                        "risks": [],
+                        "actions": [],
+                        "citations": ["Daily/2026/03/2026-03-02.md#Summary"],
+                    }
+                )
+            }
+        }
+        seen = {}
+
+        def fake_tool_handler(tool_name, args):
+            seen["tool_name"] = tool_name
+            seen["args"] = args
+            return {
+                "status": "OK",
+                "provider": "lancedb",
+                "db_path": "_local/lancedb/hongstr_obsidian.lancedb",
+                "chunks": [
+                    {
+                        "pointer": "Daily/2026/03/2026-03-02.md#Summary",
+                        "text": "Freshness status is WARN.",
+                        "score": 3.0,
+                        "metadata": {"type": "daily"},
+                    }
+                ],
+            }
+
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=[
+                _mock_response_from_payload(first_payload),
+                _mock_response_from_payload(second_payload),
+            ],
+        ):
+            analysis = call_reasoning_specialist("Analyze this", tool_handler=fake_tool_handler)
+
+        self.assertIsInstance(analysis, ReasoningAnalysis)
+        self.assertEqual(seen["tool_name"], "rag_search")
+        self.assertEqual(seen["args"], {"query": "freshness status", "k": 5})
+        self.assertEqual(analysis.status, "OK")
+        self.assertIn("Daily/2026/03/2026-03-02.md#Summary", analysis.citations)
+
 
 if __name__ == "__main__":
     unittest.main()
