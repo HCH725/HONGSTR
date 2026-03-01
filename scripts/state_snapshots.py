@@ -19,6 +19,7 @@ ATOMIC_STATE_DIR = Path("reports/state_atomic")
 ATOMIC_COVERAGE_TABLE = ATOMIC_STATE_DIR / "coverage_table.jsonl"
 ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
 ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
+ATOMIC_WATCHDOG_STATUS = ATOMIC_STATE_DIR / "watchdog_status_latest.json"
 WORKER_INBOX_DIR = Path("_local/worker_inbox")
 DEFAULT_FRESHNESS_PROFILE = "realtime"
 FRESHNESS_THRESHOLDS = {
@@ -62,12 +63,14 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "sources.worker_inbox": {"zh": "Worker 收件匣來源", "en": "sources.worker_inbox"},
     "latest_backtest_head.source": {"zh": "最新回測來源", "en": "latest_backtest_head.source"},
     "ssot_components.cost_sensitivity": {"zh": "成本敏感度摘要", "en": "ssot_components.cost_sensitivity"},
+    "ssot_components.watchdog": {"zh": "Watchdog摘要", "en": "ssot_components.watchdog"},
     "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
     "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
     "ssot_components.regime_signal.threshold_policy_sha": {"zh": "RegimeSignal門檻版本SHA", "en": "ssot_components.regime_signal.threshold_policy_sha"},
     "ssot_components.regime_signal.threshold_rationale": {"zh": "RegimeSignal門檻理由", "en": "ssot_components.regime_signal.threshold_rationale"},
     "ssot_components.regime_signal.calibration_status": {"zh": "RegimeSignal校準狀態", "en": "ssot_components.regime_signal.calibration_status"},
     "ssot_components.regime_signal.last_calibrated_utc": {"zh": "RegimeSignal上次校準時間", "en": "ssot_components.regime_signal.last_calibrated_utc"},
+    "sources.watchdog_status_latest": {"zh": "Watchdog來源", "en": "sources.watchdog_status_latest"},
 }
 
 
@@ -258,6 +261,92 @@ def _normalize_brake_snapshot(payload: dict, now_utc: str) -> dict:
         out["status"] = status
     return out
 
+
+def _normalize_watchdog_snapshot(payload: dict, now_utc: str) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+
+    launchctl_src = payload.get("launchctl") if isinstance(payload.get("launchctl"), dict) else {}
+    last_check_src = payload.get("last_check") if isinstance(payload.get("last_check"), dict) else {}
+    sources_src = payload.get("sources") if isinstance(payload.get("sources"), dict) else {}
+
+    generated_utc = payload.get("generated_utc") or payload.get("ts_utc") or now_utc
+    if not isinstance(generated_utc, str) or not generated_utc.strip():
+        generated_utc = now_utc
+    ts_utc = payload.get("ts_utc") or generated_utc
+    if not isinstance(ts_utc, str) or not ts_utc.strip():
+        ts_utc = generated_utc
+
+    status = _normalize_simple_status(payload.get("status"))
+    if status == "PASS":
+        status = "OK"
+    if status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        status = "UNKNOWN"
+
+    line_status = _normalize_simple_status(last_check_src.get("line_status"))
+    if line_status == "PASS":
+        line_status = "OK"
+    if line_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        line_status = "UNKNOWN"
+
+    status_reason = str(payload.get("status_reason") or "").strip()
+    line_reason = str(last_check_src.get("line_reason") or "").strip()
+    launchctl_state = str(launchctl_src.get("state") or "").strip() or None
+    label = str(payload.get("label") or "com.hongstr.tg_cp_watchdog").strip() or "com.hongstr.tg_cp_watchdog"
+    launchctl_target = str(payload.get("launchctl_target") or launchctl_src.get("target") or "").strip()
+    if not launchctl_target:
+        launchctl_target = f"gui/UNKNOWN/{label}"
+
+    last_line = last_check_src.get("last_line")
+    if last_line is not None:
+        last_line = str(last_line)
+
+    command_stderr = launchctl_src.get("command_stderr")
+    if command_stderr is not None:
+        command_stderr = str(command_stderr)
+
+    output_path = str(sources_src.get("output_path") or ATOMIC_WATCHDOG_STATUS).strip()
+
+    return {
+        "schema_version": str(payload.get("schema_version") or "watchdog_status.v1"),
+        "generated_utc": generated_utc,
+        "ts_utc": ts_utc,
+        "label": label,
+        "launchctl_target": launchctl_target,
+        "status": status,
+        "status_reason": status_reason,
+        "launchctl": {
+            "ok": bool(launchctl_src.get("ok")),
+            "target": str(launchctl_src.get("target") or launchctl_target).strip() or launchctl_target,
+            "state": launchctl_state,
+            "active_count": _as_int_opt(launchctl_src.get("active_count")),
+            "runs": _as_int_opt(launchctl_src.get("runs")),
+            "last_exit_code": _as_int_opt(launchctl_src.get("last_exit_code")),
+            "path": str(launchctl_src.get("path") or "").strip() or None,
+            "stdout_path": str(launchctl_src.get("stdout_path") or "").strip() or None,
+            "stderr_path": str(launchctl_src.get("stderr_path") or "").strip() or None,
+            "program": str(launchctl_src.get("program") or "").strip() or None,
+            "run_interval_seconds": _as_int_opt(launchctl_src.get("run_interval_seconds")),
+            "command_return_code": _as_int_opt(launchctl_src.get("command_return_code")),
+            "command_stderr": command_stderr,
+        },
+        "last_check": {
+            "log_path": str(last_check_src.get("log_path") or "").strip() or None,
+            "exists": bool(last_check_src.get("exists")),
+            "last_line": last_line,
+            "line_status": line_status,
+            "line_reason": line_reason,
+            "updated_at_utc": str(last_check_src.get("updated_at_utc") or "").strip() or None,
+            "age_sec": _as_int_opt(last_check_src.get("age_sec")),
+            "expected_within_sec": _as_int_opt(last_check_src.get("expected_within_sec")),
+        },
+        "sources": {
+            "launchctl_command": str(sources_src.get("launchctl_command") or "").strip() or None,
+            "log_path": str(sources_src.get("log_path") or "").strip() or None,
+            "output_path": output_path,
+        },
+    }
+
 def read_jsonl(path: Path):
     records = []
     if not path.exists():
@@ -309,6 +398,15 @@ def _as_float_opt(value: Any) -> float | None:
         return None
     try:
         return float(value)
+    except Exception:
+        return None
+
+
+def _as_int_opt(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(float(value))
     except Exception:
         return None
 
@@ -1007,6 +1105,7 @@ def _build_daily_report_payload(
             "freshness_table": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
             "strategy_pool_summary": _source_meta(STATE_DIR / "strategy_pool_summary.json", now_ts),
             "strategy_pool": _source_meta(STATE_DIR / "strategy_pool.json", now_ts),
+            "watchdog_status_latest": _source_meta(STATE_DIR / "watchdog_status_latest.json", now_ts),
             "research_leaderboard": _source_meta(STATE_DIR / "_research/leaderboard.json", now_ts, ["generated_at"]),
             "research_loop_state": _source_meta(STATE_DIR / "_research/loop_state.json", now_ts, ["last_run"]),
             "worker_inbox": worker_inbox_source,
@@ -1311,7 +1410,53 @@ def main():
         }
         write_json(STATE_DIR / "brake_health_latest.json", brake_data)
 
-    # 12. Cost Sensitivity Matrix (read-only, derived from existing backtest artifacts)
+    # 12. Canonicalize Watchdog Status (state_snapshots is the final writer to data/state)
+    watchdog_data = _normalize_watchdog_snapshot(read_json(ATOMIC_WATCHDOG_STATUS), now_utc)
+    if isinstance(watchdog_data, dict) and watchdog_data:
+        write_json(STATE_DIR / "watchdog_status_latest.json", watchdog_data)
+    else:
+        watchdog_data = {
+            "schema_version": "watchdog_status.v1",
+            "generated_utc": now_utc,
+            "ts_utc": now_utc,
+            "label": "com.hongstr.tg_cp_watchdog",
+            "launchctl_target": "gui/UNKNOWN/com.hongstr.tg_cp_watchdog",
+            "status": "UNKNOWN",
+            "status_reason": "missing_watchdog_atomic",
+            "launchctl": {
+                "ok": False,
+                "target": "gui/UNKNOWN/com.hongstr.tg_cp_watchdog",
+                "state": None,
+                "active_count": None,
+                "runs": None,
+                "last_exit_code": None,
+                "path": None,
+                "stdout_path": None,
+                "stderr_path": None,
+                "program": None,
+                "run_interval_seconds": None,
+                "command_return_code": None,
+                "command_stderr": None,
+            },
+            "last_check": {
+                "log_path": None,
+                "exists": False,
+                "last_line": None,
+                "line_status": "UNKNOWN",
+                "line_reason": "missing_log",
+                "updated_at_utc": None,
+                "age_sec": None,
+                "expected_within_sec": None,
+            },
+            "sources": {
+                "launchctl_command": None,
+                "log_path": None,
+                "output_path": str(ATOMIC_WATCHDOG_STATUS),
+            },
+        }
+        write_json(STATE_DIR / "watchdog_status_latest.json", watchdog_data)
+
+    # 13. Cost Sensitivity Matrix (read-only, derived from existing backtest artifacts)
     try:
         from cost_sensitivity_matrix import build_cost_sensitivity_matrix_payload
 
@@ -1341,7 +1486,7 @@ def main():
         }
     write_json(STATE_DIR / "cost_sensitivity_matrix_latest.json", cost_sensitivity_matrix)
 
-    # 13. Optional Health Pack Aggregator (SSOT summary only)
+    # 14. Optional Health Pack Aggregator (SSOT summary only)
     fresh_rows = freshness_table.get("rows", [])
     freshness_statuses = []
     freshness_non_ok = 0
@@ -1467,6 +1612,29 @@ def main():
     if cost_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
         cost_status = "UNKNOWN"
 
+    watchdog_status = _normalize_simple_status(watchdog_data.get("status"))
+    if watchdog_status == "PASS":
+        watchdog_status = "OK"
+    if watchdog_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        watchdog_status = "UNKNOWN"
+    watchdog_launchctl = watchdog_data.get("launchctl", {}) if isinstance(watchdog_data, dict) else {}
+    if not isinstance(watchdog_launchctl, dict):
+        watchdog_launchctl = {}
+    watchdog_last_check = watchdog_data.get("last_check", {}) if isinstance(watchdog_data, dict) else {}
+    if not isinstance(watchdog_last_check, dict):
+        watchdog_last_check = {}
+    watchdog_last_check_status = _normalize_simple_status(watchdog_last_check.get("line_status"))
+    if watchdog_last_check_status == "PASS":
+        watchdog_last_check_status = "OK"
+    if watchdog_last_check_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        watchdog_last_check_status = "UNKNOWN"
+    watchdog_launchctl_state_raw = str(watchdog_launchctl.get("state") or "").strip()
+    watchdog_launchctl_state = watchdog_launchctl_state_raw or None
+    watchdog_runs = _as_int_opt(watchdog_launchctl.get("runs"))
+    watchdog_last_exit_code = _as_int_opt(watchdog_launchctl.get("last_exit_code"))
+    watchdog_last_check_age_sec = _as_int_opt(watchdog_last_check.get("age_sec"))
+    watchdog_expected_within_sec = _as_int_opt(watchdog_last_check.get("expected_within_sec"))
+
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
     ssot_status = _collapse_system_status(
         [freshness_status, coverage_as_health, brake_status, regime_monitor_status, cost_status]
@@ -1495,6 +1663,15 @@ def main():
             "brake": {
                 "status": brake_status,
             },
+            "watchdog": {
+                "status": watchdog_status,
+                "launchctl_state": watchdog_launchctl_state,
+                "runs": watchdog_runs,
+                "last_exit_code": watchdog_last_exit_code,
+                "last_check_status": watchdog_last_check_status,
+                "last_check_age_sec": watchdog_last_check_age_sec,
+                "expected_within_sec": watchdog_expected_within_sec,
+            },
             "cost_sensitivity": {
                 "status": cost_status,
                 "rows_total": int(cost_totals.get("rows_total", 0) or 0),
@@ -1521,13 +1698,14 @@ def main():
             "freshness_table.json": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
             "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
+            "watchdog_status_latest.json": _source_meta(STATE_DIR / "watchdog_status_latest.json", now_ts),
             "cost_sensitivity_matrix_latest.json": _source_meta(STATE_DIR / "cost_sensitivity_matrix_latest.json", now_ts),
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
         },
     }
     write_json(STATE_DIR / "system_health_latest.json", system_health)
 
-    # 14. Daily Report SSOT (single entrypoint for tg_cp/dashboard daily reporting)
+    # 15. Daily Report SSOT (single entrypoint for tg_cp/dashboard daily reporting)
     research_leaderboard = read_json(STATE_DIR / "_research/leaderboard.json") or {}
     loop_state = read_json(STATE_DIR / "_research/loop_state.json") or {}
     overfit_policy = read_json(Path("research/policy/overfit_gates_aggressive.json")) or {}

@@ -31,6 +31,7 @@ CANONICAL_FILES = {
     "services_heartbeat.json",
     "coverage_matrix_latest.json",
     "brake_health_latest.json",
+    "watchdog_status_latest.json",
     "system_health_latest.json",
 }
 

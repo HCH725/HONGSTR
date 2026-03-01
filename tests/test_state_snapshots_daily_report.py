@@ -40,6 +40,15 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                 "freshness": {"status": "OK"},
                 "coverage_matrix": {"status": "PASS"},
                 "brake": {"status": "OK"},
+                "watchdog": {
+                    "status": "OK",
+                    "launchctl_state": "not running",
+                    "runs": 4,
+                    "last_exit_code": 0,
+                    "last_check_status": "OK",
+                    "last_check_age_sec": 120,
+                    "expected_within_sec": 600,
+                },
                 "regime_monitor": {"status": "OK"},
                 "regime_signal": {
                     "status": "WARN",
@@ -108,6 +117,7 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["schema"]["version"] == "daily_report.v1"
     assert isinstance(payload["schema"]["field_labels_zh_en"], dict)
     assert "generated_utc" in payload["schema"]["field_labels_zh_en"]
+    assert "ssot_components.watchdog" in payload["schema"]["field_labels_zh_en"]
     assert "ssot_components.regime_signal.threshold_value" in payload["schema"]["field_labels_zh_en"]
     assert "ssot_components.regime_signal.threshold_source_path" in payload["schema"]["field_labels_zh_en"]
     assert "ssot_components.regime_signal.threshold_policy_sha" in payload["schema"]["field_labels_zh_en"]
@@ -120,6 +130,8 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["freshness_summary"]["profile_totals"]["backtest"] == 1
     assert payload["latest_backtest_head"]["metrics"]["is_sharpe"] == 1.4
     assert payload["latest_backtest_head"]["metrics"]["trades_count"] == 37
+    assert payload["ssot_components"]["watchdog"]["status"] == "OK"
+    assert payload["ssot_components"]["watchdog"]["last_check_age_sec"] == 120
     assert payload["ssot_components"]["regime_signal"]["threshold_value"] == -0.0353
     assert payload["ssot_components"]["regime_signal"]["threshold_source_path"] == "reports/strategy_research/phase3/phase3_results.json"
     assert payload["ssot_components"]["regime_signal"]["threshold_policy_sha"] == "abc123def456"
