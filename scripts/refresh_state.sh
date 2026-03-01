@@ -40,22 +40,25 @@ run_step "3. Generate Regime Monitor Atomic Snapshot" \
 run_step "4. Generate Brake Health Atomic Snapshot" \
     .venv/bin/python scripts/brake_healthcheck.py || true
 
+run_step "5. Generate Watchdog Status Atomic Snapshot" \
+    .venv/bin/python scripts/watchdog_status_snapshot.py || true
+
 # Note: scripts/coverage_validate.py might not exist yet, we ensure it's gracefully ignored if it doesn't
 if [ -f "scripts/coverage_validate.py" ]; then
-    run_step "5. Validate Coverage Table" \
+    run_step "6. Validate Coverage Table" \
         .venv/bin/python scripts/coverage_validate.py || true
 else
     echo -e "\n---> [SKIP] scripts/coverage_validate.py (Not implemented, skipping smoothly)"
 fi
 
 if [ -f "scripts/strategy_pool_update.py" ]; then
-    run_step "6. Update Strategy Pool" \
+    run_step "7. Update Strategy Pool" \
         .venv/bin/python scripts/strategy_pool_update.py || true
 else
     echo -e "\n---> [SKIP] scripts/strategy_pool_update.py (Not implemented, skipping smoothly)"
 fi
 
-run_step "7. Generate Dashboard Snapshots (Canonical data/state Writer)" \
+run_step "8. Generate Dashboard Snapshots (Canonical data/state Writer)" \
     .venv/bin/python scripts/state_snapshots.py
 
 echo -e "\n=========================================="
