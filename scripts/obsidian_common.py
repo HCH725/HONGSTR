@@ -34,9 +34,21 @@ DEFAULT_SSOT_FILES = (
     "strategy_pool_summary.json",
 )
 
+UTC = timezone.utc
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def ensure_aware_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
+
 
 def now_utc_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return utc_now().replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def parse_iso8601(value: str | None) -> datetime | None:
@@ -48,7 +60,7 @@ def parse_iso8601(value: str | None) -> datetime | None:
     if text.endswith("Z"):
         text = text[:-1] + "+00:00"
     try:
-        return datetime.fromisoformat(text)
+        return ensure_aware_utc(datetime.fromisoformat(text))
     except ValueError:
         return None
 
@@ -493,7 +505,7 @@ def build_daily_note_payload(
 ) -> dict[str, Any] | None:
     if not payloads:
         return None
-    note_dt = parse_iso8601(now_utc) or datetime.now(timezone.utc)
+    note_dt = parse_iso8601(now_utc) or utc_now()
     note_date = note_dt.date().isoformat()
     note_path = Path("Daily") / note_date[:4] / note_date[5:7] / f"{note_date}.md"
     refs = [
@@ -737,7 +749,7 @@ def build_incident_note_payloads(
     system_health = payloads.get("system_health_latest.json")
     coverage_matrix = payloads.get("coverage_matrix_latest.json")
     brake_health = payloads.get("brake_health_latest.json")
-    note_date = (parse_iso8601(now_utc) or datetime.now(timezone.utc)).date().isoformat()
+    note_date = (parse_iso8601(now_utc) or utc_now()).date().isoformat()
     incident_specs: list[tuple[str, str, list[str], list[str]]] = []
 
     system_rank = 0

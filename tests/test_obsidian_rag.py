@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -129,6 +130,34 @@ def _seed_ssot(repo_root: Path) -> None:
             "demoted": [],
         },
     )
+
+
+def test_utc_helpers_return_aware_utc() -> None:
+    current = obsidian_common.utc_now()
+    assert current.tzinfo == obsidian_common.UTC
+    assert current.utcoffset() == timedelta(0)
+
+    naive = datetime(2026, 3, 2, 10, 0, 0)
+    normalized_naive = obsidian_common.ensure_aware_utc(naive)
+    assert normalized_naive.tzinfo == obsidian_common.UTC
+    assert normalized_naive.hour == 10
+
+    taipei = timezone(timedelta(hours=8))
+    aware = datetime(2026, 3, 2, 18, 0, 0, tzinfo=taipei)
+    normalized_aware = obsidian_common.ensure_aware_utc(aware)
+    assert normalized_aware.tzinfo == obsidian_common.UTC
+    assert normalized_aware.hour == 10
+
+
+def test_obsidian_common_has_no_datetime_utc_regression() -> None:
+    source = Path(obsidian_common.__file__).read_text(encoding="utf-8")
+    import_prefix = "from datetime import "
+    attr_prefix = "datetime."
+    utc_name = "UTC"
+    bad_import = import_prefix + utc_name
+    bad_attr = attr_prefix + utc_name
+    assert bad_import not in source
+    assert bad_attr not in source
 
 
 def test_obsidian_sync_writes_deterministic_notes(tmp_path: Path) -> None:
