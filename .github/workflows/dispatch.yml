@@ -1,0 +1,69 @@
+name: dispatcher
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: contains(github.event.comment.body, '/dispatch')
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - name: Guard - allowlist comment author
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTHOR="${{ github.event.comment.user.login }}"
+          ALLOWLIST="HCH725"
+          if [[ ",${ALLOWLIST}," != *",${AUTHOR},"* ]]; then
+            echo "Blocked: author not allowlisted: ${AUTHOR}"
+            exit 1
+          fi
+
+      - name: Mark issue running
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/${REPO}/issues/${ISSUE}/labels" -f labels[]="dispatch:running" >/dev/null || true
+
+      - name: Acknowledge dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/${REPO}/issues/${ISSUE}/comments" -f body="✅ Dispatcher accepted /dispatch. Run: ${RUN_URL}" >/dev/null
+
+      - name: Mark issue done
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/${REPO}/issues/${ISSUE}/labels" -f labels[]="dispatch:done" >/dev/null || true
+
+      - name: Mark issue blocked
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/${REPO}/issues/${ISSUE}/labels" -f labels[]="dispatch:blocked" >/dev/null || true
