@@ -96,7 +96,7 @@ def normalize_pattern(pattern: str) -> str:
 
 def strip_list_prefix(text: str) -> str:
     value = text.strip()
-    value = re.sub(r"^[•\-*+]\s*", "", value)
+    value = re.sub("^(?:\\u2022|[-*+])\\s*", "", value)
     value = re.sub(r"^\d+\.\s*", "", value)
     return value.strip()
 
