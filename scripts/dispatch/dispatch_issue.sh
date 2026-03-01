@@ -17,6 +17,7 @@ COMMENT_AUTHOR=""
 HAS_DISPATCH_COMMAND="false"
 FAILURE_REASON="dispatch failed before initialization"
 PR_URL=""
+FAILURE_NEEDS_TEMPLATE="false"
 
 die() {
   FAILURE_REASON="$1"
@@ -29,6 +30,28 @@ require_cmd() {
   if ! command -v "$cmd" >/dev/null 2>&1; then
     die "$cmd is required for dispatcher execution"
   fi
+}
+
+build_run_url() {
+  local repo_name="${REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
+  local server_url="${GITHUB_SERVER_URL:-}"
+  local run_id="${GITHUB_RUN_ID:-}"
+  if [[ -z "$repo_name" || -z "$server_url" || -z "$run_id" ]]; then
+    return 0
+  fi
+  printf '%s/%s/actions/runs/%s' "$server_url" "$repo_name" "$run_id"
+}
+
+post_init_failure_comment() {
+  local run_url=""
+  local body=""
+  run_url="$(build_run_url)"
+  body="Dispatch blocked: $FAILURE_REASON"
+  body="${body}"$'\n\n'"Allowed paths:"$'\n'"- docs/dispatcher_smoke.md"
+  if [[ -n "$run_url" ]]; then
+    body="${body}"$'\n\n'"Actions run: $run_url"
+  fi
+  gh issue comment "$ISSUE_NUMBER" --repo "$REPO_FULL_NAME" --body "$body" >/dev/null 2>&1 || true
 }
 
 ensure_label() {
@@ -59,7 +82,11 @@ cleanup() {
       remove_issue_label "$LABEL_DONE"
       add_issue_label "$LABEL_BLOCKED"
       if [[ -n "$FAILURE_REASON" ]]; then
-        gh issue comment "$ISSUE_NUMBER" --repo "$REPO_FULL_NAME" --body "Dispatch blocked for issue #$ISSUE_NUMBER: $FAILURE_REASON" >/dev/null 2>&1 || true
+        if [[ "$FAILURE_NEEDS_TEMPLATE" == "true" ]]; then
+          post_init_failure_comment
+        else
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPO_FULL_NAME" --body "Dispatch blocked for issue #$ISSUE_NUMBER: $FAILURE_REASON" >/dev/null 2>&1 || true
+        fi
       fi
     fi
   fi
@@ -201,7 +228,7 @@ if [[ "$author_allowed" != "true" ]]; then
 fi
 
 if [[ ! -s "$allowed_paths_file" ]]; then
-  gh issue comment "$ISSUE_NUMBER" --repo "$REPO_FULL_NAME" --body $'Allowed paths:\n- docs/dispatcher_smoke.md' >/dev/null 2>&1 || true
+  FAILURE_NEEDS_TEMPLATE="true"
   die "issue #$ISSUE_NUMBER is missing an Allowed paths section"
 fi
 
@@ -245,6 +272,7 @@ print(f"{target} is outside Allowed paths", file=sys.stderr)
 raise SystemExit(1)
 PY
 then
+  FAILURE_NEEDS_TEMPLATE="true"
   die "$SMOKE_PATH is outside Allowed paths for issue #$ISSUE_NUMBER"
 fi
 
@@ -345,8 +373,14 @@ cat > "$pr_body_file" <<EOF
 - Confirm the originating issue received a bot comment containing this PR URL
 EOF
 
-PR_URL="$(GH_PROMPT_DISABLED=1 GIT_TERMINAL_PROMPT=0 gh pr create --draft --repo "$REPO_FULL_NAME" --base "$BASE_BRANCH" --head "$branch_name" --title "[dispatch] Issue #$ISSUE_NUMBER smoke PR" --body-file "$pr_body_file")"
-[[ -n "$PR_URL" ]] || die "gh pr create did not return a PR URL"
+if ! PR_URL="$(GH_PROMPT_DISABLED=1 GIT_TERMINAL_PROMPT=0 gh pr create --draft --repo "$REPO_FULL_NAME" --base "$BASE_BRANCH" --head "$branch_name" --title "[dispatch] Issue #$ISSUE_NUMBER smoke PR" --body-file "$pr_body_file")"; then
+  FAILURE_NEEDS_TEMPLATE="true"
+  die "dispatcher could not create a draft PR (check repo permissions or branch policy)"
+fi
+if [[ -z "$PR_URL" ]]; then
+  FAILURE_NEEDS_TEMPLATE="true"
+  die "gh pr create did not return a PR URL"
+fi
 
 gh issue comment "$ISSUE_NUMBER" --repo "$REPO_FULL_NAME" --body "Dispatch PR created for issue #$ISSUE_NUMBER: $PR_URL"
 FAILURE_REASON=""

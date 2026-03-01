@@ -51,7 +51,7 @@ env/
 logs/
 secrets/
 
-# Temp
+# Temp (keep local dispatcher notes untracked)
 tmp/
 
 # Generated artifacts
