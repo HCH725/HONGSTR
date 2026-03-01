@@ -1771,55 +1771,15 @@ def skill_brake_status() -> str:
     # Run artifacts check (scan summary/selection/gate)
     arts = [r for r in results if r["item"].startswith("Backtest")]
     if not arts:
-        # Fallback render if old payload structure
-        results = data.get("results", [])
-        if results:
-            lines.append("\n[ Standard Checks ]")
-            for r in results:
-                st = r.get("status", "UNKNOWN")
-                st_icon = "OK" if st == "OK" else ("WARN" if st == "WARN" else "FAIL")
-                lines.append(f"- {r.get('item', 'Item')}: {st_icon} ({r.get('note', '')})")
-                
-    return "\n".join(lines)
-
-
-def skill_regime_audit_status() -> str:
-    path = REPO / "data/state/regime_timeline_audit_latest.json"
-    if not path.exists():
-        return "❓ UNKNOWN: Regime Timeline Audit report missing.\n💡 Hint: bash scripts/refresh_state.sh"
-    
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return "❓ UNKNOWN: Failed to parse regime audit report.\n💡 Hint: bash scripts/refresh_state.sh"
-        
-    status = data.get("overall", "UNKNOWN")
-    icon = "✅" if status == "OK" else ("⚠️" if status == "WARN" else "🛑")
-    if status == "UNKNOWN": icon = "❓"
-    
-    lines = [f"{icon} Regime Timeline Audit: {status}"]
-    cov = data.get("coverage_pct", 0.0)
-    lines.append(f"Coverage (180d): {cov:.1f}%")
-    
-    gaps_sec = data.get("gaps_seconds_total", 0)
-    ov_sec = data.get("overlaps_seconds_total", 0)
-    
-    if gaps_sec > 0 or ov_sec > 0:
-        lines.append(f"Issues: {len(data.get('gaps', []))} gaps ({gaps_sec}s), {len(data.get('overlaps', []))} overlaps ({ov_sec}s)")
-        
-    slices = data.get("slices_summary", {})
-    if slices:
-        lines.append("\n[ Summary ]")
-        lines.append(f"• Bull: {slices.get('bull_days', 0):.1f}d")
-        lines.append(f"• Bear: {slices.get('bear_days', 0):.1f}d")
-        lines.append(f"• Sideways: {slices.get('sideways_days', 0):.1f}d")
-        lines.append(f"• Unknown: {slices.get('unknown_days', 0):.1f}d")
-        
-    hint = data.get("refresh_hint")
-    if hint:
-        lines.append(f"\n💡 Hint: {hint}")
+        lines.append("- artifacts: MISSING (no backtest data)")
+    else:
+        fails = [r["item"].split()[-1] for r in arts if r["status"] == "FAIL"]
+        status = "FAIL" if fails else "OK"
+        note = f"missing: {', '.join(fails)}" if fails else "all present"
+        lines.append(f"- artifacts: {status} ({note})")
         
     return "\n".join(lines)
+
 
 def skill_logs_tail_hint(lines: int = 60) -> str:
     n = max(20, min(120, int(lines)))
@@ -1966,9 +1926,6 @@ SKILL_IMPL = {
     "ml_status": lambda args: skill_ml_status(),
     "regime_status": lambda args: skill_regime_status(),
     "brake_status": lambda args: skill_brake_status(),
-    "regime_audit_status": lambda args: skill_regime_audit_status(),
-    "freshness_status": lambda args: skill_freshness_status(
-),
     "signal_leakage_audit": lambda args: skill_signal_leakage_audit(args),
     "signal_leakage_and_lookahead_audit": lambda args: skill_signal_leakage_audit(args),
     "incident_timeline_builder": lambda args: skill_incident_timeline_builder(
@@ -2755,7 +2712,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "• /brake — 煞車健康檢查 (Artifacts & Freshness)\n"
             "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
-            "• /regime_audit — Timeline Interval Integrity\n"
+            "• /regime_status — 同 /regime\n"
             "• /ml_status — ML 流水線健康狀態\n"
             "• /research_status — Research Loop 今日狀態 + Leaderboard\n\n"
             "🔧 其他指令：\n"
@@ -2782,9 +2739,6 @@ def _handle_command(chat_id: int, text: str) -> str:
 
     if cmd == "/brake" or cmd == "/brake_status":
         return skill_brake_status()
-        
-    if cmd == "/regime_audit":
-        return skill_regime_audit_status()
 
     if cmd == "/skills":
         lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
