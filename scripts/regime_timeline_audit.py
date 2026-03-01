@@ -11,14 +11,16 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# Paths
 REPO = Path(__file__).parent.parent
 REPO_ROOT = str(REPO.resolve())
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from scripts._ssot_meta import add_ssot_meta
+SCRIPTS_DIR = os.path.join(REPO_ROOT, "scripts")
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
 
+from _ssot_meta import add_ssot_meta
 
 CANDIDATES = [
     REPO / "research/policy/regime_timeline.json",
