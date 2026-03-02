@@ -733,10 +733,44 @@ def test_rag_search_run_accepts_quoted_query(monkeypatch, tmp_path):
 
     out, ok = s._handle_run('/run rag_search query="freshness status" k=5')
     assert ok is True
-    payload = json.loads(out)
-    assert payload["status"] == "OK"
-    assert payload["chunks"]
-    assert payload["chunks"][0]["pointer"] == "Daily/2026/03/2026-03-02.md#Summary"
+    assert "rag_search (short)" in out
+    assert "provider: lancedb" in out
+    assert "Daily/2026/03/2026-03-02.md#Summary" in out
+
+
+def test_rag_search_run_verbose_formats_json(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    db_dir = repo / "_local" / "lancedb" / "hongstr_obsidian.lancedb"
+
+    from scripts.obsidian_common import save_index_rows
+
+    save_index_rows(
+        db_dir,
+        [
+            {
+                "id": "chunk-1",
+                "vault_rel_path": "Daily/2026/03/2026-03-02.md",
+                "heading_path": "Daily/2026/03/2026-03-02.md#Summary",
+                "chunk_text": "freshness status is good. " + "A very long text " * 500,  # Force truncation
+                "chunk_hash": "hash-1",
+                "created_utc": "2026-03-02T10:00:00Z",
+                "metadata": {"type": "daily", "date": "2026-03-02"},
+                "embedding": [],
+            }
+        ],
+        provider_name="ollama",
+        ollama_model="nomic-embed-text",
+    )
+    monkeypatch.setattr(s, "REPO", repo)
+
+    out, ok = s._handle_run('/run rag_search query="freshness status" k=5 verbose=1')
+    assert ok is True
+    assert out.startswith("```json\n")
+    assert out.endswith("```")
+    assert "... (truncated due to length)" in out
 
 
 def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):
