@@ -17,7 +17,6 @@ REASONING_TIMEOUT = int(os.getenv("HONGSTR_REASONING_TIMEOUT", "120"))
 DEBUG_JSON = os.getenv("HONGSTR_DEBUG_JSON", "0") == "1"
 REFRESH_HINT = "bash scripts/refresh_state.sh"
 ALLOWED_STATUS = {"OK", "WARN", "FAIL", "UNKNOWN"}
-RAG_SEARCH_TOOL_NAME = "rag_search"
 
 logger = logging.getLogger("reasoning_client")
 
@@ -129,53 +128,7 @@ def _fallback_payload(status: str, problem: str) -> dict[str, Any]:
 
 
 def _extract_tool_call(payload: dict[str, Any] | None) -> tuple[str, dict[str, Any]] | None:
-    if not isinstance(payload, dict):
-        return None
-
-    tool_name: Any = None
-    tool_args: Any = None
-
-    nested = payload.get("tool_call")
-    if isinstance(nested, dict):
-        tool_name = nested.get("name") or nested.get("tool")
-        tool_args = nested.get("args")
-    else:
-        tool_name = payload.get("tool") or payload.get("name")
-        tool_args = payload.get("args")
-
-    normalized_name = str(tool_name or "").strip()
-    if normalized_name != RAG_SEARCH_TOOL_NAME:
-        return None
-    if not isinstance(tool_args, dict):
-        tool_args = {}
-    return normalized_name, tool_args
-
-
-def _tool_prompt_block() -> str:
-    schema = {
-        "tool": "rag_search",
-        "args": {
-            "query": "string (required, <=512 chars)",
-            "k": "int (optional, 1..12)",
-            "filter_type": "daily|strategy|incident (optional)",
-            "since_date": "YYYY-MM-DD (optional)",
-        },
-    }
-    return (
-        "If local Obsidian RAG evidence is needed before diagnosing, you may first output exactly one JSON "
-        "tool call for the read-only `rag_search` tool instead of the final analysis object. "
-        "The system will execute it and send you the result, then you must return the final analysis JSON only.\n"
-        + json.dumps(schema, ensure_ascii=False)
-    )
-
-
-def _tool_followup_prompt(tool_name: str, tool_result: dict[str, Any]) -> str:
-    return (
-        f"Tool `{tool_name}` result (JSON):\n"
-        f"{json.dumps(tool_result, ensure_ascii=False, separators=(',', ':'))}\n\n"
-        "Use this evidence to finalize your diagnosis. "
-        "Return one valid JSON object that matches the original schema exactly, and cite relevant `pointer` values."
-    )
+    return None
 
 
 def _normalize_payload(payload: dict[str, Any] | None, *, fallback_status: str, fallback_problem: str) -> dict[str, Any]:
@@ -217,7 +170,6 @@ def call_reasoning_specialist(
     prompt: str,
     system_prompt: Optional[str] = None,
     timeout: int = REASONING_TIMEOUT,
-    tool_handler: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
 ) -> Optional[ReasoningAnalysis]:
     """Call Reasoning Specialist and normalize to strict JSON-only contract."""
     if not system_prompt:
@@ -241,8 +193,6 @@ def call_reasoning_specialist(
             "- 'actions' MUST be an empty list [].\n"
             "- report_only behavior only; do not propose executable actions.\n"
         )
-    if tool_handler:
-        system_prompt = system_prompt.rstrip() + "\n" + _tool_prompt_block()
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -272,35 +222,6 @@ def call_reasoning_specialist(
         t0 = time.time()
         raw_response = _request(messages)
         extracted, source = _extract_reasoning_payload(raw_response)
-
-        if tool_handler:
-            tool_call = _extract_tool_call(extracted)
-            if tool_call is not None:
-                tool_name, tool_args = tool_call
-                try:
-                    tool_result = tool_handler(tool_name, tool_args)
-                except Exception as exc:
-                    tool_result = {
-                        "status": "WARN",
-                        "provider": "lancedb",
-                        "db_path": "_local/lancedb/hongstr_obsidian.lancedb",
-                        "chunks": [],
-                        "warn": f"tool_handler_error: {type(exc).__name__}",
-                    }
-                if not isinstance(tool_result, dict):
-                    tool_result = {
-                        "status": "WARN",
-                        "provider": "lancedb",
-                        "db_path": "_local/lancedb/hongstr_obsidian.lancedb",
-                        "chunks": [],
-                        "warn": "tool_handler_returned_non_object",
-                    }
-                messages = list(messages) + [
-                    {"role": "assistant", "content": json.dumps(extracted, ensure_ascii=False, separators=(",", ":"))},
-                    {"role": "user", "content": _tool_followup_prompt(tool_name, tool_result)},
-                ]
-                raw_response = _request(messages)
-                extracted, source = _extract_reasoning_payload(raw_response)
 
         if extracted is None:
             logger.warning("Reasoning JSON extraction failed (source=%s)", source)
