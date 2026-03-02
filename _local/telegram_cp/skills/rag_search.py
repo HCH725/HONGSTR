@@ -62,28 +62,35 @@ def run_rag_search(repo: Path, args: dict[str, Any]) -> dict[str, Any]:
     )
     
     if not verbose and payload.get("status") == "OK" and payload.get("chunks"):
-        short_chunks = []
-        for chunk in payload["chunks"]:
-            meta = chunk.get("metadata", {})
-            short_chunk = {
-                "pointer": chunk.get("pointer", ""),
-                "type": meta.get("type", "unknown"),
-            }
-            if "heading_path" in chunk and chunk["heading_path"] != chunk.get("pointer"):
-                short_chunk["heading_path"] = chunk["heading_path"]
-            
-            ssot_refs = meta.get("ssot_refs", [])
+        lines = []
+        lines.append("🔎 rag_search (short)")
+        lines.append(f"- provider: {payload.get('provider')}")
+        lines.append(f"- db: {payload.get('db_path')}")
+        lines.append(f"- k: {k}")
+        lines.append("")
+        lines.append("Top matches:")
+
+        for i, chunk in enumerate(payload["chunks"][: min(5, len(payload["chunks"]))], start=1):
+            meta = chunk.get("metadata", {}) or {}
+            pointer = chunk.get("pointer", "")
+            typ = meta.get("type", "unknown")
+            ssot_refs = (meta.get("ssot_refs") or [])[:3]
+            text = (chunk.get("text") or "").strip().replace("\n", " ")
+            if len(text) > 160:
+                text = text[:160] + "…"
+
+            lines.append(f"{i}. [{typ}] {pointer}")
             if ssot_refs:
-                short_chunk["ssot_refs"] = ssot_refs[:5]
-                
-            text = chunk.get("text", "")
-            if len(text) > 200:
-                short_chunk["text"] = text[:200] + "..."
-            else:
-                short_chunk["text"] = text
-            short_chunks.append(short_chunk)
-            
-        payload["chunks"] = short_chunks
-        payload["hint"] = "Showing short summary. For full content, use verbose=1."
+                lines.append(f"   - refs: {', '.join(ssot_refs)}")
+            if text:
+                lines.append(f"   - {text}")
+
+        payload = {
+            "status": "OK",
+            "text": "\n".join(lines),
+            "hint": "Use verbose=1 for full JSON chunks.",
+            "provider": payload.get("provider"),
+            "db_path": payload.get("db_path"),
+        }
         
     return payload
