@@ -283,13 +283,6 @@
             "type": "string",
             "required": false,
             "default": ""
-          },
-          {
-            "name": "verbose",
-            "type": "string",
-            "required": false,
-            "default": "0",
-            "desc": "0=short (default), 1=full"
           }
         ]
       }

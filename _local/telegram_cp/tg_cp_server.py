@@ -203,7 +203,6 @@ RAG_SEARCH_TOOL_SCHEMA = {
         "k": "int (optional, 1..12)",
         "filter_type": "daily|strategy|incident (optional)",
         "since_date": "YYYY-MM-DD (optional)",
-        "verbose": "string (optional, '0' or '1')",
     },
 }
 
@@ -2842,18 +2841,8 @@ def _normalize_quant_report_payload(skill_name: str, raw_output: object) -> dict
 
 
 def _format_run_output(skill_name: str, output: object) -> str:
-    if skill_name == "rag_search" and isinstance(output, dict):
-        status = output.get("status")
-        if status == "OK":
-            if "text" in output and output["text"]:  # short mode
-                return output["text"]
-            # verbose mode
-            json_str = json.dumps(output, ensure_ascii=False, indent=2)
-            if len(json_str) > 3500:
-                json_str = json_str[:3500] + "\n... (truncated due to length)"
-            return f"```json\n{json_str}\n```"
-
     if skill_name in QUANT_REPORT_ONLY_SKILLS:
+
         normalized = _normalize_quant_report_payload(skill_name, output)
         return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
     if isinstance(output, (dict, list)):
