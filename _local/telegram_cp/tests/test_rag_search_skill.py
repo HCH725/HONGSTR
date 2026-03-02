@@ -54,14 +54,9 @@ def test_run_rag_search_caps_k_and_returns_payload(tmp_path: Path) -> None:
     assert payload["status"] == "OK"
     assert payload["provider"] == "lancedb"
     assert payload["db_path"] == "_local/lancedb/hongstr_obsidian.lancedb"
-    assert payload.get("hint") == "Showing short summary. For full content, use verbose=1."
-    assert 1 <= len(payload["chunks"]) <= 12
-    
-    first_chunk = payload["chunks"][0]
-    assert first_chunk["pointer"].startswith("Daily/2026/03/2026-03-02.md#")
-    assert "type" in first_chunk
-    assert "text" in first_chunk
-    assert "metadata" not in first_chunk
+    assert "text" in payload and len(payload["text"]) > 0
+    assert payload.get("hint") == "Use verbose=1 for full JSON chunks."
+    assert "chunks" not in payload
 
 
 def test_run_rag_search_verbose(tmp_path: Path) -> None:
@@ -73,11 +68,13 @@ def test_run_rag_search_verbose(tmp_path: Path) -> None:
 
     assert payload["status"] == "OK"
     assert "hint" not in payload
+    assert "chunks" in payload
     assert 1 <= len(payload["chunks"])
     
     first_chunk = payload["chunks"][0]
     assert "metadata" in first_chunk
     assert "vault_rel_path" in first_chunk
+    assert "text" not in payload
 
 
 def test_run_rag_search_warns_when_index_missing(tmp_path: Path) -> None:
