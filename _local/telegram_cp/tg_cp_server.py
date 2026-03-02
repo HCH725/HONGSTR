@@ -10,26 +10,26 @@ Architecture:
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import hashlib
 import json
 import os
 import re
-import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 import logging
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("tg_cp_server")
-
-# Ensure project root is in sys.path for _local imports
-REPO_ROOT = str(Path(__file__).resolve().parent.parent.parent)
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 try:
     from _local.telegram_cp.args_schema import parse_args, validate  # type: ignore
