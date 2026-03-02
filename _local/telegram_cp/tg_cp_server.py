@@ -203,6 +203,7 @@ RAG_SEARCH_TOOL_SCHEMA = {
         "k": "int (optional, 1..12)",
         "filter_type": "daily|strategy|incident (optional)",
         "since_date": "YYYY-MM-DD (optional)",
+        "verbose": "string (optional, '0' or '1')",
     },
 }
 
