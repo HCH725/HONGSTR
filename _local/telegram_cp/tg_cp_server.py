@@ -2840,7 +2840,47 @@ def _normalize_quant_report_payload(skill_name: str, raw_output: object) -> dict
     return normalized
 
 
+def _format_rag_search_markdown(payload: dict) -> str:
+    status = payload.get("status", "UNKNOWN")
+    if status != "OK" or not payload.get("chunks"):
+        return json.dumps(payload, ensure_ascii=False)
+        
+    lines = [
+        f"**RAG Search** ({status})",
+        f"Provider: {payload.get('provider', '?')} | DB: {payload.get('db_path', '?')}",
+        "",
+        f"**Top Matches:**",
+    ]
+    
+    for i, c in enumerate(payload["chunks"][:5], start=1):
+        ptr = c.get("pointer", "?")
+        ctype = c.get("type", "?")
+        lines.append(f"{i}. `{ptr}` (type: {ctype})")
+        
+        # Format refs if any
+        refs = c.get("ssot_refs", [])
+        if refs:
+            refs_str = ", ".join(f"`{r}`" for r in refs[:3])
+            if len(refs) > 3:
+                refs_str += ", ..."
+            lines.append(f"   Refs: {refs_str}")
+            
+        snippet = c.get("text", "")
+        if snippet:
+            snippet_trunc = snippet[:150].replace("\n", " ") + ("..." if len(snippet) > 150 else "")
+            lines.append(f"   > {snippet_trunc}")
+        lines.append("")
+        
+    hint = payload.get("hint")
+    if hint:
+        lines.append(f"*{hint}*")
+        
+    return "\n".join(lines).strip()
+
+
 def _format_run_output(skill_name: str, output: object) -> str:
+    if skill_name == "rag_search" and isinstance(output, dict):
+        return _format_rag_search_markdown(output)
     if skill_name in QUANT_REPORT_ONLY_SKILLS:
 
         normalized = _normalize_quant_report_payload(skill_name, output)
