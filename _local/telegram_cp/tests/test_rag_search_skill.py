@@ -54,27 +54,13 @@ def test_run_rag_search_caps_k_and_returns_payload(tmp_path: Path) -> None:
     assert payload["status"] == "OK"
     assert payload["provider"] == "lancedb"
     assert payload["db_path"] == "_local/lancedb/hongstr_obsidian.lancedb"
-    assert "text" in payload and len(payload["text"]) > 0
-    assert payload.get("hint") == "Use verbose=1 for full JSON chunks."
-    assert "chunks" not in payload
-
-
-def test_run_rag_search_verbose(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    _seed_index(repo)
-
-    payload = run_rag_search(repo, {"query": "freshness status", "verbose": "1"})
-
-    assert payload["status"] == "OK"
-    assert "hint" not in payload
-    assert "chunks" in payload
-    assert 1 <= len(payload["chunks"])
-    
-    first_chunk = payload["chunks"][0]
-    assert "metadata" in first_chunk
-    assert "vault_rel_path" in first_chunk
-    assert "text" not in payload
+    assert isinstance(payload["chunks"], list)
+    assert len(payload["chunks"]) > 0
+    assert payload.get("hint") == "Short summary mode (fixed)."
+    # Verify a chunk is shortened
+    c0 = payload["chunks"][0]
+    assert "text" in c0
+    assert len(c0["text"]) <= 200 + 3
 
 
 def test_run_rag_search_warns_when_index_missing(tmp_path: Path) -> None:

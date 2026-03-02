@@ -49,48 +49,37 @@ def run_rag_search(repo: Path, args: dict[str, Any]) -> dict[str, Any]:
     since_date = since_date_raw or None
     if since_date and not _DATE_RE.fullmatch(since_date):
         return _warn_payload("invalid_since_date")
-        
-    verbose_val = args.get("verbose", "0")
-    verbose = str(verbose_val).strip() == "1"
-
-    payload = rag_search_from_repo(
+    return _shorten_payload(rag_search_from_repo(
         repo,
         query=query,
         k=k,
         filter_type=filter_type,
         since_date=since_date,
-    )
-    
-    if not verbose and payload.get("status") == "OK" and payload.get("chunks"):
-        lines = []
-        lines.append("🔎 rag_search (short)")
-        lines.append(f"- provider: {payload.get('provider')}")
-        lines.append(f"- db: {payload.get('db_path')}")
-        lines.append(f"- k: {k}")
-        lines.append("")
-        lines.append("Top matches:")
+    ))
 
-        for i, chunk in enumerate(payload["chunks"][: min(5, len(payload["chunks"]))], start=1):
-            meta = chunk.get("metadata", {}) or {}
-            pointer = chunk.get("pointer", "")
-            typ = meta.get("type", "unknown")
-            ssot_refs = (meta.get("ssot_refs") or [])[:3]
-            text = (chunk.get("text") or "").strip().replace("\n", " ")
-            if len(text) > 160:
-                text = text[:160] + "…"
 
-            lines.append(f"{i}. [{typ}] {pointer}")
-            if ssot_refs:
-                lines.append(f"   - refs: {', '.join(ssot_refs)}")
-            if text:
-                lines.append(f"   - {text}")
-
-        payload = {
-            "status": "OK",
-            "text": "\n".join(lines),
-            "hint": "Use verbose=1 for full JSON chunks.",
-            "provider": payload.get("provider"),
-            "db_path": payload.get("db_path"),
+def _shorten_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    # Always return a concise summary to avoid Telegram spam.
+    if payload.get("status") != "OK" or not payload.get("chunks"):
+        return payload
+    short_chunks: list[dict[str, Any]] = []
+    for chunk in payload["chunks"]:
+        meta = chunk.get("metadata", {}) or {}
+        short_chunk: dict[str, Any] = {
+            "pointer": chunk.get("pointer", ""),
+            "type": meta.get("type", "unknown"),
         }
-        
+        if "heading_path" in chunk and chunk["heading_path"] != chunk.get("pointer"):
+            short_chunk["heading_path"] = chunk["heading_path"]
+        ssot_refs = meta.get("ssot_refs", [])
+        if ssot_refs:
+            short_chunk["ssot_refs"] = ssot_refs[:5]
+        text = chunk.get("text", "") or ""
+        short_chunk["text"] = (text[:200] + "...") if len(text) > 200 else text
+        short_chunks.append(short_chunk)
+    payload["chunks"] = short_chunks
+    # keep hint minimal (no verbose mode)
+    payload["hint"] = "Short summary mode (fixed)."
     return payload
+
+
