@@ -49,11 +49,41 @@ def run_rag_search(repo: Path, args: dict[str, Any]) -> dict[str, Any]:
     since_date = since_date_raw or None
     if since_date and not _DATE_RE.fullmatch(since_date):
         return _warn_payload("invalid_since_date")
+        
+    verbose_val = args.get("verbose", "0")
+    verbose = str(verbose_val).strip() == "1"
 
-    return rag_search_from_repo(
+    payload = rag_search_from_repo(
         repo,
         query=query,
         k=k,
         filter_type=filter_type,
         since_date=since_date,
     )
+    
+    if not verbose and payload.get("status") == "OK" and payload.get("chunks"):
+        short_chunks = []
+        for chunk in payload["chunks"]:
+            meta = chunk.get("metadata", {})
+            short_chunk = {
+                "pointer": chunk.get("pointer", ""),
+                "type": meta.get("type", "unknown"),
+            }
+            if "heading_path" in chunk and chunk["heading_path"] != chunk.get("pointer"):
+                short_chunk["heading_path"] = chunk["heading_path"]
+            
+            ssot_refs = meta.get("ssot_refs", [])
+            if ssot_refs:
+                short_chunk["ssot_refs"] = ssot_refs[:5]
+                
+            text = chunk.get("text", "")
+            if len(text) > 200:
+                short_chunk["text"] = text[:200] + "..."
+            else:
+                short_chunk["text"] = text
+            short_chunks.append(short_chunk)
+            
+        payload["chunks"] = short_chunks
+        payload["hint"] = "Showing short summary. For full content, use verbose=1."
+        
+    return payload
