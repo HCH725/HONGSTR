@@ -195,16 +195,6 @@ SKILL_MAP = {s.get("name"): s for s in SKILLS if isinstance(s, dict)}
 REFUSAL_TXT = _load_text(REFUSAL_PATH, "")
 SAFE_SOP_TXT = _load_text(SAFE_SOP_PATH, "")
 MAX_QUESTIONS = 1
-RAG_SEARCH_TOOL_NAME = "rag_search"
-RAG_SEARCH_TOOL_SCHEMA = {
-    "tool": "rag_search",
-    "args": {
-        "query": "string (required, <=512 chars)",
-        "k": "int (optional, 1..12)",
-        "filter_type": "daily|strategy|incident (optional)",
-        "since_date": "YYYY-MM-DD (optional)",
-    },
-}
 
 
 def _allowed_chats() -> set[int]:
@@ -1946,7 +1936,7 @@ SKILL_IMPL = {
     "backtest_reproducibility_audit": skill_backtest_reproducibility_audit,
     "factor_health_and_drift_report": skill_factor_health_and_drift_report,
     "strategy_regime_sensitivity_report": skill_strategy_regime_sensitivity_report,
-    "rag_search": skill_rag_search,
+
     "execution_quality_report_readonly": skill_execution_quality_report_readonly,
     "data_freshness_watchdog_report": skill_data_freshness_watchdog_report,
     "config_drift_auditor": skill_config_drift_auditor,
@@ -1967,75 +1957,6 @@ SKILL_IMPL = {
         str(args.get("services", "")),
     ),
 }
-
-
-def _rag_search_warn_payload(message: str) -> dict:
-    return {
-        "status": "WARN",
-        "provider": "lancedb",
-        "db_path": "_local/lancedb/hongstr_obsidian.lancedb",
-        "chunks": [],
-        "warn": message,
-    }
-
-
-def _execute_llm_tool_call(tool_name: str, args: dict) -> dict:
-    if tool_name != RAG_SEARCH_TOOL_NAME:
-        return _rag_search_warn_payload(f"unsupported_tool: {tool_name}")
-
-    skill_cfg = SKILL_MAP.get(tool_name)
-    if not isinstance(skill_cfg, dict) or tool_name not in SKILL_IMPL:
-        return _rag_search_warn_payload("tool_unavailable")
-
-    try:
-        valid_args = validate(skill_cfg.get("args_schema", {}), args if isinstance(args, dict) else {})
-    except Exception as exc:
-        return _rag_search_warn_payload(f"invalid_tool_args: {exc}")
-
-    try:
-        result = SKILL_IMPL[tool_name](valid_args)
-    except Exception as exc:
-        return _rag_search_warn_payload(f"tool_execution_failed: {type(exc).__name__}")
-
-    if isinstance(result, dict):
-        return result
-    if isinstance(result, str):
-        try:
-            decoded = json.loads(result)
-        except Exception:
-            decoded = None
-        if isinstance(decoded, dict):
-            return decoded
-    return _rag_search_warn_payload("tool_returned_non_object")
-
-
-def _format_tool_fallback_reply(tool_name: str, tool_result: dict) -> str:
-    if tool_name != RAG_SEARCH_TOOL_NAME or not isinstance(tool_result, dict):
-        return "⚠️ 工具結果不可用。"
-
-    lines = ["📚 本地 RAG 搜尋結果"]
-    status = str(tool_result.get("status", "WARN") or "WARN").upper()
-    warn = str(tool_result.get("warn", "") or "").strip()
-    if warn:
-        lines.append(f"狀態: {status} ({warn})")
-    else:
-        lines.append(f"狀態: {status}")
-
-    chunks = tool_result.get("chunks")
-    chunks = chunks if isinstance(chunks, list) else []
-    if not chunks:
-        lines.append("沒有可用片段。")
-        return "\n".join(lines)
-
-    for chunk in chunks[:4]:
-        if not isinstance(chunk, dict):
-            continue
-        pointer = str(chunk.get("pointer") or chunk.get("vault_rel_path") or "UNKNOWN")
-        snippet = str(chunk.get("text") or "").strip()
-        if len(snippet) > 180:
-            snippet = snippet[:177].rstrip() + "..."
-        lines.append(f"• {pointer}: {snippet}")
-    return "\n".join(lines)
 
 
 # ────────────────────── alert channel (C) ──────────────────────
@@ -2457,70 +2378,6 @@ def _memory_stats() -> tuple[int, int, list[str]]:
     return len(ops), len(user), [x for x in recent if x]
 
 
-def _extract_first_json_object(text: str) -> dict | None:
-    if not isinstance(text, str):
-        return None
-    decoder = json.JSONDecoder()
-    for idx, ch in enumerate(text):
-        if ch != "{":
-            continue
-        try:
-            obj, _ = decoder.raw_decode(text[idx:])
-        except json.JSONDecodeError:
-            continue
-        if isinstance(obj, dict):
-            return obj
-    return None
-
-
-def _extract_llm_tool_call(text: str) -> tuple[str, dict] | None:
-    payload = None
-    stripped = str(text or "").strip()
-    if stripped.startswith("{") and stripped.endswith("}"):
-        try:
-            payload = json.loads(stripped)
-        except Exception:
-            payload = None
-    if payload is None:
-        payload = _extract_first_json_object(str(text or ""))
-    if not isinstance(payload, dict):
-        return None
-
-    tool_name = None
-    tool_args = None
-    nested = payload.get("tool_call")
-    if isinstance(nested, dict):
-        tool_name = nested.get("name") or nested.get("tool")
-        tool_args = nested.get("args")
-    else:
-        tool_name = payload.get("tool") or payload.get("name")
-        tool_args = payload.get("args")
-
-    if str(tool_name or "").strip() != RAG_SEARCH_TOOL_NAME:
-        return None
-    if not isinstance(tool_args, dict):
-        tool_args = {}
-    return RAG_SEARCH_TOOL_NAME, tool_args
-
-
-def _rag_search_tool_contract_block() -> str:
-    return (
-        "If you need local research context from the Obsidian plus LanceDB index before answering, "
-        "you may first output exactly one JSON object that calls the read-only `rag_search` tool. "
-        "The system will run it, return the result, and then you must finalize your answer with plain-text pointer citations.\n"
-        + json.dumps(RAG_SEARCH_TOOL_SCHEMA, ensure_ascii=False)
-    )
-
-
-def _build_tool_followup_prompt(tool_name: str, tool_result: dict) -> str:
-    return (
-        f"Tool `{tool_name}` result (JSON):\n"
-        f"{json.dumps(tool_result, ensure_ascii=False, separators=(',', ':'))}\n\n"
-        "Use this tool result to answer the original user request now. "
-        "Reply in normal prose, and cite relevant `pointer` values in plain text."
-    )
-
-
 # ────────────────────── LLM (Ollama /api/chat) ──────────────────────
 def _build_system_prompt() -> str:
     """Assemble the full system prompt with persona + snapshot + memories + guardrails."""
@@ -2535,14 +2392,6 @@ def _build_system_prompt() -> str:
 
     # inject live system snapshot
     parts.append("\n" + _snapshot_text())
-
-    # inject available skills
-    skill_lines = [f"- {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
-    if skill_lines:
-        parts.append("\n[可用技能（read-only）]")
-        parts.extend(skill_lines)
-        parts.append("\n[工具呼叫 — rag_search]")
-        parts.append(_rag_search_tool_contract_block())
 
     # instruct LLM to emit strict tags if followup is needed
     parts.append(
@@ -2661,7 +2510,7 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
         logger.info(f"Routing to Reasoning Specialist: {text[:50]}...")
         # Prepare context for specialist
         specialist_prompt = f"User Query: {text}\n\nSystem Snapshot:\n{json.dumps(snapshot, indent=2)}"
-        analysis = call_reasoning_specialist(specialist_prompt, tool_handler=_execute_llm_tool_call)
+        analysis = call_reasoning_specialist(specialist_prompt)
         
         if analysis:
             # Format specialist output for user (Chinese Template)
@@ -2698,25 +2547,6 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
     if not llm_resp:
         llm_resp, llm_err = _llm_chat(chat_id, text, history)
 
-    if llm_resp and route == "LLM":
-        tool_call = _extract_llm_tool_call(llm_resp)
-        if tool_call is not None:
-            tool_name, tool_args = tool_call
-            tool_result = _execute_llm_tool_call(tool_name, tool_args)
-            tool_history = list(history)
-            tool_history.append({"role": "user", "content": text})
-            tool_history.append({"role": "assistant", "content": llm_resp})
-            followup_prompt = _build_tool_followup_prompt(tool_name, tool_result)
-            followup_resp, followup_err = _llm_chat(chat_id, followup_prompt, tool_history)
-            if followup_resp:
-                llm_resp = followup_resp
-                llm_err = followup_err
-                route = "LLM_TOOL"
-            else:
-                llm_resp = _format_tool_fallback_reply(tool_name, tool_result)
-                llm_err = followup_err
-                route = "LLM_TOOL_FALLBACK"
-
     if llm_resp:
         # ── extract and process FOLLOWUP tag before guardrail check ──
         followup_min, followup_topic, llm_resp = _extract_followup_tag(llm_resp)
@@ -2750,146 +2580,6 @@ def build_chat_reply(chat_id: int, user_text: str, use_llm: bool = True) -> tupl
 
 
 # ────────────────────── commands ──────────────────────
-QUANT_REPORT_ONLY_SKILLS = {
-    "signal_leakage_audit",
-    "signal_leakage_and_lookahead_audit",
-    "backtest_reproducibility_audit",
-    "factor_health_and_drift_report",
-    "strategy_regime_sensitivity_report",
-}
-
-
-def _normalize_str_list(value: object) -> list[str]:
-    if isinstance(value, list):
-        out: list[str] = []
-        for item in value:
-            s = str(item).strip()
-            if s:
-                out.append(s)
-        return out
-    if isinstance(value, str):
-        s = value.strip()
-        return [s] if s else []
-    return []
-
-
-def _normalize_quant_status(status_raw: object) -> str:
-    status = str(status_raw or "UNKNOWN").upper().strip()
-    return status if status in {"OK", "WARN", "FAIL", "UNKNOWN"} else "UNKNOWN"
-
-
-def _normalize_quant_report_payload(skill_name: str, raw_output: object) -> dict:
-    payload: dict = {}
-    if isinstance(raw_output, dict):
-        payload = dict(raw_output)
-    elif isinstance(raw_output, str):
-        try:
-            decoded = json.loads(raw_output)
-        except Exception:
-            decoded = None
-        if isinstance(decoded, dict):
-            payload = decoded
-        else:
-            payload = {
-                "status": "WARN",
-                "summary": "quant skill returned non-json output; degraded to report-only contract",
-                "findings": [_clean_reply(raw_output)[:300]],
-            }
-    else:
-        payload = {
-            "status": "WARN",
-            "summary": "quant skill returned unsupported payload type; degraded to report-only contract",
-            "findings": [f"type={type(raw_output).__name__}"],
-        }
-
-    status = _normalize_quant_status(payload.get("status"))
-    missing_artifacts = _normalize_str_list(payload.get("missing_artifacts"))
-    evidence_refs = _normalize_str_list(payload.get("evidence_refs"))
-    findings = _normalize_str_list(payload.get("findings"))
-    refresh_hint = str(payload.get("refresh_hint") or _status_refresh_hint())
-
-    if missing_artifacts and status == "OK":
-        status = "WARN"
-    if missing_artifacts and status == "UNKNOWN":
-        findings.append("missing required artifacts; fallback evidence may be incomplete")
-    if missing_artifacts and status not in {"WARN", "UNKNOWN"}:
-        status = "WARN"
-
-    normalized = {
-        "skill": skill_name,
-        "status": status,
-        "report_only": True,
-        "actions": [],
-        "refresh_hint": refresh_hint,
-        "missing_artifacts": missing_artifacts,
-        "evidence_refs": evidence_refs,
-        "findings": findings,
-        "summary": str(payload.get("summary") or "quant report generated (report_only)"),
-        "inputs": payload.get("inputs", {}),
-    }
-    for key, value in payload.items():
-        if key in {"skill", "status", "report_only", "actions", "refresh_hint", "missing_artifacts", "evidence_refs", "findings", "summary", "inputs"}:
-            continue
-        normalized[key] = value
-
-    if missing_artifacts:
-        normalized["summary"] = str(
-            payload.get("summary")
-            or "required artifacts missing; returning degraded report_only payload"
-        )
-    return normalized
-
-
-def _format_run_output(skill_name: str, output: object) -> str:
-    if skill_name in QUANT_REPORT_ONLY_SKILLS:
-
-        normalized = _normalize_quant_report_payload(skill_name, output)
-        return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
-    if isinstance(output, (dict, list)):
-        return json.dumps(output, ensure_ascii=False, separators=(",", ":"))
-    return str(output)
-
-
-def _run_help(skill_name: str) -> str:
-    sk = SKILL_MAP.get(skill_name)
-    if not sk:
-        return f"找不到技能: {skill_name}\n請先用 /skills 看可用技能"
-    schema = sk.get("args_schema", {})
-    return "\n".join([
-        f"技能: {sk.get('name')}",
-        f"類型: {sk.get('type')}",
-        f"說明: {sk.get('description')}",
-        f"參數: {json.dumps(schema, ensure_ascii=False)}",
-        f"範例: /run {skill_name} include_sources=true",
-    ])
-
-
-def _handle_run(text: str) -> tuple[str, bool]:
-    m = re.match(r"^/run(?:@\w+)?\s*(.*)$", text)
-    if not m:
-        return "用法：/run <skill> [k=v ...] 或 /run help <skill>", False
-    tail = (m.group(1) or "").strip()
-    if not tail:
-        return "用法：/run <skill> [k=v ...]，先用 /skills", False
-    if tail.startswith("help "):
-        name = tail.split(None, 1)[1].strip()
-        return _run_help(name), True
-    parts = tail.split(None, 1)
-    skill_name = parts[0]
-    args_raw = parts[1] if len(parts) > 1 else ""
-    sk = SKILL_MAP.get(skill_name)
-    skill_type = str(sk.get("type", "")).strip().lower() if isinstance(sk, dict) else ""
-    if not sk or skill_type not in {"read_only", "report_only"} or skill_name not in SKILL_IMPL:
-        return f"找不到技能: {skill_name}\n請先用 /skills", False
-    try:
-        parsed = parse_args(args_raw)
-        valid_args = validate(sk.get("args_schema", {}), parsed)
-    except Exception as exc:
-        return f"參數錯誤: {exc}\n請用 /run help {skill_name}", False
-    out = SKILL_IMPL[skill_name](valid_args)
-    return _format_run_output(skill_name, out), True
-
-
 def _handle_command(chat_id: int, text: str) -> str:
     cmd = _cmd_base(text)
 
@@ -2898,7 +2588,7 @@ def _handle_command(chat_id: int, text: str) -> str:
             "嗨 👋 我是 HONGSTR 中樞管家。\n"
             "直接跟我聊就好，問什麼我都會盡量用白話回答你。\n"
             "我是 read-only 助手 — 只查看、判讀，不直接動系統。\n\n"
-            "快捷指令：/status /daily /brake /freshness /regime /ml_status /help /skills"
+            "快捷指令：/status /daily /brake /regime /freshness"
         )
 
     if cmd == "/ping":
@@ -2911,13 +2601,8 @@ def _handle_command(chat_id: int, text: str) -> str:
             "• /status — 系統瓶頸摘要\n"
             "• /daily — 每日 SSOT 報告（固定模板 + LLM 潤飾失敗自動降級）\n"
             "• /brake — 煞車健康檢查 (Artifacts & Freshness)\n"
-            "• /freshness — 資料新鮮度（3幣×3時框表格）\n"
             "• /regime — 市場機制監控（舒適圈 OK/WARN/FAIL）\n"
-            "• /regime_status — 同 /regime\n"
-            "• /ml_status — ML 流水線健康狀態\n"
-            "• /research_status — Research Loop 今日狀態 + Leaderboard\n\n"
-            "🔧 其他指令：\n"
-            "• /skills /run /remember /memories /ping"
+            "• /freshness — 資料新鮮度（3幣×3時框表格）"
         )
 
     if cmd == "/status":
@@ -2941,46 +2626,11 @@ def _handle_command(chat_id: int, text: str) -> str:
     if cmd == "/brake" or cmd == "/brake_status":
         return skill_brake_status()
 
-    if cmd == "/skills":
-        lines = [f"• {s.get('name')}: {s.get('description', '')}" for s in SKILLS if s.get("type") == "read_only"]
-        lines.append("• (內建) /daily: 每日 SSOT 報告（合作夥伴友善）")
-        lines.append("• (內建) /freshness: 完整的資料新鮮度表格")
-        lines.append("• (內建) /ml_status: ML 流水線健康狀態")
-        lines.append("• (內建) /regime: 市場機制 (舒適圈) 監控報告")
-        return "可用 read-only 技能：\n" + "\n".join(lines)
-
-    if cmd == "/run":
-        out, _ = _handle_run(text)
-        return out
-
-    if cmd == "/remember":
-        parts = text.split(None, 1)
-        if len(parts) < 2 or not parts[1].strip():
-            return "用法：/remember 你要我記住的一句話"
-        _write_user_memory(chat_id, parts[1].strip())
-        return "收到，已經記下來了 📝"
-
-    if cmd == "/memories":
-        ops_n, user_n, recent = _memory_stats()
-        lines = [f"記憶總量：ops={ops_n} / user={user_n}"]
-        if recent:
-            lines.append("最近記憶：")
-            for item in recent:
-                lines.append(f"• {item}")
-        return "\n".join(lines)
-
-    if cmd == "/debug":
-        state = _load_session_state()
-        history = _get_history(state, chat_id)
-        log_lines = _tail(RUNTIME_LOG, 15)
-        body = [f"history_len={len(history)}", f"model={OLLAMA_MODEL}"]
-        body.extend(log_lines[-10:])
-        return "\n".join(body)
 
     if cmd == "/consult":
         return "__DELEGATE_TO_ROUTER__"
 
-    return "不認識這個指令，用 /help 看看可以做什麼 🙂"
+    return "不認識這個指令，目前僅支援：/status, /daily, /brake, /regime, /freshness"
 
 
 # ────────────────────── message handler ──────────────────────

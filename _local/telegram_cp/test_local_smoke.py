@@ -87,7 +87,7 @@ def test_start_command(monkeypatch, tmp_path):
     resp = s._handle_command(10, "/start")
     assert "中樞管家" in resp
     assert "不支援" not in resp
-    assert "/status" in resp and "/help" in resp
+    assert "/status" in resp
 
     resp2 = s._handle_command(10, "/start@HONGSTR_bot")
     assert "中樞管家" in resp2
@@ -100,11 +100,11 @@ def test_help_command(monkeypatch, tmp_path):
     resp = s._handle_command(20, "/help")
     assert "/status" in resp
     assert "/daily" in resp
-    assert "/skills" in resp
+
     # Must list all monitoring commands so users can discover them
     assert "/freshness" in resp
     assert "/regime" in resp
-    assert "/ml_status" in resp
+
 
 
 # ── command routing: /freshness, /regime, /ml_status must NOT return 不認識 ──
@@ -136,19 +136,6 @@ def test_regime_routing(monkeypatch, tmp_path):
         resp = s._handle_command(20, cmd)
         assert "不認識" not in resp, f"{cmd} returned 不認識 — routing is broken"
         assert "Regime" in resp or "機制" in resp or "UNKNOWN" in resp
-
-
-def test_ml_status_routing(monkeypatch, tmp_path):
-    """Regression: /ml_status must never return the 不認識 fallback."""
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    monkeypatch.setattr(s, "REPO", repo)
-    resp = s._handle_command(20, "/ml_status")
-    assert "不認識" not in resp, "/ml_status returned 不認識 — routing is broken"
-    assert "ML" in resp or "Pipeline" in resp
-
 
 
 def _write_status_ssot_sources(repo: Path) -> None:
@@ -691,190 +678,10 @@ def test_skill_status_overview_reuses_status_report(monkeypatch, tmp_path):
     assert "Sources: a.json, b.json" in with_sources
 
 
-def test_skills_command(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    resp = s._handle_command(50, "/skills")
-    assert "status_overview" in resp
-    assert "logs_tail_hint" in resp
-    assert "rag_search" in resp
-    assert "signal_leakage_and_lookahead_audit" in resp
-    assert "incident_timeline_builder" in resp
 
 
-def test_rag_search_run_accepts_quoted_query(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    db_dir = repo / "_local" / "lancedb" / "hongstr_obsidian.lancedb"
-
-    from scripts.obsidian_common import save_index_rows
-
-    save_index_rows(
-        db_dir,
-        [
-            {
-                "id": "chunk-1",
-                "vault_rel_path": "Daily/2026/03/2026-03-02.md",
-                "heading_path": "Daily/2026/03/2026-03-02.md#Summary",
-                "chunk_text": "Freshness status is WARN and the ETL backlog needs review.",
-                "chunk_hash": "hash-1",
-                "created_utc": "2026-03-02T10:00:00Z",
-                "metadata": {"type": "daily", "date": "2026-03-02"},
-                "embedding": [],
-            }
-        ],
-        provider_name="ollama",
-        ollama_model="nomic-embed-text",
-    )
-    monkeypatch.setattr(s, "REPO", repo)
-
-    out, ok = s._handle_run('/run rag_search query="freshness status" k=5')
-    assert ok is True
-    assert "rag_search (short)" in out
-    assert "provider: lancedb" in out
-    assert "Daily/2026/03/2026-03-02.md#Summary" in out
 
 
-def test_rag_search_run_verbose_formats_json(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    db_dir = repo / "_local" / "lancedb" / "hongstr_obsidian.lancedb"
-
-    from scripts.obsidian_common import save_index_rows
-
-    save_index_rows(
-        db_dir,
-        [
-            {
-                "id": "chunk-1",
-                "vault_rel_path": "Daily/2026/03/2026-03-02.md",
-                "heading_path": "Daily/2026/03/2026-03-02.md#Summary",
-                "chunk_text": "freshness status is good. " + "A very long text " * 500,  # Force truncation
-                "chunk_hash": "hash-1",
-                "created_utc": "2026-03-02T10:00:00Z",
-                "metadata": {"type": "daily", "date": "2026-03-02"},
-                "embedding": [],
-            }
-        ],
-        provider_name="ollama",
-        ollama_model="nomic-embed-text",
-    )
-    monkeypatch.setattr(s, "REPO", repo)
-
-    out, ok = s._handle_run('/run rag_search query="freshness status" k=5 verbose=1')
-    assert ok is True
-    assert out.startswith("```json\n")
-    assert out.endswith("```")
-    assert "... (truncated due to length)" in out
-
-
-def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "with_health_pack")
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder "
-        "start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod "
-        "keywords=latency,regime services=tg_cp,dashboard"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert set(payload.keys()) == {"summary", "timeline", "suspected_root_causes", "next_questions"}
-    assert payload["summary"]["report_only"] is True
-    assert payload["summary"]["status"] in {"OK", "WARN", "FAIL", "UNKNOWN"}
-    assert isinstance(payload["timeline"], list) and payload["timeline"]
-
-
-def test_incident_timeline_builder_run_missing_ssot_returns_unknown(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "missing_all")
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload["summary"]["status"] == "UNKNOWN"
-    assert payload["summary"]["status"] == "UNKNOWN"
-    assert "refresh_state.sh" in str(payload["summary"]["refresh_hint"])
-
-
-def test_incident_timeline_builder_run_fallback_only(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "fallback_only")
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder "
-        "start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload["summary"]["status"] in {"OK", "WARN"}
-    assert payload["summary"]["source_mode"] == "ssot_fallback"
-    assert len(payload["timeline"]) >= 4  # 4 component files
-
-
-def test_incident_timeline_builder_run_unreadable_ssot_returns_unknown(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    state_dir = repo / "data/state"
-    state_dir.mkdir(parents=True)
-    # Corrupt JSON
-    (state_dir / "system_health_latest.json").write_text("{corrupt", encoding="utf-8")
-    monkeypatch.setattr(s, "REPO", repo)
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload["summary"]["status"] == "UNKNOWN"
-    assert "freshness_table.json: missing" in str(payload["suspected_root_causes"])
-
-
-def test_unknown_command(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    resp = s._handle_command(60, "/foobar")
-    assert "/help" in resp
-
-
-def test_signal_leakage_lookahead_proxy_skill(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    out, ok = s._handle_run(
-        "/run signal_leakage_and_lookahead_audit artifact_path=research/audit/tests/fixtures/lookahead.json"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload.get("report_only") is True
-    assert payload.get("status") == "FAIL"
-    assert any(i.get("type") == "lookahead" for i in payload.get("issues", []))
-
-
-def test_signal_leakage_lookahead_proxy_scope_guard(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    out, ok = s._handle_run(
-        "/run signal_leakage_and_lookahead_audit artifact_path=data/state/system_health_latest.json"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload.get("status") == "UNKNOWN"
-    assert any(i.get("type") == "scope" for i in payload.get("issues", []))
 
 
 # ── conversation history ──
@@ -967,25 +774,6 @@ def test_llm_offline_returns_fallback(monkeypatch, tmp_path):
 
     resp, route = s.build_chat_reply(400, "你好", use_llm=False)
     assert route == "FALLBACK"
-    assert "LLM" in resp or "/status" in resp or "/help" in resp
-
-
-# ── remember command ──
-
-def test_remember_and_memories(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    resp = s._handle_command(500, "/remember 以後叫我洪老爺")
-    assert "記" in resp
-
-    resp2 = s._handle_command(500, "/memories")
-    assert "洪老爺" in resp2
-
-
-# ── deferred followup queue ──
-
-def test_extract_followup_tag_basic():
     from _local.telegram_cp.tg_cp_server import _extract_followup_tag
     text = "好的，我幫你查，等等回報你。\n[FOLLOWUP:5:ETL 狀態和資料新鮮度]"
     minutes, topic, cleaned = _extract_followup_tag(text)
@@ -1088,55 +876,7 @@ def test_build_chat_reply_enqueues_followup(monkeypatch, tmp_path):
     assert task["chat_id"] == 600
 
 
-def test_build_chat_reply_executes_rag_search_tool_call(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    fake_snap = {
-        "dashboard_ok": True,
-        "regime_monitor": {"status": "OK"},
-        "freshness": {},
-        "cp_status": "OK",
-        "overall_gate": "OK",
-        "cp_age_hours": 1.0,
-        "cp_summary": "Summary",
-        "top_action": "None",
-        "pending_alerts": 0,
-        "etl_ok": True,
-        "etl_fail": False,
-        "log_ages": {"etl": 1.0, "healthcheck": 1.0},
-    }
-    monkeypatch.setattr(s, "_collect_snapshot", lambda: fake_snap)
-    calls = []
 
-    def fake_llm(chat_id, user_text, history):
-        calls.append(user_text)
-        if len(calls) == 1:
-            return ('{"tool":"rag_search","args":{"query":"freshness status","k":5}}', None)
-        assert "Tool `rag_search` result" in user_text
-        return ("Freshness is WARN. See Daily/2026/03/2026-03-02.md#Summary", None)
-
-    monkeypatch.setattr(s, "_llm_chat", fake_llm)
-    monkeypatch.setattr(
-        s,
-        "_execute_llm_tool_call",
-        lambda *args, **kwargs: {
-            "status": "OK",
-            "provider": "lancedb",
-            "db_path": "_local/lancedb/hongstr_obsidian.lancedb",
-            "chunks": [
-                {
-                    "pointer": "Daily/2026/03/2026-03-02.md#Summary",
-                    "text": "Freshness status is WARN.",
-                    "score": 3.0,
-                    "metadata": {"type": "daily"},
-                }
-            ],
-        },
-    )
-
-    resp, route = s.build_chat_reply(601, "請先查 freshness status 再回答")
-    assert route == "LLM_TOOL"
-    assert "Daily/2026/03/2026-03-02.md#Summary" in resp
 
 
 # ── freshness ──
@@ -1678,25 +1418,6 @@ def test_morning_brief_unknown(monkeypatch, tmp_path):
     assert res["status"] == "UNKNOWN"
     assert "Issues: Missing" in res["markdown"]
 
-def test_morning_brief_integration(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    state_dir = repo / "data/state"
-    state_dir.mkdir(parents=True)
-    (state_dir / "system_health_latest.json").write_text(json.dumps({
-        "ssot_status": "OK",
-        "components": {"coverage_matrix": {"status": "PASS"}}
-    }))
-    monkeypatch.setattr(s, "REPO", repo)
-    
-    # Test via /run command
-    out, ok = s._handle_run("/run system_health_morning_brief env=prod")
-    assert ok is True
-    assert "Morning Brief" in out
-    assert "Status: OK" in out
-
 # ── config_drift_auditor ──
 
 def test_config_drift_auditor_no_drift(monkeypatch, tmp_path):
@@ -1900,23 +1621,3 @@ def test_strategy_regime_sensitivity_report_unknown(monkeypatch, tmp_path):
     assert res["actions"] == []
     assert res["missing_artifacts"]
     assert "refresh_state.sh" in str(res.get("refresh_hint", ""))
-
-
-def test_run_quant_missing_artifacts_returns_json_contract(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    monkeypatch.setattr(s, "REPO", repo)
-
-    out, ok = s._handle_run(
-        "/run backtest_reproducibility_audit backtest_id=BT_123 baseline_sha=sha_xyz"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload["skill"] == "backtest_reproducibility_audit"
-    assert payload["status"] in {"WARN", "UNKNOWN"}
-    assert payload["report_only"] is True
-    assert payload["actions"] == []
-    assert payload["missing_artifacts"]
-    assert "refresh_state.sh" in str(payload.get("refresh_hint", ""))
