@@ -55,6 +55,7 @@ DAILY_REPORT_TOP_LEVEL_ORDER = [
     "research_leaderboard",
     "governance",
     "guardrails",
+    "cmc_market_intel_summary",
     "sources",
 ]
 DAILY_REPORT_FIELD_LABELS_ZH_EN = {
@@ -1186,6 +1187,7 @@ def _build_daily_report_payload(
     research_leaderboard: dict[str, Any],
     loop_state: dict[str, Any],
     policy_payload: dict[str, Any],
+    cmc_coverage: dict[str, Any],
     repo_root: Path,
 ) -> dict[str, Any]:
     components = system_health.get("components", {}) if isinstance(system_health, dict) else {}
@@ -1204,6 +1206,11 @@ def _build_daily_report_payload(
         "refresh_hint": str(system_health.get("refresh_hint") or "bash scripts/refresh_state.sh"),
         "ssot_status": str(system_health.get("ssot_status") or "UNKNOWN"),
         "ssot_components": components,
+        "cmc_market_intel_summary": (
+            f"CMC Market Intel: narratives={cmc_coverage.get('items', {}).get('narratives_count', 0) if cmc_coverage else 'UNKNOWN'}, "
+            f"macro_events={cmc_coverage.get('items', {}).get('macro_events_count', 0) if cmc_coverage else 'UNKNOWN'}, "
+            f"status={cmc_coverage.get('status', 'UNKNOWN') if cmc_coverage else 'UNKNOWN'}"
+        ),
         "freshness_summary": _freshness_summary(freshness_table),
         "latest_backtest_head": latest_backtest_head,
         "strategy_pool": {
@@ -1228,6 +1235,7 @@ def _build_daily_report_payload(
         "sources": {
             "system_health_latest": _source_meta(STATE_DIR / "system_health_latest.json", now_ts),
             "freshness_table": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
+            "cmc_market_intel_coverage_latest.json": _source_meta(STATE_DIR / "cmc_market_intel_coverage_latest.json", now_ts),
             "strategy_pool_summary": _source_meta(STATE_DIR / "strategy_pool_summary.json", now_ts),
             "strategy_pool": _source_meta(STATE_DIR / "strategy_pool.json", now_ts),
             "data_catalog_latest": _source_meta(STATE_DIR / "data_catalog_latest.json", now_ts),
@@ -1421,6 +1429,15 @@ def main():
         "backtest": "logs/launchd_daily_backtest.out.log",
         "poller": "logs/launchd_research_poller.out.log"
     }
+
+    # 10. CMC Market Intel P1 Coverage Snapshot (Reads Atomic -> Canonical)
+    cmc_atomic_cov_path = ATOMIC_STATE_DIR / "cmc_market_intel_coverage.json"
+    cmc_cov_payload = read_json(cmc_atomic_cov_path)
+    if cmc_cov_payload:
+        write_json(STATE_DIR / "cmc_market_intel_coverage_latest.json", cmc_cov_payload)
+    else:
+        cmc_cov_payload = {}
+
     heartbeat = {
         "generated_utc": now_utc,
         "services": {}
@@ -1868,6 +1885,7 @@ def main():
         research_leaderboard=research_leaderboard if isinstance(research_leaderboard, dict) else {},
         loop_state=loop_state if isinstance(loop_state, dict) else {},
         policy_payload=overfit_policy if isinstance(overfit_policy, dict) else {},
+        cmc_coverage=cmc_cov_payload,
         repo_root=Path(".").resolve(),
     )
     write_json(STATE_DIR / "daily_report_latest.json", daily_report_payload)
