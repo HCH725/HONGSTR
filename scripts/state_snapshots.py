@@ -1890,6 +1890,14 @@ def main():
     )
     write_json(STATE_DIR / "daily_report_latest.json", daily_report_payload)
 
+    # 16. Strategy Dashboard Component
+    try:
+        from strategy_dashboard_snapshot import generate_snapshot as gen_strategy_dashboard
+        strategy_dashboard_payload = gen_strategy_dashboard()
+        write_json(STATE_DIR / "strategy_dashboard_latest.json", strategy_dashboard_payload)
+    except Exception as exc:
+        logging.warning("Strategy dashboard snapshot failed: %s", exc)
+
     logging.info("Snapshots successfully written to data/state/")
 
 if __name__ == "__main__":
