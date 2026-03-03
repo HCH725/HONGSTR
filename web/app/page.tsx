@@ -1,381 +1,558 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
 
-interface KpiMetrics {
+type MetricKey = 'total_return' | 'cagr' | 'sharpe' | 'max_drawdown';
+
+interface SeriesPoint {
+  ts_utc: string;
+  btc_bh: number;
+  hong: number | null;
+}
+
+interface MetricBlock {
+  total_return: number | null;
   cagr: number | null;
   sharpe: number | null;
-  max_dd: number | null;
-  total_return: number | null;
+  max_drawdown: number | null;
+  series_points?: number | null;
+  curve_available?: boolean;
 }
 
-interface StrategyItem {
-  id: string;
-  sharpe: number | null;
-  return: number | null;
+interface RegimeBlock {
+  status: string;
+  strategies: { name: string; role: string }[];
+  kpis: MetricBlock;
+  notes: string[];
 }
 
-interface Regime {
-  strategies: StrategyItem[];
-  kpis: any;
-}
-
-interface DashboardData {
+interface StrategyDashboardPayload {
   schema: string;
   generated_utc: string;
   window: {
     start_utc: string;
     end_utc: string;
   };
-  series: any[];
+  series: SeriesPoint[];
   kpis: {
-    btc: KpiMetrics;
-    hong: KpiMetrics;
-    delta_total_return: number | null;
+    btc_bh: MetricBlock;
+    hong: MetricBlock;
+    delta: MetricBlock;
   };
-  regimes: {
-    BULL: Regime;
-    BEAR: Regime;
-    SIDEWAYS: Regime;
-  };
+  regimes: Record<string, RegimeBlock>;
   blend: {
-    kpis: KpiMetrics;
+    kpis: {
+      run_id?: string | null;
+      total_return?: number | null;
+      cagr?: number | null;
+      sharpe?: number | null;
+      max_drawdown?: number | null;
+      trades_count?: number | null;
+      win_rate?: number | null;
+      start_ts?: string | null;
+      end_ts?: string | null;
+    };
     notes: string[];
   };
   sources: {
-    regime_timeline: string;
-    selection_or_leaderboard: string;
-    equity_curve_source: string;
+    refresh_hint?: string;
   };
 }
 
-function formatPct(value: number | null | undefined): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return 'N/A';
-  return `${(value * 100).toFixed(2)}%`;
+interface ApiErrorPayload {
+  ok: false;
+  message: string;
 }
 
-function formatNum(value: number | null | undefined, decimals = 2): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return 'N/A';
-  return value.toFixed(decimals);
+const CHART_WIDTH = 1120;
+const CHART_HEIGHT = 360;
+const CHART_PADDING = { top: 24, right: 18, bottom: 28, left: 22 };
+const METRIC_ROWS: { key: MetricKey; label: string; kind: 'pct' | 'num' }[] = [
+  { key: 'total_return', label: 'Total Return', kind: 'pct' },
+  { key: 'cagr', label: 'CAGR', kind: 'pct' },
+  { key: 'sharpe', label: 'Sharpe', kind: 'num' },
+  { key: 'max_drawdown', label: 'Max DD', kind: 'pct' },
+];
+const REGIME_ORDER = [
+  { key: 'BULL', label: 'Bull', tone: 'from-emerald-500/20 to-emerald-950/20', border: 'border-emerald-500/20', accent: 'text-emerald-300' },
+  { key: 'BEAR', label: 'Bear', tone: 'from-rose-500/20 to-rose-950/20', border: 'border-rose-500/20', accent: 'text-rose-300' },
+  { key: 'SIDEWAYS', label: 'Sideways', tone: 'from-amber-500/20 to-amber-950/20', border: 'border-amber-500/20', accent: 'text-amber-300' },
+];
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return 'Unknown';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return value;
+  return dt.toLocaleString();
 }
 
-function formatDateTimeShort(isoStr: string | null): string {
-  if (!isoStr) return '';
-  const d = new Date(isoStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function formatMetric(value: number | null | undefined, kind: 'pct' | 'num'): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return 'Unavailable';
+  if (kind === 'pct') return `${(value * 100).toFixed(2)}%`;
+  return value.toFixed(2);
 }
 
-export default function Dashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
+function buildPath(points: Array<[number, number]>): string {
+  if (points.length === 0) return '';
+  return points
+    .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`)
+    .join(' ');
+}
+
+function buildSegmentedPath(points: Array<[number, number] | null>): string {
+  let path = '';
+  let segmentOpen = false;
+  for (const point of points) {
+    if (point === null) {
+      segmentOpen = false;
+      continue;
+    }
+    const [x, y] = point;
+    if (!segmentOpen) {
+      path += `${path ? ' ' : ''}M ${x.toFixed(2)} ${y.toFixed(2)}`;
+      segmentOpen = true;
+    } else {
+      path += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }
+  }
+  return path;
+}
+
+function statusTone(status: string): string {
+  const normalized = String(status || '').toUpperCase();
+  if (normalized === 'OK') return 'bg-emerald-500/15 text-emerald-300';
+  if (normalized === 'WARN') return 'bg-amber-500/15 text-amber-300';
+  if (normalized === 'FAIL') return 'bg-rose-500/15 text-rose-300';
+  return 'bg-slate-700/40 text-slate-300';
+}
+
+export default function StrategyDashboardPage() {
+  const [data, setData] = useState<StrategyDashboardPayload | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    let alive = true;
 
-    const fetchData = async () => {
+    const load = async () => {
       try {
-        const url = new URL('/api/strategy_dashboard', window.location.origin);
-        const res = await fetch(url.toString(), { cache: 'no-store' });
-        if (!res.ok) {
-          const e = await res.json().catch(() => ({}));
-          throw new Error(e.error || `HTTP ${res.status}`);
+        const res = await fetch('/api/strategy_dashboard', { cache: 'no-store' });
+        const json = (await res.json()) as StrategyDashboardPayload | ApiErrorPayload;
+        if (!alive) return;
+        if (!res.ok || 'ok' in json) {
+          setData(null);
+          setErrorMessage((json as ApiErrorPayload).message || 'Strategy dashboard unavailable');
+          return;
         }
-        const json = (await res.json()) as DashboardData;
-        if (!mounted) return;
-        setData(json);
-        setError(null);
-      } catch (err: any) {
-        console.error(err);
-        if (!mounted) return;
-        setError(err.message || 'Failed to fetch strategy dashboard state');
+        setData(json as StrategyDashboardPayload);
+        setErrorMessage(null);
+      } catch {
+        if (!alive) return;
+        setData(null);
+        setErrorMessage('Failed to load strategy dashboard. Run: bash scripts/refresh_state.sh');
       } finally {
-        if (mounted) setLoading(false);
+        if (alive) setLoading(false);
       }
     };
 
-    fetchData();
+    load();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   if (loading && !data) {
     return (
-      <main className="min-h-screen bg-slate-950 p-6 flex items-center justify-center text-slate-100">
-        <div className="animate-pulse flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-cyan-400 font-mono text-sm tracking-widest">LOADING ENGINE STATE</p>
+      <main className="min-h-screen bg-[#07111f] px-6 py-10 text-slate-100">
+        <div className="mx-auto max-w-6xl rounded-3xl border border-cyan-900/40 bg-slate-950/70 p-8 shadow-2xl shadow-cyan-950/20">
+          Loading strategy dashboard...
         </div>
       </main>
     );
   }
 
-  if (error || !data) {
+  if (!data) {
     return (
-      <main className="min-h-screen bg-[#0A0D14] flex items-center justify-center p-6 text-slate-100 font-sans">
-        <div className="max-w-xl w-full rounded-2xl border border-rose-900/50 bg-rose-950/20 p-8 text-center shadow-xl backdrop-blur-xl">
-          <div className="w-16 h-16 bg-rose-900/40 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/30">
-            <span className="text-2xl">🚨</span>
-          </div>
-          <h1 className="text-xl font-bold text-rose-100 mb-2">Strategy Dashboard Unavailable</h1>
-          <p className="text-sm text-rose-300 font-mono bg-rose-950/50 p-3 rounded mb-6 break-all">
-            {error || 'No strategy data returned.'}
-          </p>
-          <div className="bg-slate-900/80 rounded-xl p-4 text-left border border-slate-800">
-            <p className="text-xs uppercase tracking-wider font-bold text-slate-500 mb-2">Resolution Hint</p>
-            <p className="text-sm text-slate-300">
-              Run the canonical state refresher in the repository root to compile the latest SSOT:
-            </p>
-            <code className="block mt-2 bg-black/50 text-cyan-400 p-2 rounded text-xs font-mono border border-cyan-900/30">
-              bash scripts/refresh_state.sh
-            </code>
-          </div>
+      <main className="min-h-screen bg-[#07111f] px-6 py-10 text-slate-100">
+        <div className="mx-auto max-w-4xl rounded-3xl border border-amber-500/20 bg-slate-950/70 p-8 shadow-2xl shadow-slate-950/40">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-50">HONGSTR Strategy Dashboard</h1>
+          <p className="mt-4 text-base text-slate-300">{errorMessage || 'Strategy dashboard unavailable.'}</p>
+          <p className="mt-3 text-sm text-slate-500">Run: bash scripts/refresh_state.sh</p>
         </div>
       </main>
     );
   }
 
-  // Formatting series data for Recharts
-  const chartData = (data.series || []).map(pt => ({
-    date: formatDateTimeShort(pt.ts_utc),
-    BTC: pt.btc_bh,
-    HONG: pt.hong
-  }));
+  const series = Array.isArray(data.series) ? data.series : [];
+  const hongVisible = series.some((point) => typeof point.hong === 'number');
+  const hoveredPoint =
+    hoverIndex !== null && hoverIndex >= 0 && hoverIndex < series.length
+      ? series[hoverIndex]
+      : series.length > 0
+        ? series[series.length - 1]
+        : null;
 
-  const hasHongCurve = chartData.some(d => d.HONG !== null && d.HONG !== undefined);
+  const values: number[] = [];
+  for (const point of series) {
+    if (typeof point.btc_bh === 'number') values.push(point.btc_bh);
+    if (typeof point.hong === 'number') values.push(point.hong);
+  }
+  const safeValues = values.length > 0 ? values : [1];
+  let minValue = Math.min(...safeValues);
+  let maxValue = Math.max(...safeValues);
+  if (minValue === maxValue) {
+    minValue -= 0.1;
+    maxValue += 0.1;
+  }
+  const padding = (maxValue - minValue) * 0.08;
+  minValue -= padding;
+  maxValue += padding;
+
+  const plotWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
+  const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
+  const xAt = (index: number) =>
+    CHART_PADDING.left + (series.length <= 1 ? 0 : (index / (series.length - 1)) * plotWidth);
+  const yAt = (value: number) =>
+    CHART_PADDING.top + ((maxValue - value) / (maxValue - minValue)) * plotHeight;
+
+  const btcPath = buildPath(
+    series.map((point, index) => [xAt(index), yAt(point.btc_bh)]),
+  );
+  const hongPath = buildSegmentedPath(
+    series.map((point, index) =>
+      typeof point.hong === 'number' ? [xAt(index), yAt(point.hong)] as [number, number] : null,
+    ),
+  );
+
+  const hoverX =
+    hoverIndex !== null && hoverIndex >= 0 && hoverIndex < series.length
+      ? xAt(hoverIndex)
+      : null;
+
+  const handleChartMove = (event: React.MouseEvent<SVGSVGElement>) => {
+    if (series.length === 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const clamped = Math.max(CHART_PADDING.left, Math.min(CHART_WIDTH - CHART_PADDING.right, localX));
+    const ratio = plotWidth <= 0 ? 0 : (clamped - CHART_PADDING.left) / plotWidth;
+    const index = Math.round(ratio * (series.length - 1));
+    setHoverIndex(Math.max(0, Math.min(series.length - 1, index)));
+  };
+
+  const handleChartLeave = () => setHoverIndex(null);
 
   return (
-    <main className="min-h-screen bg-[#0A0D14] text-slate-200 font-sans selection:bg-cyan-900 selection:text-cyan-50 relative overflow-hidden">
-      {/* Background ambient light */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-900/20 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none"></div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 flex flex-col gap-8">
-
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800/80 pb-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
-              HONGSTR Strategy Explorer
-            </h1>
-            <p className="text-sm text-slate-400 mt-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-              Live Synthetic State • Generated {new Date(data.generated_utc).toLocaleString()}
-            </p>
-          </div>
-          <div className="flex gap-4 text-xs font-mono text-slate-500">
-            <div className="bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 backdrop-blur">
-              <span className="text-slate-400 block mb-0.5">Time Window</span>
-              <span className="text-slate-300">{formatDateTimeShort(data.window.start_utc)} → {formatDateTimeShort(data.window.end_utc)}</span>
-            </div>
-          </div>
-        </header>
-
-        {/* Global Warnings / Data Missing Overlays */}
-        {data.blend.notes && data.blend.notes.length > 0 && (
-          <div className="bg-amber-950/30 border border-amber-800/50 rounded-xl p-4 backdrop-blur-sm">
-            <h3 className="text-amber-500 font-bold text-sm tracking-wide uppercase mb-2 flex items-center gap-2">
-              ⚠️ Data Completeness Notice
-            </h3>
-            <ul className="list-disc pl-5 space-y-1 text-amber-200/80 text-sm">
-              {data.blend.notes.map((note, i) => (
-                <li key={i}>{note}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Hero Chart Section */}
-        <section className="bg-slate-900/40 border border-slate-800/60 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl">
-          <div className="p-6 border-b border-slate-800/60 bg-slate-900/80 flex flex-col lg:flex-row justify-between gap-6">
-            <div className="flex-1">
-              <h2 className="text-lg font-bold text-white mb-4">Portfolio Equity Comparison (Normalized)</h2>
-
-              <div className="flex flex-wrap gap-x-8 gap-y-4">
-
-                {/* HONG KPIs */}
-                <div className="space-y-1 relative pl-3">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-full"></div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-500">HONG Blended</span>
-                  <div className="flex gap-4 text-sm mt-1">
-                    <div><span className="text-slate-500 mr-2">TR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.hong.total_return)}</span></div>
-                    <div><span className="text-slate-500 mr-2">CAGR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.hong.cagr)}</span></div>
-                    <div><span className="text-slate-500 mr-2">MDD</span><span className="font-mono text-rose-400">{formatPct(data.kpis.hong.max_dd)}</span></div>
-                    <div><span className="text-slate-500 mr-2">SHR</span><span className="font-mono text-emerald-400">{formatNum(data.kpis.hong.sharpe)}</span></div>
-                  </div>
-                </div>
-
-                {/* BTC KPIs */}
-                <div className="space-y-1 relative pl-3">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 rounded-full"></div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-orange-500">BTC Buy & Hold</span>
-                  <div className="flex gap-4 text-sm mt-1">
-                    <div><span className="text-slate-500 mr-2">TR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.btc.total_return)}</span></div>
-                    <div><span className="text-slate-500 mr-2">CAGR</span><span className="font-mono text-slate-200">{formatPct(data.kpis.btc.cagr)}</span></div>
-                    <div><span className="text-slate-500 mr-2">MDD</span><span className="font-mono text-rose-400">{formatPct(data.kpis.btc.max_dd)}</span></div>
-                  </div>
-                </div>
-
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(17,94,89,0.18),_rgba(7,17,31,1)_45%),linear-gradient(180deg,#07111f_0%,#050b15_100%)] px-4 py-6 text-slate-100 md:px-8 md:py-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <section
+          id="hero-chart"
+          className="overflow-hidden rounded-3xl border border-cyan-900/35 bg-slate-950/75 shadow-2xl shadow-cyan-950/20"
+        >
+          <div className="border-b border-cyan-900/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-emerald-500/10 px-6 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/80">Strategy / Backtest Only</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+                  BTC Buy &amp; Hold vs HONGSTR
+                </h1>
+                <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                  SSOT source: <span className="font-mono">data/state/strategy_dashboard_latest.json</span>. Window starts at{' '}
+                  <span className="font-mono">{data.window.start_utc}</span>.
+                </p>
               </div>
-            </div>
-
-            <div className="bg-slate-950/50 rounded-xl border border-slate-800/80 p-4 flex flex-col justify-center min-w-[200px]">
-              <span className="text-xs text-slate-500 uppercase font-bold tracking-wider text-center block mb-1">Delta vs BTC</span>
-              <div className={`text-3xl font-mono font-bold text-center ${data.kpis.delta_total_return && data.kpis.delta_total_return >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {data.kpis.delta_total_return && data.kpis.delta_total_return > 0 ? '+' : ''}{formatPct(data.kpis.delta_total_return)}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-right">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Updated</p>
+                <p className="mt-1 text-sm font-medium text-slate-200">{formatDateTime(data.generated_utc)}</p>
               </div>
             </div>
           </div>
 
-          <div className="h-[400px] w-full p-4 relative">
-            {!hasHongCurve && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/60 backdrop-blur-sm pointer-events-none">
-                <span className="text-3xl mb-3">👻</span>
-                <span className="text-slate-300 font-bold bg-slate-900/80 px-4 py-2 border border-slate-700 rounded-lg shadow-lg uppercase tracking-widest text-sm">HONG Curve Unavailable in SSOT</span>
+          <div className="px-6 py-5">
+            {series.length > 0 ? (
+              <>
+                <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                  <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+                      BTC Buy &amp; Hold
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className={`h-2.5 w-2.5 rounded-full ${hongVisible ? 'bg-emerald-300' : 'bg-slate-600'}`} />
+                      HONGSTR blended equity
+                    </span>
+                  </div>
+
+                  <svg
+                    viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+                    className="h-[320px] w-full"
+                    onMouseMove={handleChartMove}
+                    onMouseLeave={handleChartLeave}
+                    role="img"
+                    aria-label="BTC vs HONGSTR equity chart"
+                  >
+                    <defs>
+                      <linearGradient id="btcStroke" x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="#67e8f9" />
+                        <stop offset="100%" stopColor="#0ea5e9" />
+                      </linearGradient>
+                      <linearGradient id="hongStroke" x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="#86efac" />
+                        <stop offset="100%" stopColor="#10b981" />
+                      </linearGradient>
+                    </defs>
+
+                    {[0.2, 0.4, 0.6, 0.8].map((ratio) => {
+                      const y = CHART_PADDING.top + plotHeight * ratio;
+                      return (
+                        <line
+                          key={ratio}
+                          x1={CHART_PADDING.left}
+                          x2={CHART_WIDTH - CHART_PADDING.right}
+                          y1={y}
+                          y2={y}
+                          stroke="rgba(71,85,105,0.25)"
+                          strokeWidth="1"
+                        />
+                      );
+                    })}
+
+                    <path d={btcPath} fill="none" stroke="url(#btcStroke)" strokeWidth="3" strokeLinecap="round" />
+                    {hongVisible && (
+                      <path d={hongPath} fill="none" stroke="url(#hongStroke)" strokeWidth="3" strokeLinecap="round" />
+                    )}
+
+                    {hoveredPoint && hoverX !== null && (
+                      <>
+                        <line
+                          x1={hoverX}
+                          x2={hoverX}
+                          y1={CHART_PADDING.top}
+                          y2={CHART_HEIGHT - CHART_PADDING.bottom}
+                          stroke="rgba(148,163,184,0.35)"
+                          strokeDasharray="5 6"
+                          strokeWidth="1"
+                        />
+                        <circle cx={hoverX} cy={yAt(hoveredPoint.btc_bh)} r="4" fill="#67e8f9" />
+                        {typeof hoveredPoint.hong === 'number' && (
+                          <circle cx={hoverX} cy={yAt(hoveredPoint.hong)} r="4" fill="#86efac" />
+                        )}
+                      </>
+                    )}
+                  </svg>
+
+                  {hoveredPoint && (
+                    <div className="pointer-events-none absolute right-5 top-5 rounded-xl border border-slate-800 bg-slate-950/90 px-4 py-3 text-xs shadow-xl shadow-slate-950/40">
+                      <p className="font-mono text-slate-200">{formatDateTime(hoveredPoint.ts_utc)}</p>
+                      <p className="mt-2 text-cyan-300">BTC: {hoveredPoint.btc_bh.toFixed(3)}x</p>
+                      <p className={`mt-1 ${typeof hoveredPoint.hong === 'number' ? 'text-emerald-300' : 'text-slate-500'}`}>
+                        HONG: {typeof hoveredPoint.hong === 'number' ? `${hoveredPoint.hong.toFixed(3)}x` : 'Unavailable'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {!hongVisible && (
+                  <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    <p className="font-medium">HONG curve unavailable.</p>
+                    <p className="mt-1 text-amber-100/80">
+                      The dashboard is intentionally not synthesizing a blended HONGSTR equity line. Summary KPIs can still be shown when
+                      a latest <span className="font-mono">summary.json</span> exists. To refresh the underlying state, run{' '}
+                      <span className="font-mono">{data.sources?.refresh_hint || 'bash scripts/refresh_state.sh'}</span>.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-6 text-sm text-amber-100">
+                BTC curve unavailable. Run <span className="font-mono">{data.sources?.refresh_hint || 'bash scripts/refresh_state.sh'}</span>{' '}
+                after ensuring BTC derived klines exist.
               </div>
             )}
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorBTC" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorHONG" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickMargin={10}
-                  tickFormatter={(val: string) => val.substring(0, 7)} // Just show YYYY-MM
-                  minTickGap={30}
-                />
-                <YAxis
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickFormatter={(val) => val.toFixed(1) + 'x'}
-                  domain={['auto', 'auto']}
-                  orientation="right"
-                />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
-                  itemStyle={{ fontFamily: 'monospace' }}
-                  labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontWeight: 'bold' }}
-                />
-                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                <Line type="monotone" dataKey="BTC" name="Buy & Hold (BTC)" stroke="#f97316" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                {hasHongCurve && (
-                  <Line type="monotone" dataKey="HONG" name="HONG Blended" stroke="#06b6d4" strokeWidth={3} dot={false} activeDot={{ r: 8 }} />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
+              <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr] border-b border-slate-800 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-slate-500">
+                <div>Metric</div>
+                <div>BTC</div>
+                <div>HONG</div>
+                <div>Delta</div>
+              </div>
+              {METRIC_ROWS.map((row) => (
+                <div
+                  key={row.key}
+                  className="grid grid-cols-[1.2fr_1fr_1fr_1fr] border-b border-slate-900/70 px-4 py-3 text-sm last:border-b-0"
+                >
+                  <div className="font-medium text-slate-300">{row.label}</div>
+                  <div className="text-cyan-200">{formatMetric(data.kpis.btc_bh[row.key], row.kind)}</div>
+                  <div className={hongVisible ? 'text-emerald-200' : 'text-slate-300'}>
+                    {formatMetric(data.kpis.hong[row.key], row.kind)}
+                  </div>
+                  <div className="text-slate-300">{formatMetric(data.kpis.delta[row.key], row.kind)}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Strategy Portfolio Section */}
-        <section>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <span className="text-xl">🛡️</span>
-              Strategy Portfolio
-            </h2>
-            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase border border-slate-800 px-3 py-1 rounded bg-slate-900/50">
-              Live Compositions
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-            {/* BULL Card */}
-            <div className="bg-gradient-to-br from-emerald-950/40 to-slate-900/80 border border-emerald-900/30 rounded-2xl overflow-hidden backdrop-blur-md hover:border-emerald-700/50 transition-colors">
-              <div className="bg-emerald-900/20 py-3 px-5 border-b border-emerald-900/30">
-                <h3 className="text-emerald-400 font-bold uppercase tracking-wider flex justify-between items-center">
-                  BULL Regime
-                  <span className="bg-emerald-950 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-800/50">{data.regimes.BULL.strategies.length} Strats</span>
-                </h3>
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.35fr_0.95fr]">
+          <article
+            id="regime-panel"
+            className="rounded-3xl border border-slate-800 bg-slate-950/75 p-6 shadow-xl shadow-slate-950/30"
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Strategy Portfolio</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Regime Panels</h2>
               </div>
-              <div className="p-5">
-                {data.regimes.BULL.strategies.length > 0 ? (
-                  <ul className="space-y-3">
-                    {data.regimes.BULL.strategies.map(s => (
-                      <li key={s.id} className="bg-slate-950/50 rounded-lg p-3 border border-emerald-900/10 hover:border-emerald-500/20 transition-all">
-                        <div className="font-mono text-sm text-emerald-100/90 break-all mb-2">{s.id}</div>
-                        <div className="flex justify-between text-xs font-mono text-emerald-400/70 bg-emerald-950/30 rounded px-2 py-1">
-                          <span>SR: {formatNum(s.sharpe)}</span>
-                          <span>Ret: {formatPct(s.return)}</span>
+              <p className="text-xs text-slate-500">BULL / BEAR / SIDEWAYS</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {REGIME_ORDER.map((regime) => {
+                const block = data.regimes?.[regime.key] || {
+                  status: 'UNKNOWN',
+                  strategies: [],
+                  kpis: { total_return: null, cagr: null, sharpe: null, max_drawdown: null },
+                  notes: [],
+                };
+                const hasKpis = METRIC_ROWS.some((item) => block.kpis[item.key] !== null && block.kpis[item.key] !== undefined);
+
+                return (
+                  <div
+                    key={regime.key}
+                    className={`rounded-2xl border ${regime.border} bg-gradient-to-b ${regime.tone} p-4`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className={`text-lg font-semibold ${regime.accent}`}>{regime.label}</p>
+                        <p className="mt-1 text-xs text-slate-400">{regime.key}</p>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusTone(block.status)}`}>
+                        {block.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-4">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Strategies</p>
+                      {block.strategies.length > 0 ? (
+                        <div className="mt-2 flex flex-col gap-2">
+                          {block.strategies.map((strategy) => (
+                            <div
+                              key={`${regime.key}-${strategy.name}-${strategy.role}`}
+                              className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2"
+                            >
+                              <span className="font-mono text-sm text-slate-200">{strategy.name}</span>
+                              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                                {strategy.role}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-500 italic text-center py-8">No strategies assigned.</p>
-                )}
-              </div>
-            </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-500">No regime-specific strategy list is available.</p>
+                      )}
+                    </div>
 
-            {/* SIDEWAYS Card */}
-            <div className="bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-900/30 rounded-2xl overflow-hidden backdrop-blur-md hover:border-indigo-700/50 transition-colors">
-              <div className="bg-indigo-900/20 py-3 px-5 border-b border-indigo-900/30">
-                <h3 className="text-indigo-400 font-bold uppercase tracking-wider flex justify-between items-center">
-                  SIDEWAYS Regime
-                  <span className="bg-indigo-950 text-indigo-300 text-[10px] px-2 py-0.5 rounded-full border border-indigo-800/50">{data.regimes.SIDEWAYS.strategies.length} Strats</span>
-                </h3>
-              </div>
-              <div className="p-5">
-                {data.regimes.SIDEWAYS.strategies.length > 0 ? (
-                  <ul className="space-y-3">
-                    {data.regimes.SIDEWAYS.strategies.map(s => (
-                      <li key={s.id} className="bg-slate-950/50 rounded-lg p-3 border border-indigo-900/10 hover:border-indigo-500/20 transition-all">
-                        <div className="font-mono text-sm text-indigo-100/90 break-all mb-2">{s.id}</div>
-                        <div className="flex justify-between text-xs font-mono text-indigo-400/70 bg-indigo-950/30 rounded px-2 py-1">
-                          <span>SR: {formatNum(s.sharpe)}</span>
-                          <span>Ret: {formatPct(s.return)}</span>
+                    <div className="mt-4">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">KPIs</p>
+                      {hasKpis ? (
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-300">
+                          {METRIC_ROWS.map((metric) => (
+                            <div key={`${regime.key}-${metric.key}`} className="rounded-xl bg-slate-950/50 px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{metric.label}</p>
+                              <p className="mt-1 font-medium">{formatMetric(block.kpis[metric.key], metric.kind)}</p>
+                            </div>
+                          ))}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-500 italic text-center py-8">No strategies assigned.</p>
-                )}
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-500">Regime KPI slice unavailable.</p>
+                      )}
+                    </div>
+
+                    {block.notes.length > 0 && (
+                      <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/45 px-3 py-3 text-xs text-slate-400">
+                        {block.notes.map((note) => (
+                          <p key={`${regime.key}-${note}`} className="mt-1 first:mt-0">
+                            {note}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+
+          <article className="rounded-3xl border border-slate-800 bg-slate-950/75 p-6 shadow-xl shadow-slate-950/30">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Blended Summary</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Latest Backtest Pack</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {data.blend.kpis.run_id ? (
+                <>
+                  Run <span className="font-mono text-slate-200">{data.blend.kpis.run_id}</span>
+                </>
+              ) : (
+                'No backtest summary detected.'
+              )}
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Total Return</p>
+                <p className="mt-2 text-xl font-semibold text-slate-100">
+                  {formatMetric(data.blend.kpis.total_return, 'pct')}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">CAGR</p>
+                <p className="mt-2 text-xl font-semibold text-slate-100">
+                  {formatMetric(data.blend.kpis.cagr, 'pct')}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Sharpe</p>
+                <p className="mt-2 text-xl font-semibold text-slate-100">
+                  {formatMetric(data.blend.kpis.sharpe, 'num')}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Max DD</p>
+                <p className="mt-2 text-xl font-semibold text-slate-100">
+                  {formatMetric(data.blend.kpis.max_drawdown, 'pct')}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Trades</p>
+                <p className="mt-2 text-xl font-semibold text-slate-100">
+                  {data.blend.kpis.trades_count ?? 'Unavailable'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/55 p-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Win Rate</p>
+                <p className="mt-2 text-xl font-semibold text-slate-100">
+                  {formatMetric(data.blend.kpis.win_rate, 'pct')}
+                </p>
               </div>
             </div>
 
-            {/* BEAR Card */}
-            <div className="bg-gradient-to-br from-rose-950/40 to-slate-900/80 border border-rose-900/30 rounded-2xl overflow-hidden backdrop-blur-md hover:border-rose-700/50 transition-colors">
-              <div className="bg-rose-900/20 py-3 px-5 border-b border-rose-900/30">
-                <h3 className="text-rose-400 font-bold uppercase tracking-wider flex justify-between items-center">
-                  BEAR Regime
-                  <span className="bg-rose-950 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-800/50">{data.regimes.BEAR.strategies.length} Strats</span>
-                </h3>
+            {data.blend.notes.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/55 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Notes</p>
+                <div className="mt-3 flex flex-col gap-2 text-sm text-slate-300">
+                  {data.blend.notes.map((note) => (
+                    <p key={note}>{note}</p>
+                  ))}
+                </div>
               </div>
-              <div className="p-5">
-                {data.regimes.BEAR.strategies.length > 0 ? (
-                  <ul className="space-y-3">
-                    {data.regimes.BEAR.strategies.map(s => (
-                      <li key={s.id} className="bg-slate-950/50 rounded-lg p-3 border border-rose-900/10 hover:border-rose-500/20 transition-all">
-                        <div className="font-mono text-sm text-rose-100/90 break-all mb-2">{s.id}</div>
-                        <div className="flex justify-between text-xs font-mono text-rose-400/70 bg-rose-950/30 rounded px-2 py-1">
-                          <span>SR: {formatNum(s.sharpe)}</span>
-                          <span>Ret: {formatPct(s.return)}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-500 italic text-center py-8">No strategies assigned.</p>
-                )}
-              </div>
-            </div>
+            )}
 
-          </div>
+            <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/55 px-4 py-4 text-sm text-slate-400">
+              <p>Window start: <span className="font-mono text-slate-200">{data.window.start_utc}</span></p>
+              <p className="mt-2">Window end: <span className="font-mono text-slate-200">{data.window.end_utc}</span></p>
+            </div>
+          </article>
         </section>
-
       </div>
     </main>
   );
