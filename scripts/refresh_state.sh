@@ -5,12 +5,17 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+PY_BIN="${PY_BIN:-$REPO_ROOT/.venv/bin/python}"
+if [[ ! -x "$PY_BIN" ]]; then
+    PY_BIN="$(command -v python3)"
+fi
+
 echo "=========================================="
 echo "    Read-Only State & Dashboard Refresh   "
 echo "=========================================="
 
 # Enforce canonical state writer boundary before refresh flow.
-.venv/bin/python scripts/check_state_writer_boundary.py --strict
+"$PY_BIN" scripts/check_state_writer_boundary.py --strict
 
 # Helpers to prevent hard crashes
 run_step() {
@@ -29,40 +34,40 @@ run_step() {
 }
 
 run_step "1. Update Coverage Atomic Table" \
-    .venv/bin/python scripts/coverage_update.py --scan-root data/backtests --limit 1000 --template trend_mvp_v1 || true
+    "$PY_BIN" scripts/coverage_update.py --scan-root data/backtests --limit 1000 --template trend_mvp_v1 || true
 
 run_step "2. Apply Coverage Semantics Gate (Atomic)" \
-    .venv/bin/python scripts/semantics_check.py || true
+    "$PY_BIN" scripts/semantics_check.py || true
 
 run_step "3. Generate Regime Monitor Atomic Snapshot" \
-    .venv/bin/python scripts/phase4_regime_monitor.py || true
+    "$PY_BIN" scripts/phase4_regime_monitor.py || true
 
 run_step "4. Generate Brake Health Atomic Snapshot" \
-    .venv/bin/python scripts/brake_healthcheck.py || true
+    "$PY_BIN" scripts/brake_healthcheck.py || true
 
 run_step "5. Generate Watchdog Status Atomic Snapshot" \
-    .venv/bin/python scripts/watchdog_status_snapshot.py || true
+    "$PY_BIN" scripts/watchdog_status_snapshot.py || true
 
 # Note: scripts/coverage_validate.py might not exist yet, we ensure it's gracefully ignored if it doesn't
 if [ -f "scripts/coverage_validate.py" ]; then
     run_step "6. Validate Coverage Table" \
-        .venv/bin/python scripts/coverage_validate.py || true
+        "$PY_BIN" scripts/coverage_validate.py || true
 else
     echo -e "\n---> [SKIP] scripts/coverage_validate.py (Not implemented, skipping smoothly)"
 fi
 
 if [ -f "scripts/strategy_pool_update.py" ]; then
     run_step "7. Update Strategy Pool" \
-        .venv/bin/python scripts/strategy_pool_update.py || true
+        "$PY_BIN" scripts/strategy_pool_update.py || true
 else
     echo -e "\n---> [SKIP] scripts/strategy_pool_update.py (Not implemented, skipping smoothly)"
 fi
 
 run_step "8. Scan Data Catalog Manifests (Atomic)" \
-    .venv/bin/python scripts/state_atomic/data_catalog_scan.py || true
+    "$PY_BIN" scripts/state_atomic/data_catalog_scan.py || true
 
 run_step "9. Generate Dashboard Snapshots (Canonical data/state Writer)" \
-    .venv/bin/python scripts/state_snapshots.py
+    "$PY_BIN" scripts/state_snapshots.py
 
 echo -e "\n=========================================="
 echo "               TL;DR REPORT               "

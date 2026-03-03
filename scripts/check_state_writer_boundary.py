@@ -35,6 +35,8 @@ CANONICAL_FILES = {
     "system_health_latest.json",
     "data_catalog_latest.json",
     "data_catalog_changes_latest.json",
+    "okx_public_coverage_latest.json",
+    "bitfinex_public_coverage_latest.json",
 }
 
 WRITE_HINT_RE = re.compile(
