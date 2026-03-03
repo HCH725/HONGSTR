@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 
@@ -8,9 +9,11 @@ SCRIPT = REPO / "scripts/state_snapshots.py"
 
 
 def _load_state_snapshots_module():
+    sys.path.insert(0, str((REPO / "scripts").resolve()))
     spec = importlib.util.spec_from_file_location("state_snapshots_daily_testmod", SCRIPT)
     mod = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod
 
@@ -48,6 +51,12 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "last_check_status": "OK",
                     "last_check_age_sec": 120,
                     "expected_within_sec": 600,
+                },
+                "data_catalog_changes": {
+                    "status": "WARN",
+                    "summary": "Dataset changes: +1, ~0, -0 | manifest warnings=1",
+                    "prev_ts_utc": None,
+                    "warning_count": 1,
                 },
                 "regime_monitor": {"status": "OK"},
                 "regime_signal": {
@@ -132,6 +141,8 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["latest_backtest_head"]["metrics"]["trades_count"] == 37
     assert payload["ssot_components"]["watchdog"]["status"] == "OK"
     assert payload["ssot_components"]["watchdog"]["last_check_age_sec"] == 120
+    assert payload["ssot_components"]["data_catalog_changes"]["status"] == "WARN"
+    assert payload["ssot_components"]["data_catalog_changes"]["summary"] == "Dataset changes: +1, ~0, -0 | manifest warnings=1"
     assert payload["ssot_components"]["regime_signal"]["threshold_value"] == -0.0353
     assert payload["ssot_components"]["regime_signal"]["threshold_source_path"] == "reports/strategy_research/phase3/phase3_results.json"
     assert payload["ssot_components"]["regime_signal"]["threshold_policy_sha"] == "abc123def456"
