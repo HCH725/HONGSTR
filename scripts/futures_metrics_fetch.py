@@ -26,6 +26,7 @@ from futures_metrics_lib import (
     to_iso_utc,
     upsert_coverage_rows,
     utc_now,
+    write_futures_metrics_manifest,
     write_metric_rows,
     fetch_metric_range,
     fetch_metric_snapshot,
@@ -145,7 +146,9 @@ def main() -> int:
         )
 
     upsert_coverage_rows(coverage_path, updates)
+    manifest_path = write_futures_metrics_manifest(repo_root)
     print(f"coverage_path={coverage_path}")
+    print(f"manifest_path={manifest_path}")
     print(f"rolling_window={to_iso_utc(rolling_start)}..{to_iso_utc(now_dt)}")
 
     if failures:

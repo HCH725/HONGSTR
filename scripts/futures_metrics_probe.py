@@ -18,6 +18,7 @@ from futures_metrics_lib import (
     parse_date_floor,
     probe_earliest_available,
     upsert_coverage_rows,
+    write_futures_metrics_manifest,
 )
 
 
@@ -66,7 +67,9 @@ def main() -> int:
             )
 
     upsert_coverage_rows(coverage_path, updates)
+    manifest_path = write_futures_metrics_manifest(repo_root)
     print(f"coverage_path={coverage_path}")
+    print(f"manifest_path={manifest_path}")
     return 0
 
 

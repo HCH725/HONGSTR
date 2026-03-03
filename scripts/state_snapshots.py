@@ -4,6 +4,8 @@ scripts/state_snapshots.py
 Reads large JSONL state files and produces small, structured JSON snapshots for web dashboards.
 Strictly Read-Only on core. Stability-first (exit 0).
 """
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -11,6 +13,14 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+from state_atomic.data_catalog_scan import (
+    DEFAULT_MANIFEST_DIR,
+    build_catalog_changes,
+    build_catalog_payload,
+    build_changes_summary,
+    scan_manifest_dir,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -20,7 +30,10 @@ ATOMIC_COVERAGE_TABLE = ATOMIC_STATE_DIR / "coverage_table.jsonl"
 ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
 ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
 ATOMIC_WATCHDOG_STATUS = ATOMIC_STATE_DIR / "watchdog_status_latest.json"
+ATOMIC_DATA_CATALOG_SCAN = ATOMIC_STATE_DIR / "data_catalog_scan.json"
+ATOMIC_MANIFEST_DIR = DEFAULT_MANIFEST_DIR
 WORKER_INBOX_DIR = Path("_local/worker_inbox")
+DATA_CATALOG_PREV = STATE_DIR / "_history" / "data_catalog_prev.json"
 DEFAULT_FRESHNESS_PROFILE = "realtime"
 FRESHNESS_THRESHOLDS = {
     "realtime": {"ok_h": 0.1, "warn_h": 0.25, "fail_h": 1.0},
@@ -64,6 +77,7 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "latest_backtest_head.source": {"zh": "最新回測來源", "en": "latest_backtest_head.source"},
     "ssot_components.cost_sensitivity": {"zh": "成本敏感度摘要", "en": "ssot_components.cost_sensitivity"},
     "ssot_components.watchdog": {"zh": "Watchdog摘要", "en": "ssot_components.watchdog"},
+    "ssot_components.data_catalog_changes": {"zh": "資料目錄變更摘要", "en": "ssot_components.data_catalog_changes"},
     "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
     "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
     "ssot_components.regime_signal.threshold_policy_sha": {"zh": "RegimeSignal門檻版本SHA", "en": "ssot_components.regime_signal.threshold_policy_sha"},
@@ -224,6 +238,53 @@ def _source_meta(path: Path, now_ts: float, ts_field_candidates=None):
     return meta
 
 
+def _load_data_catalog_scan_payload() -> dict[str, Any]:
+    scan_payload = read_json(ATOMIC_DATA_CATALOG_SCAN)
+    if isinstance(scan_payload, dict) and isinstance(scan_payload.get("datasets"), list):
+        return scan_payload
+    return scan_manifest_dir(ATOMIC_MANIFEST_DIR)
+
+
+def _build_data_catalog_artifacts(now_utc: str) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+    scan_payload = _load_data_catalog_scan_payload()
+    catalog_payload = build_catalog_payload(scan_payload, ts_utc=now_utc)
+
+    prev_catalog = read_json(DATA_CATALOG_PREV)
+    if not isinstance(prev_catalog, dict):
+        prev_catalog = read_json(STATE_DIR / "data_catalog_latest.json")
+
+    skipped_dataset_ids = []
+    if isinstance(scan_payload, dict):
+        raw_skipped = scan_payload.get("skipped_dataset_ids")
+        if isinstance(raw_skipped, list):
+            skipped_dataset_ids = [str(item) for item in raw_skipped if str(item).strip()]
+
+    changes_payload = build_catalog_changes(
+        prev_catalog,
+        catalog_payload,
+        ts_utc=now_utc,
+        ignored_removed_dataset_ids=skipped_dataset_ids,
+    )
+    warnings = scan_payload.get("warnings") if isinstance(scan_payload, dict) else []
+    if not isinstance(warnings, list):
+        warnings = []
+    return catalog_payload, changes_payload, [str(item) for item in warnings if str(item).strip()]
+
+
+def _data_catalog_changes_component(changes_payload: Any, warnings: list[str]) -> dict[str, Any]:
+    status, summary = build_changes_summary(changes_payload)
+    if warnings:
+        if status == "OK":
+            status = "WARN"
+        summary = f"{summary} | manifest warnings={len(warnings)}"
+    return {
+        "status": status,
+        "summary": summary,
+        "prev_ts_utc": changes_payload.get("prev_ts_utc") if isinstance(changes_payload, dict) else None,
+        "warning_count": len(warnings),
+    }
+
+
 def _normalize_regime_snapshot(payload: dict, now_utc: str) -> dict:
     if not isinstance(payload, dict):
         return {}
@@ -375,20 +436,25 @@ def read_json(path: Path):
         return None
 
 def write_json(path: Path, data: dict):
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with open(path, "w") as f:
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        with open(tmp_path, "w") as f:
             json.dump(data, f, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, path)
     except Exception as e:
         logging.error(f"Failed to write snapshot {path}: {e}")
 
 
 def write_jsonl(path: Path, rows: list):
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with open(path, "w") as f:
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        with open(tmp_path, "w") as f:
             for row in rows:
                 f.write(json.dumps(row) + "\n")
+        os.replace(tmp_path, path)
     except Exception as e:
         logging.error(f"Failed to write snapshot {path}: {e}")
 
@@ -1105,6 +1171,8 @@ def _build_daily_report_payload(
             "freshness_table": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
             "strategy_pool_summary": _source_meta(STATE_DIR / "strategy_pool_summary.json", now_ts),
             "strategy_pool": _source_meta(STATE_DIR / "strategy_pool.json", now_ts),
+            "data_catalog_latest": _source_meta(STATE_DIR / "data_catalog_latest.json", now_ts),
+            "data_catalog_changes_latest": _source_meta(STATE_DIR / "data_catalog_changes_latest.json", now_ts),
             "watchdog_status_latest": _source_meta(STATE_DIR / "watchdog_status_latest.json", now_ts),
             "research_leaderboard": _source_meta(STATE_DIR / "_research/leaderboard.json", now_ts, ["generated_at"]),
             "research_loop_state": _source_meta(STATE_DIR / "_research/loop_state.json", now_ts, ["last_run"]),
@@ -1635,6 +1703,12 @@ def main():
     watchdog_last_check_age_sec = _as_int_opt(watchdog_last_check.get("age_sec"))
     watchdog_expected_within_sec = _as_int_opt(watchdog_last_check.get("expected_within_sec"))
 
+    data_catalog_payload, data_catalog_changes, data_catalog_warnings = _build_data_catalog_artifacts(now_utc)
+    write_json(STATE_DIR / "data_catalog_latest.json", data_catalog_payload)
+    write_json(STATE_DIR / "data_catalog_changes_latest.json", data_catalog_changes)
+    write_json(DATA_CATALOG_PREV, data_catalog_payload)
+    data_catalog_component = _data_catalog_changes_component(data_catalog_changes, data_catalog_warnings)
+
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
     ssot_status = _collapse_system_status(
         [freshness_status, coverage_as_health, brake_status, regime_monitor_status, cost_status]
@@ -1672,6 +1746,7 @@ def main():
                 "last_check_age_sec": watchdog_last_check_age_sec,
                 "expected_within_sec": watchdog_expected_within_sec,
             },
+            "data_catalog_changes": data_catalog_component,
             "cost_sensitivity": {
                 "status": cost_status,
                 "rows_total": int(cost_totals.get("rows_total", 0) or 0),
@@ -1699,6 +1774,8 @@ def main():
             "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
             "watchdog_status_latest.json": _source_meta(STATE_DIR / "watchdog_status_latest.json", now_ts),
+            "data_catalog_latest.json": _source_meta(STATE_DIR / "data_catalog_latest.json", now_ts),
+            "data_catalog_changes_latest.json": _source_meta(STATE_DIR / "data_catalog_changes_latest.json", now_ts),
             "cost_sensitivity_matrix_latest.json": _source_meta(STATE_DIR / "cost_sensitivity_matrix_latest.json", now_ts),
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
         },

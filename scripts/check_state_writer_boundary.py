@@ -33,6 +33,8 @@ CANONICAL_FILES = {
     "brake_health_latest.json",
     "watchdog_status_latest.json",
     "system_health_latest.json",
+    "data_catalog_latest.json",
+    "data_catalog_changes_latest.json",
 }
 
 WRITE_HINT_RE = re.compile(

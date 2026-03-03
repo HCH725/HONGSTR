@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 
@@ -10,9 +11,11 @@ CANONICAL_FIXTURE = REPO / "tests/fixtures/freshness_profiles/canonicalize_cases
 
 
 def _load_state_snapshots_module():
+    sys.path.insert(0, str((REPO / "scripts").resolve()))
     spec = importlib.util.spec_from_file_location("state_snapshots_testmod", SCRIPT)
     mod = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod
 

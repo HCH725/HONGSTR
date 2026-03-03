@@ -28,6 +28,7 @@ from futures_metrics_lib import (
     update_checkpoint_entry,
     upsert_coverage_rows,
     utc_now,
+    write_futures_metrics_manifest,
     write_metric_rows,
     fetch_metric_range,
 )
@@ -175,8 +176,10 @@ def main() -> int:
 
     upsert_coverage_rows(coverage_path, updates)
     save_checkpoint(checkpoint_path, checkpoint_payload)
+    manifest_path = write_futures_metrics_manifest(repo_root)
     print(f"coverage_path={coverage_path}")
     print(f"checkpoint_path={checkpoint_path}")
+    print(f"manifest_path={manifest_path}")
 
     if failures:
         for failure in failures:
