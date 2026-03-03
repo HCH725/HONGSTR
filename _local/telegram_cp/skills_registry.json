@@ -1,0 +1,250 @@
+{
+  "skills": [
+    {
+      "name": "status_overview",
+      "type": "read_only",
+      "description": "Summarize dashboard/etl/backfill/data freshness in plain language.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "include_sources",
+            "type": "bool",
+            "required": false,
+            "default": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "logs_tail_hint",
+      "type": "read_only",
+      "description": "Show where to inspect latest logs and provide safe tail hints.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "lines",
+            "type": "int",
+            "required": false,
+            "default": 60,
+            "min": 20,
+            "max": 120
+          }
+        ]
+      }
+    },
+    {
+      "name": "brake_status",
+      "type": "read_only",
+      "description": "Check existence and recency of system brakes (IS/OOS artifacts, freshness, regime).",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": []
+      }
+    },
+    {
+      "name": "incident_timeline_builder",
+      "type": "read_only",
+      "description": "Build SSOT-only incident timeline from system health snapshots.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "start",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "end",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "keywords",
+            "type": "csv_string",
+            "required": false,
+            "default": ""
+          },
+          {
+            "name": "services",
+            "type": "csv_string",
+            "required": false,
+            "default": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "signal_leakage_audit",
+      "type": "read_only",
+      "description": "Proxy (read-only) to quant specialist signal leakage/lookahead audit.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "artifact_path",
+            "type": "string",
+            "required": false,
+            "default": "research/audit/tests/fixtures/clean.json"
+          },
+          {
+            "name": "max_lookahead_ms",
+            "type": "int",
+            "required": false,
+            "default": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "system_health_morning_brief",
+      "type": "read_only",
+      "description": "Provide a concise system health morning brief (SSOT-only).",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "include_details",
+            "type": "bool",
+            "required": false,
+            "default": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "config_drift_auditor",
+      "type": "read_only",
+      "description": "Audit configuration drift between a baseline SHA and the current repo.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "baseline_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "paths",
+            "type": "csv_string",
+            "required": false,
+            "default": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "data_freshness_watchdog_report",
+      "type": "read_only",
+      "description": "Report data freshness statistics (p50/p95/max) from SSOT state.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "execution_quality_report_readonly",
+      "type": "read_only",
+      "description": "Report execution metrics (slippage/latency) from SSOT state (SKELETON).",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "env",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "signal_leakage_and_lookahead_audit",
+      "type": "read_only",
+      "description": "Proxy (read-only) to quant specialist leakage/lookahead audit.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "artifact_path",
+            "type": "string",
+            "required": false,
+            "default": "research/audit/tests/fixtures/clean.json"
+          },
+          {
+            "name": "max_lookahead_ms",
+            "type": "int",
+            "required": false,
+            "default": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "backtest_reproducibility_audit",
+      "type": "read_only",
+      "description": "Verify backtest reproducibility between baseline and current research manifests.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "backtest_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "baseline_sha",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "factor_health_and_drift_report",
+      "type": "read_only",
+      "description": "Report on factor health, decay, and drift from research artifacts.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "factor_id",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "strategy_regime_sensitivity_report",
+      "type": "read_only",
+      "description": "Analyze strategy sensitivity to regime changes based on research snapshots.",
+      "args_schema": {
+        "allow_extra": false,
+        "fields": [
+          {
+            "name": "strategy_id",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    }
+  ]
+}

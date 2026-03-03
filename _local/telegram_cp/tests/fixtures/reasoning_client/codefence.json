@@ -1,0 +1,9 @@
+{
+  "model": "deepseek-r1:7b",
+  "created_at": "2026-02-26T00:00:00Z",
+  "message": {
+    "role": "assistant",
+    "content": "<think>step-by-step hidden reasoning</think>\n```json\n{\"status\":\"WARN\",\"problem\":\"codefence\",\"key_findings\":[],\"hypotheses\":[],\"recommended_next_steps\":[],\"risks\":[],\"actions\":[],\"citations\":[]}\n```"
+  },
+  "done": true
+}

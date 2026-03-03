@@ -20,6 +20,7 @@ fi
 SYMBOLS="${SYMBOLS:-BTCUSDT ETHUSDT BNBUSDT}"
 START_DATE="${START_DATE:-2020-01-01}"
 END_DATE="${END_DATE:-now}"
+USE_CP_REPORTS="${HONGSTR_USE_CONTROL_PLANE_REPORTS:-0}"
 LATEST_SUMMARY="(not available)"
 script_status="running"
 
@@ -77,6 +78,7 @@ for sym in $SYMBOLS; do
 done
 
 coverage_out="$(bash scripts/check_data_coverage.sh)"
+<<<<<<< HEAD
 coverage_summary="$(echo "$coverage_out" | awk '/^BTCUSDT|^ETHUSDT|^BNBUSDT|^OVERALL_STATUS/' || true)"
 if [[ -n "$coverage_summary" ]]; then
   echo "$coverage_summary"
@@ -84,8 +86,20 @@ else
   echo "$coverage_out"
 fi
 LATEST_SUMMARY="$coverage_summary"
+=======
+if [[ "$USE_CP_REPORTS" == "1" ]]; then
+  echo "INFO: coverage gate executed via scripts/check_data_coverage.sh"
+  echo "INFO: full coverage table delegated to control-plane/event reports"
+else
+  echo "$coverage_out"
+fi
+LATEST_SUMMARY="$(echo "$coverage_out" | awk '/^BTCUSDT|^ETHUSDT|^BNBUSDT|^OVERALL_STATUS/' || true)"
+>>>>>>> origin/main
 if [[ -z "$LATEST_SUMMARY" ]]; then
   LATEST_SUMMARY="coverage output unavailable"
+fi
+if [[ "$USE_CP_REPORTS" == "1" ]]; then
+  echo "$LATEST_SUMMARY"
 fi
 
 echo "=== BACKFILL COMPLETE ==="

@@ -4,11 +4,12 @@
 <dict>
     <key>Label</key>
     <string>com.hongstr.daily_healthcheck</string>
+    <!-- Compatibility alias only: triggers refresh_state flow, no independent SSOT ownership. -->
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>cd __REPO_ROOT__ &amp;&amp; bash scripts/daily_backtest_healthcheck.sh</string>
+        <string>cd __REPO_ROOT__ &amp;&amp; bash scripts/refresh_state.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>

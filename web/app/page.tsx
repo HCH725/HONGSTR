@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface ServiceHeartbeat {
   name: string;
@@ -49,6 +49,56 @@ interface SelectionArtifact {
   };
 }
 
+interface StrategyPoolSummary {
+  poolId: string;
+  candidatesCount: number;
+  promotedCount: number;
+  leaderboard: { id: string; score: number; sharpe: number }[];
+}
+
+interface CoverageMatrixSummary {
+  done: number;
+  inProgress: number;
+  blocked: number;
+  rebase: number;
+}
+
+interface RegimeMonitorSummary {
+  status: 'OK' | 'WARN' | 'FAIL' | 'UNKNOWN';
+  updatedAtUtc: string | null;
+  topReason: string | null;
+}
+
+interface FreshnessItem {
+  symbol: string;
+  tf: string;
+  age_h: number | null;
+  status: 'OK' | 'WARN' | 'FAIL';
+  reason?: string | null;
+  source?: string | null;
+}
+
+interface FreshnessTable {
+  generated_utc: string;
+  thresholds: { ok_h: number; warn_h: number };
+  rows: FreshnessItem[];
+}
+
+interface BacktestRun {
+  id: string;
+  date: string;
+  runId: string;
+  mtime: string;
+  isFull: boolean;
+  flags: {
+    selection: boolean;
+    summary: boolean;
+    gate: boolean;
+    regime: boolean;
+    optimizer: boolean;
+  };
+}
+
 interface DashboardData {
   ok: boolean;
   status: StatusPayload;
@@ -59,6 +109,13 @@ interface DashboardData {
   selection: SelectionArtifact | null;
   warnings: string[];
   timestamp: string;
+  strategyPool: StrategyPoolSummary | null;
+  coverageMatrix: CoverageMatrixSummary | null;
+  regimeMonitor: RegimeMonitorSummary | null;
+  allRuns: BacktestRun[];
+  topFullRuns: BacktestRun[];
+  currentRunId: string | null;
+  freshnessTable: FreshnessTable | null;
 }
 
 function formatPct(value: number | null): string {
@@ -89,7 +146,11 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/status', { cache: 'no-store' });
+        const url = new URL('/api/status', window.location.origin);
+        const savedRun = localStorage.getItem('selectedBacktestRun');
+        if (savedRun) url.searchParams.set('run', savedRun);
+
+        const res = await fetch(url.toString(), { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as DashboardData;
         if (!mounted) return;
@@ -111,6 +172,12 @@ export default function Dashboard() {
       clearInterval(timer);
     };
   }, []);
+
+  const handleSelectRun = (runId: string) => {
+    localStorage.setItem('selectedBacktestRun', runId);
+    setLoading(true);
+    window.location.reload(); // Simple way to re-trigger fetch and sync UI
+  };
 
   if (loading && !data) {
     return <main className="min-h-screen bg-slate-950 p-6 text-slate-100">Loading dashboard...</main>;
@@ -189,6 +256,34 @@ export default function Dashboard() {
                   <p className="text-xs text-slate-500">No service heartbeat found.</p>
                 )}
               </div>
+
+              {data.freshnessTable && (
+                <div className="mt-4 pt-4 border-t border-slate-800">
+                  <p className="mb-2 text-sm font-semibold text-slate-300">Data Freshness (3×3)</p>
+                  <div className="grid grid-cols-4 gap-1 text-[10px] items-center">
+                    <div className="text-slate-500 font-bold uppercase">Sym</div>
+                    <div className="text-center text-slate-500 font-bold uppercase">1m</div>
+                    <div className="text-center text-slate-500 font-bold uppercase">1h</div>
+                    <div className="text-center text-slate-500 font-bold uppercase">4h</div>
+
+                    {['BTCUSDT', 'ETHUSDT', 'BNBUSDT'].map(sym => (
+                      <React.Fragment key={sym}>
+                        <div className="font-mono text-slate-400">{sym.replace('USDT', '')}</div>
+                        {['1m', '1h', '4h'].map(tf => {
+                          const item = data.freshnessTable?.rows.find(m => m.symbol === sym && m.tf === tf);
+                          const color = item?.status === 'OK' ? 'text-emerald-400' : (item?.status === 'WARN' ? 'text-amber-400' : 'text-rose-400');
+                          const title = item?.reason || item?.source || '';
+                          return (
+                            <div key={tf} className={`text-center font-mono ${color} bg-slate-800/40 rounded py-0.5`} title={title}>
+                              {item?.age_h !== null && item?.age_h !== undefined ? `${item.age_h}h` : 'N/A'}
+                            </div>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </article>
 
@@ -212,9 +307,33 @@ export default function Dashboard() {
           </article>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="mb-3 text-lg font-semibold">Top3</h2>
+            <h2 className="mb-3 text-lg font-semibold">Top3 Selected</h2>
+            {!data.selection && (
+              <div className="mb-4 rounded-lg border border-amber-600/40 bg-amber-950/40 p-4">
+                <p className="text-sm font-bold text-amber-200">⚠️ Fragment Run Detected</p>
+                <p className="mt-1 text-xs text-amber-300/80">
+                  你選到的是 Fragment Run (walkforward 片段)，因此沒有 selection.json。
+                </p>
+                {data.topFullRuns.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] uppercase tracking-wider text-amber-400/60 font-bold mb-2">切換至最近的完整 Run:</p>
+                    <div className="flex flex-col gap-2">
+                      {data.topFullRuns.map(run => (
+                        <button
+                          key={run.id}
+                          onClick={() => handleSelectRun(run.id)}
+                          className="text-left px-3 py-2 text-xs rounded bg-amber-900/30 border border-amber-800/50 hover:bg-amber-800/40 transition-colors text-amber-100 font-mono"
+                        >
+                          {run.id}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {data.top3.length > 0 ? (
               <ol className="space-y-2">
                 {data.top3.map((name, idx) => (
@@ -227,7 +346,24 @@ export default function Dashboard() {
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-slate-500">No strategy selection available.</p>
+              <p className="text-sm text-slate-500">No strategy selection available for run: <span className="font-mono text-xs">{data.currentRunId || 'GLOBAL'}</span></p>
+            )}
+            {data.allRuns.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-slate-800">
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">變更 Backtest Run:</label>
+                <select
+                  className="w-full bg-slate-800 text-sm py-2 px-3 rounded border border-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  value={data.currentRunId || ''}
+                  onChange={(e) => handleSelectRun(e.target.value)}
+                >
+                  {data.allRuns.map(run => (
+                    <option key={run.id} value={run.id}>
+                      {run.isFull ? '✅' : '📄'} {run.id}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-[10px] text-slate-500 italic">標記 ✅ 代表具備完整 artifacts (selection.json)。</p>
+              </div>
             )}
           </article>
 
@@ -249,9 +385,80 @@ export default function Dashboard() {
                 <p className="mt-1 text-sm font-semibold">{formatDateTime(data.coverage.latestBacktestTs)}</p>
               </div>
             </div>
+            {data.coverageMatrix && (
+              <div className="mt-4 flex gap-3 text-sm">
+                <span className="rounded bg-emerald-900/40 px-2 py-1 text-emerald-300">DONE: {data.coverageMatrix.done}</span>
+                <span className="rounded bg-blue-900/40 px-2 py-1 text-blue-300">IN_PROG: {data.coverageMatrix.inProgress}</span>
+                <span className="rounded bg-amber-900/40 px-2 py-1 text-amber-300">REBASE: {data.coverageMatrix.rebase}</span>
+              </div>
+            )}
             <p className="mt-3 text-xs text-slate-500">Source: {data.coverage.source}</p>
           </article>
+
+          {data.regimeMonitor && (
+            <article className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+              <h2 className="mb-3 text-lg font-semibold">Regime Monitor</h2>
+              <div className="flex items-center gap-4">
+                <div className={`rounded-xl px-4 py-3 text-2xl font-bold ${data.regimeMonitor.status === 'OK' ? 'bg-emerald-600/20 text-emerald-400' :
+                  data.regimeMonitor.status === 'WARN' ? 'bg-amber-600/20 text-amber-400' :
+                    data.regimeMonitor.status === 'FAIL' ? 'bg-rose-600/20 text-rose-400' :
+                      'bg-slate-800 text-slate-400'
+                  }`}>
+                  {data.regimeMonitor.status}
+                </div>
+                <div className="flex-1 text-sm">
+                  <p className="text-slate-400">Latest Observation:</p>
+                  <p className="font-medium">{data.regimeMonitor.topReason || 'No issues detected'}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-slate-500">Updated: {formatDateTime(data.regimeMonitor.updatedAtUtc)}</p>
+            </article>
+          )}
         </section>
+
+        {data.strategyPool && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">策略池看板 (Strategy Pool)</h2>
+              <span className="text-sm text-slate-400 font-mono">Pool: {data.strategyPool.poolId}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4 sm:grid-cols-4">
+              <div className="rounded-lg bg-slate-800/40 p-3 text-center">
+                <p className="text-xs text-slate-400">Candidates</p>
+                <p className="mt-1 text-xl font-bold">{data.strategyPool.candidatesCount}</p>
+              </div>
+              <div className="rounded-lg bg-slate-800/40 p-3 text-center">
+                <p className="text-xs text-slate-400">Promoted</p>
+                <p className="mt-1 text-xl font-bold text-amber-400">{data.strategyPool.promotedCount}</p>
+              </div>
+            </div>
+
+            <h3 className="mb-2 text-sm font-semibold text-slate-300">Leaderboard</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-xs tracking-wide text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th className="pb-2 font-medium">Strategy ID</th>
+                    <th className="pb-2 font-medium">Score</th>
+                    <th className="pb-2 font-medium">OOS Sharpe</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {data.strategyPool.leaderboard.map((strat) => (
+                    <tr key={strat.id}>
+                      <td className="py-2 font-mono text-cyan-400">{strat.id}</td>
+                      <td className="py-2 text-slate-300">{strat.score.toFixed(3)}</td>
+                      <td className="py-2 text-slate-300">{strat.sharpe.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {data.strategyPool.leaderboard.length === 0 && (
+                    <tr><td colSpan={3} className="py-4 text-center text-slate-500">No candidates available</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
           <h2 className="mb-3 text-lg font-semibold">事件時間軸</h2>

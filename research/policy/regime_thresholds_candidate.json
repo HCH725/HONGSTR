@@ -1,0 +1,28 @@
+{
+  "name": "regime_thresholds_v1",
+  "metric": "max_drawdown",
+  "thresholds": {
+    "warn": -0.187319,
+    "fail": -0.304028
+  },
+  "calibration": {
+    "mode": "semi_dynamic_weekly_pr",
+    "lookback_days": 90,
+    "warn_quantile": 0.9,
+    "fail_quantile": 0.97,
+    "min_samples": 30,
+    "stale_after_days": 8,
+    "last_calibrated_utc": "2026-02-27T13:18:04Z",
+    "calibration_status": "OK",
+    "sample_count": 371,
+    "sample_period_start_utc": "2026-02-20T02:04:32Z",
+    "sample_period_end_utc": "2026-02-26T21:04:35Z"
+  },
+  "provenance": {
+    "source_glob": "data/backtests/**/summary.json",
+    "calibrator_path": "research/loop/regime_threshold_calibrator.py",
+    "policy_review": "human_approved_via_pr",
+    "previous_policy_sha256": "d1325a1b60485eedee94c4cced1e15a75c0d0f14c05c5c507badd018b90b7972"
+  },
+  "rationale": "Weekly semi-dynamic calibration (reviewed by PR) based on backtest summary max_drawdown distribution."
+}

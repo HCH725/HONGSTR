@@ -1,0 +1,65 @@
+{
+    "strategy": "vwap_supertrend",
+    "symbols": "BTCUSDT,ETHUSDT,BNBUSDT",
+    "timeframes": "1h,4h",
+    "windows": [
+        {
+            "name": "Walk1",
+            "is_start": "2020-01-01",
+            "is_end": "2021-12-31",
+            "oos_start": "2022-01-01",
+            "oos_end": "2022-06-30"
+        },
+        {
+            "name": "Walk2",
+            "is_start": "2020-07-01",
+            "is_end": "2022-06-30",
+            "oos_start": "2022-07-01",
+            "oos_end": "2022-12-31"
+        },
+        {
+            "name": "Walk3",
+            "is_start": "2021-01-01",
+            "is_end": "2022-12-31",
+            "oos_start": "2023-01-01",
+            "oos_end": "2023-06-30"
+        },
+        {
+            "name": "Walk4",
+            "is_start": "2021-07-01",
+            "is_end": "2023-06-30",
+            "oos_start": "2023-07-01",
+            "oos_end": "2023-12-31"
+        },
+        {
+            "name": "Walk5",
+            "is_start": "2022-01-01",
+            "is_end": "2023-12-31",
+            "oos_start": "2024-01-01",
+            "oos_end": "2024-06-30"
+        },
+        {
+            "name": "Walk6",
+            "is_start": "2022-07-01",
+            "is_end": "2024-06-30",
+            "oos_start": "2024-07-01",
+            "oos_end": "2024-12-31"
+        },
+        {
+            "name": "Walk7",
+            "is_start": "2023-01-01",
+            "is_end": "2024-12-31",
+            "oos_start": "2025-01-01",
+            "oos_end": "2025-01-31"
+        },
+        {
+            "name": "Walk7b",
+            "is_start": "2023-01-01",
+            "is_end": "2024-12-31",
+            "oos_start": "2025-01-01",
+            "oos_end": "now"
+        }
+    ],
+    "gates_config": "configs/phase1_gates_v1.json",
+    "candidate_source": "reports/strategy_research/phase2/phase2_results.json"
+}

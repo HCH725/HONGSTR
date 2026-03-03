@@ -1,0 +1,16 @@
+[
+  {
+    "name": "backtest_20h_ok",
+    "source": "data/derived/BTCUSDT/1m/klines.jsonl",
+    "age_h": 20.0,
+    "expected_profile": "backtest",
+    "expected_status": "OK"
+  },
+  {
+    "name": "realtime_20h_warn",
+    "source": "data/realtime/BTCUSDT/1m/klines.jsonl",
+    "age_h": 20.0,
+    "expected_profile": "realtime",
+    "expected_status": "WARN"
+  }
+]

@@ -1,0 +1,8 @@
+{
+    "min_trades_is": 300,
+    "min_sharpe_is": 0.5,
+    "max_mdd_is": -0.35,
+    "min_trades_oos": 150,
+    "min_sharpe_oos": 0.2,
+    "max_mdd_oos": -0.35
+}

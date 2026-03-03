@@ -17,10 +17,12 @@ if [[ ! -x "$PY" ]]; then
   exit 1
 fi
 
-SYMBOLS="${SYMBOLS:-BTCUSDT ETHUSDT BNBUSDT}"
+SYMBOLS="${SYMBOLS:-${HONGSTR_SYMBOLS:-BTCUSDT ETHUSDT BNBUSDT}}"
+SYMBOLS="${SYMBOLS//,/ }"
 DEFAULT_START="$(date -u -v-3d +%Y-%m-%d)"
 START_DATE="${START_DATE:-$DEFAULT_START}"
 END_DATE="${END_DATE:-now}"
+USE_CP_REPORTS="${HONGSTR_USE_CONTROL_PLANE_REPORTS:-0}"
 
 LATEST_SUMMARY="(not available)"
 script_status="running"
@@ -83,9 +85,15 @@ coverage_out="$(bash scripts/check_data_coverage.sh 2>&1)"
 coverage_rc=$?
 set -e
 
+<<<<<<< HEAD
 coverage_summary="$(echo "$coverage_out" | awk '/^BTCUSDT|^ETHUSDT|^BNBUSDT|^OVERALL_STATUS/' || true)"
 if [[ -n "$coverage_summary" ]]; then
   echo "$coverage_summary"
+=======
+if [[ "$USE_CP_REPORTS" == "1" ]]; then
+  echo "INFO: coverage gate executed via scripts/check_data_coverage.sh"
+  echo "INFO: full coverage table delegated to control-plane/event reports"
+>>>>>>> origin/main
 else
   echo "$coverage_out"
 fi
@@ -97,6 +105,9 @@ fi
 LATEST_SUMMARY="$coverage_summary"
 if [[ -z "$LATEST_SUMMARY" ]]; then
   LATEST_SUMMARY="coverage output unavailable"
+fi
+if [[ "$USE_CP_REPORTS" == "1" ]]; then
+  echo "$LATEST_SUMMARY"
 fi
 
 echo "=== Daily ETL Complete ($(date)) ==="

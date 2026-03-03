@@ -1,0 +1,32 @@
+{
+  "name": "aggressive_yield_first_v1",
+  "hard_gates": {
+    "min_oos_sharpe": 0.55,
+    "max_oos_mdd": -0.20,
+    "min_trades_count": 12,
+    "min_pnl_mult": 1.0,
+    "max_is_oos_sharpe_ratio": 3.0
+  },
+  "soft_targets": {
+    "oos_sharpe": 0.95,
+    "oos_mdd": -0.12,
+    "trades_count": 32,
+    "pnl_mult": 1.06
+  },
+  "soft_penalties": {
+    "oos_sharpe_below_target": 14.0,
+    "oos_mdd_worse_target": 12.0,
+    "trades_shortfall": 6.0,
+    "pnl_shortfall": 10.0
+  },
+  "score": {
+    "base": 100.0,
+    "clip_min": 0.0,
+    "clip_max": 160.0,
+    "hard_fail_penalty": 40.0
+  },
+  "watchlist": {
+    "min_candidates": 1,
+    "recommend_if_score_ge": 55.0
+  }
+}

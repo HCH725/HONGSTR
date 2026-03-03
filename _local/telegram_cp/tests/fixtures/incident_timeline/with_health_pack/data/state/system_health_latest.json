@@ -1,0 +1,16 @@
+{
+  "generated_utc": "2026-02-26T06:00:00Z",
+  "ssot_status": "WARN",
+  "refresh_hint": "bash scripts/refresh_state.sh",
+  "components": {
+    "freshness": {"status": "OK", "non_ok_rows": 0},
+    "coverage_matrix": {"status": "PASS", "done": 1, "total": 1, "max_lag_h": 0.0},
+    "regime_signal": {"status": "FAIL", "top_reason": "Extreme risk detected"}
+  },
+  "sources": {
+    "freshness_table.json": {"path": "data/state/freshness_table.json", "exists": true, "ts_utc": "2026-02-26T06:00:00Z"},
+    "coverage_matrix_latest.json": {"path": "data/state/coverage_matrix_latest.json", "exists": true, "ts_utc": "2026-02-26T06:00:00Z"},
+    "brake_health_latest.json": {"path": "data/state/brake_health_latest.json", "exists": true, "ts_utc": "2026-02-26T06:00:00Z"},
+    "regime_monitor_latest.json": {"path": "data/state/regime_monitor_latest.json", "exists": true, "ts_utc": "2026-02-26T06:00:00Z"}
+  }
+}

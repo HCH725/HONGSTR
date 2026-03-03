@@ -1,0 +1,40 @@
+[
+  {
+    "name": "missing_profile_reason_source_fallback",
+    "symbol": "BTCUSDT",
+    "tf": "1m",
+    "profile": null,
+    "age_h": 20,
+    "status": "warn",
+    "source": "",
+    "reason": null,
+    "expected": {
+      "symbol": "BTCUSDT",
+      "tf": "1m",
+      "profile": "realtime",
+      "age_h": 20.0,
+      "status": "WARN",
+      "source": "data/derived/BTCUSDT/1m/klines.jsonl",
+      "reason": ""
+    }
+  },
+  {
+    "name": "invalid_profile_status_age_normalized",
+    "symbol": "",
+    "tf": "",
+    "profile": "invalid_profile",
+    "age_h": "not_a_number",
+    "status": "n/a",
+    "source": null,
+    "reason": " stale ",
+    "expected": {
+      "symbol": "UNKNOWN",
+      "tf": "UNKNOWN",
+      "profile": "realtime",
+      "age_h": null,
+      "status": "UNKNOWN",
+      "source": "data/derived/UNKNOWN/UNKNOWN/klines.jsonl",
+      "reason": "stale"
+    }
+  }
+]
