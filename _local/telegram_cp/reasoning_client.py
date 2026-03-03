@@ -6,7 +6,7 @@ import os
 import time
 import urllib.request
 from json import JSONDecodeError
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from .schemas_reasoning import ReasoningAnalysis
 
@@ -127,6 +127,10 @@ def _fallback_payload(status: str, problem: str) -> dict[str, Any]:
     }
 
 
+def _extract_tool_call(payload: dict[str, Any] | None) -> tuple[str, dict[str, Any]] | None:
+    return None
+
+
 def _normalize_payload(payload: dict[str, Any] | None, *, fallback_status: str, fallback_problem: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         payload = {}
@@ -190,50 +194,59 @@ def call_reasoning_specialist(
             "- report_only behavior only; do not propose executable actions.\n"
         )
 
-    body = {
-        "model": REASONING_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-        "stream": False,
-        "format": "json", # Support JSON mode if available, though deepseek-r1 might ignore it
-        "options": {"temperature": 0.2},
-    }
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt},
+    ]
 
-    url = f"{OLLAMA_ENDPOINT}/api/chat"
-    data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    def _request(current_messages: list[dict[str, str]]) -> str:
+        body = {
+            "model": REASONING_MODEL,
+            "messages": current_messages,
+            "stream": False,
+            "format": "json",
+            "options": {"temperature": 0.2},
+        }
+        url = f"{OLLAMA_ENDPOINT}/api/chat"
+        data = json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode("utf-8", "ignore")
 
     try:
         t0 = time.time()
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            raw_response = resp.read().decode("utf-8", "ignore")
-            extracted, source = _extract_reasoning_payload(raw_response)
-            if extracted is None:
-                logger.warning("Reasoning JSON extraction failed (source=%s)", source)
-                payload = _fallback_payload(
-                    "WARN",
-                    f"Reasoning JSON extraction failed ({source})",
-                )
-            else:
-                payload = _normalize_payload(
-                    extracted,
-                    fallback_status="WARN",
-                    fallback_problem="Reasoning output missing required fields.",
-                )
+        raw_response = _request(messages)
+        extracted, source = _extract_reasoning_payload(raw_response)
 
-            analysis = ReasoningAnalysis(**payload)
-            analysis.validate_actions_empty()  # Hard redline enforcement
-
-            elapsed = int((time.time() - t0) * 1000)
-            logger.info(
-                "Reasoning Specialist SUCCESS in %sms (status=%s, source=%s)",
-                elapsed,
-                analysis.status,
-                source,
+        if extracted is None:
+            logger.warning("Reasoning JSON extraction failed (source=%s)", source)
+            payload = _fallback_payload(
+                "WARN",
+                f"Reasoning JSON extraction failed ({source})",
             )
-            return analysis
+        else:
+            payload = _normalize_payload(
+                extracted,
+                fallback_status="WARN",
+                fallback_problem="Reasoning output missing required fields.",
+            )
+
+        analysis = ReasoningAnalysis(**payload)
+        analysis.validate_actions_empty()  # Hard redline enforcement
+
+        elapsed = int((time.time() - t0) * 1000)
+        logger.info(
+            "Reasoning Specialist SUCCESS in %sms (status=%s, source=%s)",
+            elapsed,
+            analysis.status,
+            source,
+        )
+        return analysis
 
     except Exception as e:
         logger.error("Reasoning Specialist FAILED: %s: %s", type(e).__name__, e)

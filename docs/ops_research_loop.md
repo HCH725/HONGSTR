@@ -10,7 +10,9 @@ The Autonomous Research Loop leverages the Reasoning Specialist (`deepseek-r1:7b
 2. **Propose**: Generate a JSON research proposal based on data anomalies or optimization gaps.
 3. **Validate**: Cross-check the proposal against `research/experiments/registry.json`.
 4. **Run**: Execute (simulated/report-only) backtests.
-5. **Report**: Generate markdown reports in `reports/research/`.
+5. **Gate**: Evaluate with config-driven hard+soft governance policy.
+6. **Report**: Generate markdown reports in `reports/research/`.
+7. **Weekly Governance**: Generate report-only quant checklist artifacts under `reports/research/governance/`.
 
 ## Safety & Redlines
 
@@ -30,3 +32,11 @@ Edit `research/experiments/registry.json` to modify:
 ## Scheduling
 
 The loop is intended to run daily at 06:20 via `launchd` (using `scripts/run_research_loop.sh`).
+
+## Governance Standard
+
+- Policy file: `research/policy/overfit_gates_aggressive.json`
+- Candidate catalog: `research/policy/candidate_catalog.json`
+- Ops docs: `docs/governance/overfit_gates_aggressive.md`
+- Weekly checklist template: `docs/governance/overfit_weekly_checklist.md`
+- Direction variants reporting: `docs/governance/direction_variants_reporting.md`

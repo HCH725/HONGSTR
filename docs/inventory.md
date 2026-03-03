@@ -17,7 +17,7 @@
 - scripts/ingest_historical.py
 - scripts/aggregate_data.py
 - scripts/check_data_coverage.sh
-- data/derived/<SYMBOL>/1m/klines.jsonl (canonical backtest source)
+- data/derived/SYMBOL/1m/klines.jsonl (canonical backtest source)
 
 ## Notifications
 
@@ -35,6 +35,31 @@
 - .github/CODEOWNERS
 - .github/workflows/guardrails.yml
 - .github/pull_request_template.md
+
+## Architecture
+
+- [System Flow & Terminology Glossary](docs/architecture/flow_and_glossary.md)
+
+## Operations (Partner & Operator)
+
+- [Daily Report Single Entry](docs/ops/daily_report_single_entry.md) **(Primary)**
+- [Worker Pack (macOS-only)](docs/ops/worker_pack.md) **(Primary)**
+- [Worker Acceptance Checklist](docs/ops/worker_acceptance_checklist.md) **(Primary)**
+- [PM Checklist](docs/ops/pm_checklist.md)
+- [PM Snapshot Runbook](docs/ops/pm_snapshot_runbook.md)
+
+## Reference (Operations)
+
+These are reference materials, not daily operational entrypoints. Daily status should be consumed from `/daily` only.
+
+- [Daily Report & Glossary (zh-TW)](docs/ops/daily_report_zh.md) **(Reference Only)**
+- [Telegram Operator Manual](docs/ops/telegram_operator_manual.md) **(Reference Only)**
+- [Daily Report Contract](docs/ops/daily_report_contract.md) **(Reference Only)**
+- [Acronym Glossary (zh-TW)](docs/ops/acronym_glossary_zh.md) **(Reference Only)**
+- [Worker Pack launchd examples](docs/ops/worker_pack_launchd.md) **(Reference Only)**
+- `docs/audits/*.md` (historical analysis reports)
+- `docs/governance/*.md` (policy background)
+- `docs/runbook/*.md` (operational fallback manual)
 
 ## State / Artifacts (expected)
 

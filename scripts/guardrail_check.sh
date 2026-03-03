@@ -41,4 +41,19 @@ while IFS= read -r f; do
   fi
 done <<< "${files}"
 
+# 4) Prevent Python UTC API regressions in the Obsidian pipeline.
+bad_import_prefix='from datetime import '
+bad_name='UTC'
+bad_attr_type='datetime'
+bad_import_regex="${bad_import_prefix}.*${bad_name}"
+bad_attr_regex="${bad_attr_type}\\.${bad_name}"
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  if [[ -f "$f" ]]; then
+    if grep -nE "${bad_import_regex}|${bad_attr_regex}" "$f" >/dev/null 2>&1; then
+      fail "forbidden UTC API detected in $f. Use timezone.utc or obsidian_common.UTC / utc_now()."
+    fi
+  fi
+done <<< "${files}"
+
 echo "guardrail_check: PASS"

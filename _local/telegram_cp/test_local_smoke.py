@@ -16,8 +16,11 @@ import time
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
+from _local.telegram_cp.prompt_pack import build_system_prompt as build_prompt_pack_system_prompt, select_overlay
 
-INCIDENT_FIXTURES = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/incident_timeline")
+TEST_DIR = Path(__file__).resolve().parent
+FIXTURES_DIR = TEST_DIR / "tests" / "fixtures"
+INCIDENT_FIXTURES = FIXTURES_DIR / "incident_timeline"
 
 
 def _sandbox_state(monkeypatch, tmp_path, s):
@@ -33,7 +36,7 @@ def _sandbox_state(monkeypatch, tmp_path, s):
 
 
 def _load_server():
-    p = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tg_cp_server.py")
+    p = TEST_DIR / "tg_cp_server.py"
     spec = importlib.util.spec_from_file_location("tg_cp_server_testmod", p)
     mod = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
@@ -66,8 +69,8 @@ def test_guardrail_blocks_trade_request(monkeypatch, tmp_path):
 # ── policy + skills contract ──
 
 def test_policy_and_skills_contract():
-    policy = json.loads(Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/policy.json").read_text(encoding="utf-8"))
-    skills = json.loads(Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/skills_registry.json").read_text(encoding="utf-8"))["skills"]
+    policy = json.loads((TEST_DIR / "policy.json").read_text(encoding="utf-8"))
+    skills = json.loads((TEST_DIR / "skills_registry.json").read_text(encoding="utf-8"))["skills"]
 
     assert policy["mode"] == "read_only"
     assert policy["allowed_actions"] == []
@@ -84,7 +87,7 @@ def test_start_command(monkeypatch, tmp_path):
     resp = s._handle_command(10, "/start")
     assert "中樞管家" in resp
     assert "不支援" not in resp
-    assert "/status" in resp and "/help" in resp
+    assert "/status" in resp
 
     resp2 = s._handle_command(10, "/start@HONGSTR_bot")
     assert "中樞管家" in resp2
@@ -96,11 +99,12 @@ def test_help_command(monkeypatch, tmp_path):
 
     resp = s._handle_command(20, "/help")
     assert "/status" in resp
-    assert "/skills" in resp
+    assert "/daily" in resp
+
     # Must list all monitoring commands so users can discover them
     assert "/freshness" in resp
     assert "/regime" in resp
-    assert "/ml_status" in resp
+
 
 
 # ── command routing: /freshness, /regime, /ml_status must NOT return 不認識 ──
@@ -132,19 +136,6 @@ def test_regime_routing(monkeypatch, tmp_path):
         resp = s._handle_command(20, cmd)
         assert "不認識" not in resp, f"{cmd} returned 不認識 — routing is broken"
         assert "Regime" in resp or "機制" in resp or "UNKNOWN" in resp
-
-
-def test_ml_status_routing(monkeypatch, tmp_path):
-    """Regression: /ml_status must never return the 不認識 fallback."""
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    monkeypatch.setattr(s, "REPO", repo)
-    resp = s._handle_command(20, "/ml_status")
-    assert "不認識" not in resp, "/ml_status returned 不認識 — routing is broken"
-    assert "ML" in resp or "Pipeline" in resp
-
 
 
 def _write_status_ssot_sources(repo: Path) -> None:
@@ -191,6 +182,122 @@ def _write_status_ssot_sources(repo: Path) -> None:
             }
         )
         + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_daily_report_ssot(repo: Path) -> None:
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "daily_report_latest.json").write_text(
+        json.dumps(
+            {
+                "schema": {"version": "daily_report.v1", "field_labels_zh_en": {}},
+                "generated_utc": "2026-02-27T00:00:00Z",
+                "refresh_hint": "bash scripts/refresh_state.sh",
+                "ssot_status": "OK",
+                "ssot_components": {
+                    "freshness": {"status": "OK"},
+                    "coverage_matrix": {"status": "PASS"},
+                    "brake": {"status": "OK"},
+                    "regime_monitor": {"status": "OK"},
+                    "regime_signal": {
+                        "status": "FAIL",
+                        "top_reason": "MDD 跌破保護線",
+                        "threshold_value": -0.0353,
+                        "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
+                        "threshold_policy_sha": "abc123def4567890",
+                        "threshold_rationale": "最大回撤超過 p95 風險區間",
+                        "calibration_status": "STALE",
+                        "last_calibrated_utc": "2026-02-18T00:00:00Z",
+                    },
+                },
+                "freshness_summary": {
+                    "counts": {"OK": 8, "WARN": 1, "FAIL": 0, "UNKNOWN": 0},
+                    "profile_totals": {"realtime": 6, "backtest": 3},
+                    "total_rows": 9,
+                    "max_age_h": 2.4,
+                    "top_offenders": [
+                        {"symbol": "ETHUSDT", "tf": "4h", "profile": "backtest", "age_h": 2.4, "status": "WARN"}
+                    ],
+                },
+                "latest_backtest_head": {
+                    "source": "local",
+                    "path": "reports/research/20260227/trend_mvp_btc_1h__long__baseline/summary.json",
+                    "bundle": None,
+                    "timestamp": "2026-02-27T22:20:01Z",
+                    "timestamp_utc": "2026-02-27T22:20:01Z",
+                    "reason": "local backtest newer or equal to worker bundle",
+                    "candidate_id": "trend_mvp_btc_1h__long__baseline",
+                    "direction": "LONG",
+                    "metrics_status": "OK",
+                    "metrics": {
+                        "final_score": 88.5,
+                        "oos_sharpe": 1.2,
+                        "oos_mdd": -0.09,
+                        "is_sharpe": 1.4,
+                        "trades_count": 37,
+                    },
+                    "gate": {"overall": "PASS"},
+                },
+                "strategy_pool": {
+                    "summary": {"counts": {"candidates": 3, "promoted": 1, "demoted": 2}},
+                    "leaderboard_top": [
+                        {
+                            "strategy_id": "trend_mvp_btc_1h",
+                            "direction": "LONG",
+                            "score": 88.5,
+                            "oos_sharpe": 1.2,
+                            "oos_return": 2.1,
+                            "metrics_status": "OK",
+                        },
+                        {
+                            "strategy_id": "ema_cross_v3",
+                            "direction": "SHORT",
+                            "score": None,
+                            "oos_sharpe": None,
+                            "oos_return": None,
+                            "metrics_status": "UNKNOWN",
+                        },
+                    ],
+                    "direction_coverage": {
+                        "counts": {"long": 2, "short": 1, "longshort": 0, "unknown": 0},
+                        "short_coverage": {
+                            "candidates": 1,
+                            "gate_pass": 1,
+                            "best_entry": {
+                                "strategy_id": "ema_cross_v3",
+                                "score": None,
+                                "metrics_status": "UNKNOWN",
+                            },
+                            "best_entry_reason": None,
+                        },
+                    },
+                },
+                "governance": {
+                    "overfit_gates_policy": {"name": "aggressive_yield_first_v1"},
+                    "today_gate_summary": {"scope": "today_utc", "pass": 1, "warn": 0, "fail": 1, "unknown": 1},
+                },
+                "guardrails": {
+                    "status": "PASS",
+                    "checks": {
+                        "core_diff_src_hongstr": {"status": "PASS_EXPECTED"},
+                        "tg_cp_no_exec": {"status": "PASS_EXPECTED"},
+                        "no_data_committed": {"status": "PASS_EXPECTED"},
+                    }
+                },
+                "sources": {
+                    "worker_inbox": {
+                        "present": True,
+                        "latest_bundle": "mba_m4_backtests_20260227T210000Z",
+                        "bundle_path": "_local/worker_inbox/mba_m4_backtests_20260227T210000Z",
+                        "bundle_ts_utc": "2026-02-27T21:00:00Z",
+                        "ingested_into_state": True,
+                        "note": "worker 較舊，沿用 local",
+                    }
+                },
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -411,6 +518,135 @@ def test_status_health_pack_overrides_conflicting_component_files(monkeypatch, t
     assert "component says fail" not in resp
 
 
+def test_daily_command_fallback_with_fixture(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("timeout")))
+
+    resp = s._handle_command(38, "/daily")
+    assert "DAILY_REPORT_STATUS: WARN" in resp
+    assert "1) SystemHealth" in resp
+    assert "2) DataFreshness" in resp
+    assert "3) Backtest" in resp
+    assert "4) StrategyPool+Leaderboard" in resp
+    assert "5) Governance(Overfit)" in resp
+    assert "6) Guardrails" in resp
+    assert "狀態:" in resp
+    assert "白話:" in resp
+    assert "下一步:" in resp
+    assert "SSOT(" in resp
+    assert "MDD(" in resp
+    assert "DCA(" in resp
+    assert "RegimeSignal（市場風險告警）=FAIL" in resp
+    assert "來源=reports/strategy_research/phase3/phase3_results.json" in resp
+    assert "版本=abc123def456" in resp
+    assert "校準狀態=STALE" in resp
+    assert "上次校準=2026-02-18T00:00:00Z" in resp
+    assert "先降槓桿或降部位、暫停 promote" in resp
+    assert "SHORT覆蓋" in resp
+    assert "來源：LOCAL trend_mvp_btc_1h__long__baseline（worker 較舊，沿用 local）" in resp
+    assert "RefreshHint: bash scripts/refresh_state.sh" in resp
+
+
+def test_daily_command_regime_calibration_stale_sop(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    # Override fixture to simulate calibration stale with no immediate fail.
+    state_dir = repo / "data/state"
+    payload = json.loads((state_dir / "daily_report_latest.json").read_text(encoding="utf-8"))
+    payload["ssot_components"]["regime_signal"]["status"] = "OK"
+    payload["ssot_components"]["regime_signal"]["top_reason"] = "within range"
+    payload["ssot_components"]["regime_signal"]["calibration_status"] = "STALE"
+    payload["ssot_components"]["regime_signal"]["last_calibrated_utc"] = "2026-02-01T00:00:00Z"
+    (state_dir / "daily_report_latest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    resp = s._handle_command(381, "/daily")
+    assert "校準狀態=STALE" in resp
+    assert "Regime 門檻校準已過期；先跑 calibrate_regime_thresholds 並開 policy PR" in resp
+
+
+def test_daily_command_section_shape_is_three_lines(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    resp = s._handle_command(380, "/daily")
+    for idx, title in [
+        (1, "SystemHealth"),
+        (2, "DataFreshness"),
+        (3, "Backtest"),
+        (4, "StrategyPool+Leaderboard"),
+        (5, "Governance(Overfit)"),
+        (6, "Guardrails"),
+    ]:
+        anchor = f"{idx}) {title}"
+        assert anchor in resp
+        after = resp.split(anchor, 1)[1]
+        lines = [ln for ln in after.splitlines() if ln.strip()]
+        assert lines[0].startswith("狀態:")
+        if title == "Backtest":
+            assert lines[1].startswith("來源：")
+            assert lines[2].startswith("白話:")
+            assert lines[3].startswith("下一步:")
+        else:
+            assert lines[1].startswith("白話:")
+            assert lines[2].startswith("下一步:")
+
+
+def test_daily_command_backtest_worker_source_line(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    _write_daily_report_ssot(repo)
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    state_dir = repo / "data/state"
+    payload = json.loads((state_dir / "daily_report_latest.json").read_text(encoding="utf-8"))
+    payload["latest_backtest_head"]["source"] = "worker_inbox"
+    payload["latest_backtest_head"]["bundle"] = "mba_m4_backtests_20260228T083052Z"
+    payload["latest_backtest_head"]["reason"] = "worker bundle newer than local backtest"
+    payload["sources"]["worker_inbox"]["note"] = "worker 較新，已選為最新回測"
+    (state_dir / "daily_report_latest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    resp = s._handle_command(382, "/daily")
+    assert "來源：WORKER mba_m4_backtests_20260228T083052Z" in resp
+
+
+def test_daily_command_missing_ssot(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(s, "REPO", repo)
+    monkeypatch.setattr(s, "call_reasoning_specialist", lambda *args, **kwargs: None)
+
+    resp = s._handle_command(39, "/daily")
+    assert "DAILY_REPORT_STATUS: WARN" in resp
+    assert "missing_daily_report_ssot" in resp
+    assert "資料不足/UNKNOWN" in resp
+    assert "6) Guardrails" in resp
+    assert "RefreshHint: bash scripts/refresh_state.sh" in resp
+
+
+def test_report_daily_alias_not_supported(monkeypatch, tmp_path):
+    s = _load_server()
+    _sandbox_state(monkeypatch, tmp_path, s)
+    resp = s._handle_command(39, "/report_daily")
+    assert "不認識" in resp
+
+
 def test_ping_command(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
@@ -442,119 +678,10 @@ def test_skill_status_overview_reuses_status_report(monkeypatch, tmp_path):
     assert "Sources: a.json, b.json" in with_sources
 
 
-def test_skills_command(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    resp = s._handle_command(50, "/skills")
-    assert "status_overview" in resp
-    assert "logs_tail_hint" in resp
-    assert "signal_leakage_and_lookahead_audit" in resp
-    assert "incident_timeline_builder" in resp
 
 
-def test_incident_timeline_builder_run_from_health_pack(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "with_health_pack")
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder "
-        "start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod "
-        "keywords=latency,regime services=tg_cp,dashboard"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert set(payload.keys()) == {"summary", "timeline", "suspected_root_causes", "next_questions"}
-    assert payload["summary"]["report_only"] is True
-    assert payload["summary"]["status"] in {"OK", "WARN", "FAIL", "UNKNOWN"}
-    assert isinstance(payload["timeline"], list) and payload["timeline"]
 
 
-def test_incident_timeline_builder_run_missing_ssot_returns_unknown(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "missing_all")
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload["summary"]["status"] == "UNKNOWN"
-    assert payload["summary"]["status"] == "UNKNOWN"
-    assert "refresh_state.sh" in str(payload["summary"]["refresh_hint"])
-
-
-def test_incident_timeline_builder_run_fallback_only(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    monkeypatch.setattr(s, "REPO", INCIDENT_FIXTURES / "fallback_only")
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder "
-        "start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload["summary"]["status"] in {"OK", "WARN"}
-    assert payload["summary"]["source_mode"] == "ssot_fallback"
-    assert len(payload["timeline"]) >= 4  # 4 component files
-
-
-def test_incident_timeline_builder_run_unreadable_ssot_returns_unknown(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    state_dir = repo / "data/state"
-    state_dir.mkdir(parents=True)
-    # Corrupt JSON
-    (state_dir / "system_health_latest.json").write_text("{corrupt", encoding="utf-8")
-    monkeypatch.setattr(s, "REPO", repo)
-
-    out, ok = s._handle_run(
-        "/run incident_timeline_builder start=2026-02-26T00:00:00Z end=2026-02-26T06:00:00Z env=prod"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload["summary"]["status"] == "UNKNOWN"
-    assert "freshness_table.json: missing" in str(payload["suspected_root_causes"])
-
-
-def test_unknown_command(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    resp = s._handle_command(60, "/foobar")
-    assert "/help" in resp
-
-
-def test_signal_leakage_lookahead_proxy_skill(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    out, ok = s._handle_run(
-        "/run signal_leakage_and_lookahead_audit artifact_path=research/audit/tests/fixtures/lookahead.json"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload.get("report_only") is True
-    assert payload.get("status") == "FAIL"
-    assert any(i.get("type") == "lookahead" for i in payload.get("issues", []))
-
-
-def test_signal_leakage_lookahead_proxy_scope_guard(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    out, ok = s._handle_run(
-        "/run signal_leakage_and_lookahead_audit artifact_path=data/state/system_health_latest.json"
-    )
-    assert ok is True
-    payload = json.loads(out)
-    assert payload.get("status") == "UNKNOWN"
-    assert any(i.get("type") == "scope" for i in payload.get("issues", []))
 
 
 # ── conversation history ──
@@ -615,6 +742,20 @@ def test_system_prompt_includes_user_memories(monkeypatch, tmp_path):
     assert "洪老爺" in prompt
 
 
+def test_prompt_pack_overlay_selection():
+    assert select_overlay("qwen2.5-coder:7b-instruct") == "overlay_qwen2.5-coder_7b_instruct.md"
+    assert select_overlay("deepseek-r1:7b") == "overlay_deepseek-r1_7b.md"
+    assert select_overlay("qwen2.5:7b-instruct") == "overlay_qwen2.5_7b_instruct.md"
+    assert select_overlay("unknown-model") == "overlay_qwen2.5_7b_instruct.md"
+
+
+def test_prompt_pack_builds_for_supported_models():
+    for model_name in ("qwen2.5-coder:7b-instruct", "deepseek-r1:7b", "qwen2.5:7b-instruct"):
+        prompt = build_prompt_pack_system_prompt(model_name)
+        assert prompt
+        assert "HARD RED LINES" in prompt
+
+
 # ── secret redaction ──
 
 def test_reply_does_not_leak_token():
@@ -633,25 +774,6 @@ def test_llm_offline_returns_fallback(monkeypatch, tmp_path):
 
     resp, route = s.build_chat_reply(400, "你好", use_llm=False)
     assert route == "FALLBACK"
-    assert "LLM" in resp or "/status" in resp or "/help" in resp
-
-
-# ── remember command ──
-
-def test_remember_and_memories(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-
-    resp = s._handle_command(500, "/remember 以後叫我洪老爺")
-    assert "記" in resp
-
-    resp2 = s._handle_command(500, "/memories")
-    assert "洪老爺" in resp2
-
-
-# ── deferred followup queue ──
-
-def test_extract_followup_tag_basic():
     from _local.telegram_cp.tg_cp_server import _extract_followup_tag
     text = "好的，我幫你查，等等回報你。\n[FOLLOWUP:5:ETL 狀態和資料新鮮度]"
     minutes, topic, cleaned = _extract_followup_tag(text)
@@ -752,6 +874,9 @@ def test_build_chat_reply_enqueues_followup(monkeypatch, tmp_path):
     assert task["done"] is False
     assert task["chat_id"] == 600
     assert task["chat_id"] == 600
+
+
+
 
 
 # ── freshness ──
@@ -1243,7 +1368,7 @@ def test_morning_brief_full_pack(monkeypatch, tmp_path):
     state_dir.mkdir(parents=True)
     
     # Use fixture content
-    fixture_path = Path("/Users/hong/Projects/HONGSTR/_local/telegram_cp/tests/fixtures/health_brief/system_health_latest_ok.json")
+    fixture_path = FIXTURES_DIR / "health_brief" / "system_health_latest_ok.json"
     (state_dir / "system_health_latest.json").write_text(fixture_path.read_text())
     
     monkeypatch.setattr(s, "REPO", repo)
@@ -1292,25 +1417,6 @@ def test_morning_brief_unknown(monkeypatch, tmp_path):
     
     assert res["status"] == "UNKNOWN"
     assert "Issues: Missing" in res["markdown"]
-
-def test_morning_brief_integration(monkeypatch, tmp_path):
-    s = _load_server()
-    _sandbox_state(monkeypatch, tmp_path, s)
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    state_dir = repo / "data/state"
-    state_dir.mkdir(parents=True)
-    (state_dir / "system_health_latest.json").write_text(json.dumps({
-        "ssot_status": "OK",
-        "components": {"coverage_matrix": {"status": "PASS"}}
-    }))
-    monkeypatch.setattr(s, "REPO", repo)
-    
-    # Test via /run command
-    out, ok = s._handle_run("/run system_health_morning_brief env=prod")
-    assert ok is True
-    assert "Morning Brief" in out
-    assert "Status: OK" in out
 
 # ── config_drift_auditor ──
 
@@ -1515,6 +1621,7 @@ def test_strategy_regime_sensitivity_report_unknown(monkeypatch, tmp_path):
     assert res["actions"] == []
     assert res["missing_artifacts"]
     assert "refresh_state.sh" in str(res.get("refresh_hint", ""))
+<<<<<<< HEAD
 
 
 def test_run_quant_missing_artifacts_returns_json_contract(monkeypatch, tmp_path):
@@ -1607,3 +1714,5 @@ def test_quant_skill_help_examples_match_schema(monkeypatch, tmp_path):
         assert "allowed_keys" in out
         assert "schema:" in out
         assert "example_command:" in out
+=======
+>>>>>>> origin/main

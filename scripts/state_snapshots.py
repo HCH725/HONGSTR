@@ -10,7 +10,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -19,12 +19,67 @@ ATOMIC_STATE_DIR = Path("reports/state_atomic")
 ATOMIC_COVERAGE_TABLE = ATOMIC_STATE_DIR / "coverage_table.jsonl"
 ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
 ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
+ATOMIC_WATCHDOG_STATUS = ATOMIC_STATE_DIR / "watchdog_status_latest.json"
+WORKER_INBOX_DIR = Path("_local/worker_inbox")
 DEFAULT_FRESHNESS_PROFILE = "realtime"
 FRESHNESS_THRESHOLDS = {
     "realtime": {"ok_h": 0.1, "warn_h": 0.25, "fail_h": 1.0},
     "backtest": {"ok_h": 26.0, "warn_h": 50.0, "fail_h": 72.0},
 }
 FRESHNESS_ROW_KEYS = ("symbol", "tf", "profile", "age_h", "status", "source", "reason")
+DAILY_REPORT_SCHEMA_VERSION = "daily_report.v1"
+DAILY_REPORT_TOP_LEVEL_ORDER = [
+    "schema",
+    "generated_utc",
+    "refresh_hint",
+    "ssot_status",
+    "ssot_components",
+    "freshness_summary",
+    "latest_backtest_head",
+    "strategy_pool",
+    "research_leaderboard",
+    "governance",
+    "guardrails",
+    "sources",
+]
+DAILY_REPORT_FIELD_LABELS_ZH_EN = {
+    "generated_utc": {"zh": "生成時間(UTC)", "en": "generated_utc"},
+    "refresh_hint": {"zh": "更新提示", "en": "refresh_hint"},
+    "ssot_status": {"zh": "系統總狀態", "en": "ssot_status"},
+    "ssot_components": {"zh": "系統組件狀態", "en": "ssot_components"},
+    "freshness_summary": {"zh": "資料新鮮度摘要", "en": "freshness_summary"},
+    "latest_backtest_head": {"zh": "最新回測摘要", "en": "latest_backtest_head"},
+    "strategy_pool": {"zh": "策略池摘要", "en": "strategy_pool"},
+    "research_leaderboard": {"zh": "研究排行榜摘要", "en": "research_leaderboard"},
+    "governance": {"zh": "治理摘要", "en": "governance"},
+    "guardrails": {"zh": "護欄摘要", "en": "guardrails"},
+    "sources": {"zh": "資料來源", "en": "sources"},
+    "freshness_summary.profile_totals": {"zh": "新鮮度分檔統計", "en": "freshness_summary.profile_totals"},
+    "latest_backtest_head.metrics": {"zh": "最新回測關鍵指標", "en": "latest_backtest_head.metrics"},
+    "strategy_pool.leaderboard_top": {"zh": "策略池排行前列", "en": "strategy_pool.leaderboard_top"},
+    "strategy_pool.direction_coverage": {"zh": "策略方向覆蓋摘要", "en": "strategy_pool.direction_coverage"},
+    "strategy_pool.direction_coverage.short_coverage": {"zh": "空方覆蓋摘要", "en": "strategy_pool.direction_coverage.short_coverage"},
+    "governance.today_gate_summary": {"zh": "今日Gate摘要", "en": "governance.today_gate_summary"},
+    "sources.worker_inbox": {"zh": "Worker 收件匣來源", "en": "sources.worker_inbox"},
+    "latest_backtest_head.source": {"zh": "最新回測來源", "en": "latest_backtest_head.source"},
+    "ssot_components.cost_sensitivity": {"zh": "成本敏感度摘要", "en": "ssot_components.cost_sensitivity"},
+    "ssot_components.watchdog": {"zh": "Watchdog摘要", "en": "ssot_components.watchdog"},
+    "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
+    "ssot_components.regime_signal.threshold_source_path": {"zh": "RegimeSignal門檻來源路徑", "en": "ssot_components.regime_signal.threshold_source_path"},
+    "ssot_components.regime_signal.threshold_policy_sha": {"zh": "RegimeSignal門檻版本SHA", "en": "ssot_components.regime_signal.threshold_policy_sha"},
+    "ssot_components.regime_signal.threshold_rationale": {"zh": "RegimeSignal門檻理由", "en": "ssot_components.regime_signal.threshold_rationale"},
+    "ssot_components.regime_signal.calibration_status": {"zh": "RegimeSignal校準狀態", "en": "ssot_components.regime_signal.calibration_status"},
+    "ssot_components.regime_signal.last_calibrated_utc": {"zh": "RegimeSignal上次校準時間", "en": "ssot_components.regime_signal.last_calibrated_utc"},
+    "sources.watchdog_status_latest": {"zh": "Watchdog來源", "en": "sources.watchdog_status_latest"},
+}
+
+
+def _daily_schema_spec() -> dict[str, Any]:
+    return {
+        "version": DAILY_REPORT_SCHEMA_VERSION,
+        "top_level_order": list(DAILY_REPORT_TOP_LEVEL_ORDER),
+        "field_labels_zh_en": dict(DAILY_REPORT_FIELD_LABELS_ZH_EN),
+    }
 
 
 def _normalize_simple_status(status_raw):
@@ -206,6 +261,92 @@ def _normalize_brake_snapshot(payload: dict, now_utc: str) -> dict:
         out["status"] = status
     return out
 
+
+def _normalize_watchdog_snapshot(payload: dict, now_utc: str) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+
+    launchctl_src = payload.get("launchctl") if isinstance(payload.get("launchctl"), dict) else {}
+    last_check_src = payload.get("last_check") if isinstance(payload.get("last_check"), dict) else {}
+    sources_src = payload.get("sources") if isinstance(payload.get("sources"), dict) else {}
+
+    generated_utc = payload.get("generated_utc") or payload.get("ts_utc") or now_utc
+    if not isinstance(generated_utc, str) or not generated_utc.strip():
+        generated_utc = now_utc
+    ts_utc = payload.get("ts_utc") or generated_utc
+    if not isinstance(ts_utc, str) or not ts_utc.strip():
+        ts_utc = generated_utc
+
+    status = _normalize_simple_status(payload.get("status"))
+    if status == "PASS":
+        status = "OK"
+    if status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        status = "UNKNOWN"
+
+    line_status = _normalize_simple_status(last_check_src.get("line_status"))
+    if line_status == "PASS":
+        line_status = "OK"
+    if line_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        line_status = "UNKNOWN"
+
+    status_reason = str(payload.get("status_reason") or "").strip()
+    line_reason = str(last_check_src.get("line_reason") or "").strip()
+    launchctl_state = str(launchctl_src.get("state") or "").strip() or None
+    label = str(payload.get("label") or "com.hongstr.tg_cp_watchdog").strip() or "com.hongstr.tg_cp_watchdog"
+    launchctl_target = str(payload.get("launchctl_target") or launchctl_src.get("target") or "").strip()
+    if not launchctl_target:
+        launchctl_target = f"gui/UNKNOWN/{label}"
+
+    last_line = last_check_src.get("last_line")
+    if last_line is not None:
+        last_line = str(last_line)
+
+    command_stderr = launchctl_src.get("command_stderr")
+    if command_stderr is not None:
+        command_stderr = str(command_stderr)
+
+    output_path = str(sources_src.get("output_path") or ATOMIC_WATCHDOG_STATUS).strip()
+
+    return {
+        "schema_version": str(payload.get("schema_version") or "watchdog_status.v1"),
+        "generated_utc": generated_utc,
+        "ts_utc": ts_utc,
+        "label": label,
+        "launchctl_target": launchctl_target,
+        "status": status,
+        "status_reason": status_reason,
+        "launchctl": {
+            "ok": bool(launchctl_src.get("ok")),
+            "target": str(launchctl_src.get("target") or launchctl_target).strip() or launchctl_target,
+            "state": launchctl_state,
+            "active_count": _as_int_opt(launchctl_src.get("active_count")),
+            "runs": _as_int_opt(launchctl_src.get("runs")),
+            "last_exit_code": _as_int_opt(launchctl_src.get("last_exit_code")),
+            "path": str(launchctl_src.get("path") or "").strip() or None,
+            "stdout_path": str(launchctl_src.get("stdout_path") or "").strip() or None,
+            "stderr_path": str(launchctl_src.get("stderr_path") or "").strip() or None,
+            "program": str(launchctl_src.get("program") or "").strip() or None,
+            "run_interval_seconds": _as_int_opt(launchctl_src.get("run_interval_seconds")),
+            "command_return_code": _as_int_opt(launchctl_src.get("command_return_code")),
+            "command_stderr": command_stderr,
+        },
+        "last_check": {
+            "log_path": str(last_check_src.get("log_path") or "").strip() or None,
+            "exists": bool(last_check_src.get("exists")),
+            "last_line": last_line,
+            "line_status": line_status,
+            "line_reason": line_reason,
+            "updated_at_utc": str(last_check_src.get("updated_at_utc") or "").strip() or None,
+            "age_sec": _as_int_opt(last_check_src.get("age_sec")),
+            "expected_within_sec": _as_int_opt(last_check_src.get("expected_within_sec")),
+        },
+        "sources": {
+            "launchctl_command": str(sources_src.get("launchctl_command") or "").strip() or None,
+            "log_path": str(sources_src.get("log_path") or "").strip() or None,
+            "output_path": output_path,
+        },
+    }
+
 def read_jsonl(path: Path):
     records = []
     if not path.exists():
@@ -250,6 +391,731 @@ def write_jsonl(path: Path, rows: list):
                 f.write(json.dumps(row) + "\n")
     except Exception as e:
         logging.error(f"Failed to write snapshot {path}: {e}")
+
+
+def _as_float_opt(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _as_int_opt(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(float(value))
+    except Exception:
+        return None
+
+
+def _normalize_gate_status(status_raw: Any) -> str:
+    status = str(status_raw or "UNKNOWN").upper().strip()
+    if status in {"PASS", "OK", "DONE"}:
+        return "PASS"
+    if status in {"WARN", "IN_PROGRESS"}:
+        return "WARN"
+    if status in {"FAIL", "BLOCKED", "BLOCKED_DATA_QUALITY"}:
+        return "FAIL"
+    return "UNKNOWN"
+
+
+def _metrics_status(required: dict[str, Any]) -> tuple[str, str | None]:
+    missing = [k for k, v in required.items() if _as_float_opt(v) is None]
+    if missing:
+        return "UNKNOWN", "missing_metrics:" + ",".join(missing)
+    return "OK", None
+
+
+def _safe_rel_path(path_like: Any, root: Path) -> str:
+    if not path_like:
+        return ""
+    p = Path(str(path_like))
+    if not p.is_absolute():
+        return str(p).replace("\\", "/")
+    try:
+        return str(p.resolve().relative_to(root.resolve())).replace("\\", "/")
+    except Exception:
+        return str(p).replace("\\", "/")
+
+
+def _parse_ts_epoch(value: Any) -> float | None:
+    if not isinstance(value, str):
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    try:
+        normalized = raw
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        dt = datetime.fromisoformat(normalized)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+    except Exception:
+        return None
+
+
+def _ts_utc_from_epoch(epoch: float | None) -> str | None:
+    if epoch is None:
+        return None
+    try:
+        return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        return None
+
+
+def _normalize_ts_utc(value: Any) -> str | None:
+    return _ts_utc_from_epoch(_parse_ts_epoch(value))
+
+
+def _path_mtime_utc(path: Path) -> str | None:
+    try:
+        return _ts_utc_from_epoch(path.stat().st_mtime)
+    except Exception:
+        return None
+
+
+def _worker_bundle_ts_utc(bundle_name: str) -> str | None:
+    token = str(bundle_name or "")
+    marker = "_backtests_"
+    if marker not in token:
+        return None
+    suffix = token.rsplit(marker, 1)[-1].strip()
+    if len(suffix) != 16 or suffix[8] != "T" or not suffix.endswith("Z"):
+        return None
+    try:
+        return (
+            f"{suffix[0:4]}-{suffix[4:6]}-{suffix[6:8]}T"
+            f"{suffix[9:11]}:{suffix[11:13]}:{suffix[13:15]}Z"
+        )
+    except Exception:
+        return None
+
+
+def _freshness_summary(freshness_table: dict[str, Any]) -> dict[str, Any]:
+    rows = freshness_table.get("rows", []) if isinstance(freshness_table, dict) else []
+    counts = {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0}
+    profile_totals = {"realtime": 0, "backtest": 0}
+    max_age_h = None
+    offenders: list[dict[str, Any]] = []
+
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        status = _normalize_simple_status(row.get("status"))
+        if status not in counts:
+            status = "UNKNOWN"
+        counts[status] += 1
+
+        profile = str(row.get("profile") or DEFAULT_FRESHNESS_PROFILE).lower().strip()
+        if profile not in profile_totals:
+            profile = DEFAULT_FRESHNESS_PROFILE
+        profile_totals[profile] += 1
+
+        age_h = _as_float_opt(row.get("age_h"))
+        if age_h is not None:
+            max_age_h = age_h if max_age_h is None else max(max_age_h, age_h)
+
+        if status != "OK":
+            offenders.append(
+                {
+                    "symbol": str(row.get("symbol") or "UNKNOWN"),
+                    "tf": str(row.get("tf") or "UNKNOWN"),
+                    "profile": profile,
+                    "age_h": round(age_h, 1) if age_h is not None else None,
+                    "status": status,
+                    "reason": row.get("reason") or "",
+                }
+            )
+
+    offenders_sorted = sorted(
+        offenders,
+        key=lambda x: float(x.get("age_h")) if _as_float_opt(x.get("age_h")) is not None else -1.0,
+        reverse=True,
+    )
+    return {
+        "counts": counts,
+        "profile_totals": profile_totals,
+        "total_rows": sum(counts.values()),
+        "max_age_h": round(max_age_h, 1) if max_age_h is not None else None,
+        "top_offenders": offenders_sorted[:5],
+    }
+
+
+def _strategy_pool_top_entries(pool_data: dict[str, Any], top_n: int = 5) -> list[dict[str, Any]]:
+    rows = pool_data.get("candidates", []) if isinstance(pool_data, dict) else []
+    out: list[dict[str, Any]] = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        metrics = row.get("last_oos_metrics", {})
+        if not isinstance(metrics, dict):
+            metrics = {}
+        score = _as_float_opt(row.get("last_score"))
+        sharpe = _as_float_opt(metrics.get("sharpe"))
+        ret = _as_float_opt(metrics.get("return"))
+        mdd = _as_float_opt(metrics.get("mdd"))
+        metrics_status, reason = _metrics_status(
+            {"score": score, "oos_sharpe": sharpe, "oos_return": ret}
+        )
+        out.append(
+            {
+                "strategy_id": row.get("strategy_id") or "unknown",
+                "candidate_id": row.get("candidate_id") or "",
+                "family": row.get("family") or "unknown",
+                "direction": row.get("direction") or "UNKNOWN",
+                "variant": row.get("variant") or "base",
+                "score": score,
+                "oos_sharpe": sharpe,
+                "oos_return": ret,
+                "oos_mdd": mdd,
+                "gate_overall": _normalize_gate_status(row.get("gate_overall")),
+                "recommendation": str(row.get("recommendation") or "UNKNOWN").upper(),
+                "metrics_status": metrics_status,
+                "metrics_unavailable_reason": reason,
+                "report_dir": row.get("report_dir") or "",
+            }
+        )
+    ranked = sorted(
+        out,
+        key=lambda x: (
+            float(x.get("score")) if _as_float_opt(x.get("score")) is not None else float("-inf"),
+            float(x.get("oos_sharpe")) if _as_float_opt(x.get("oos_sharpe")) is not None else float("-inf"),
+        ),
+        reverse=True,
+    )
+    return ranked[:top_n]
+
+
+def _strategy_pool_direction_coverage(pool_data: dict[str, Any]) -> dict[str, Any]:
+    rows = pool_data.get("candidates", []) if isinstance(pool_data, dict) else []
+    direction_counts = {"LONG": 0, "SHORT": 0, "LONGSHORT": 0, "UNKNOWN": 0}
+    short_rows: list[dict[str, Any]] = []
+
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        direction_raw = str(row.get("direction") or "UNKNOWN").upper().strip()
+        direction = direction_raw if direction_raw in direction_counts else "UNKNOWN"
+        direction_counts[direction] += 1
+
+        if direction != "SHORT":
+            continue
+
+        metrics = row.get("last_oos_metrics", {})
+        if not isinstance(metrics, dict):
+            metrics = {}
+        score = _as_float_opt(row.get("last_score"))
+        oos_sharpe = _as_float_opt(metrics.get("sharpe"))
+        oos_return = _as_float_opt(metrics.get("return"))
+        metrics_status, reason = _metrics_status(
+            {"score": score, "oos_sharpe": oos_sharpe, "oos_return": oos_return}
+        )
+        short_rows.append(
+            {
+                "strategy_id": row.get("strategy_id") or "unknown",
+                "candidate_id": row.get("candidate_id") or "",
+                "direction": "SHORT",
+                "gate_overall": _normalize_gate_status(row.get("gate_overall")),
+                "score": score,
+                "oos_sharpe": oos_sharpe,
+                "oos_return": oos_return,
+                "metrics_status": metrics_status,
+                "metrics_unavailable_reason": reason,
+            }
+        )
+
+    short_pass = sum(1 for r in short_rows if r.get("gate_overall") == "PASS")
+    short_ranked = sorted(
+        short_rows,
+        key=lambda x: (
+            float(x.get("score")) if _as_float_opt(x.get("score")) is not None else float("-inf"),
+            float(x.get("oos_sharpe")) if _as_float_opt(x.get("oos_sharpe")) is not None else float("-inf"),
+        ),
+        reverse=True,
+    )
+    best_entry = short_ranked[0] if short_ranked else None
+
+    return {
+        "counts": {
+            "long": direction_counts["LONG"],
+            "short": direction_counts["SHORT"],
+            "longshort": direction_counts["LONGSHORT"],
+            "unknown": direction_counts["UNKNOWN"],
+        },
+        "short_coverage": {
+            "candidates": len(short_rows),
+            "gate_pass": short_pass,
+            "best_entry": best_entry,
+            "best_entry_reason": None if best_entry else "no_short_candidates",
+        },
+    }
+
+
+def _research_top_entries(leaderboard: dict[str, Any], top_n: int = 5) -> list[dict[str, Any]]:
+    rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
+    out: list[dict[str, Any]] = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        score = _as_float_opt(row.get("final_score"))
+        sharpe = _as_float_opt(row.get("oos_sharpe"))
+        mdd = _as_float_opt(row.get("oos_mdd"))
+        is_sharpe = _as_float_opt(row.get("is_sharpe"))
+        metrics_status, reason = _metrics_status(
+            {"final_score": score, "oos_sharpe": sharpe, "oos_mdd": mdd}
+        )
+        out.append(
+            {
+                "candidate_id": row.get("candidate_id") or row.get("experiment_id") or "unknown",
+                "strategy_id": row.get("strategy_id") or "unknown",
+                "family": row.get("family") or "unknown",
+                "direction": row.get("direction") or "UNKNOWN",
+                "variant": row.get("variant") or "base",
+                "status": str(row.get("status") or "UNKNOWN").upper(),
+                "gate_overall": _normalize_gate_status(row.get("gate_overall")),
+                "final_score": score,
+                "oos_sharpe": sharpe,
+                "oos_mdd": mdd,
+                "is_sharpe": is_sharpe,
+                "trades_count": int(float(row.get("trades_count"))) if _as_float_opt(row.get("trades_count")) is not None else None,
+                "metrics_status": str(row.get("metrics_status") or metrics_status).upper(),
+                "metrics_unavailable_reason": row.get("metrics_unavailable_reason") or reason,
+                "timestamp": row.get("timestamp") or "",
+                "report_dir": row.get("report_dir") or "",
+            }
+        )
+    ranked = sorted(
+        out,
+        key=lambda x: (
+            float(x.get("final_score")) if _as_float_opt(x.get("final_score")) is not None else float("-inf"),
+            float(x.get("oos_sharpe")) if _as_float_opt(x.get("oos_sharpe")) is not None else float("-inf"),
+        ),
+        reverse=True,
+    )
+    return ranked[:top_n]
+
+
+def _unknown_backtest_head(reason: str) -> dict[str, Any]:
+    return {
+        "status": "UNKNOWN",
+        "source": "local",
+        "path": "",
+        "bundle": None,
+        "timestamp": "",
+        "timestamp_utc": None,
+        "reason": reason,
+        "artifacts": {"report_dir": "", "summary": "", "gate": "", "selection": ""},
+        "metrics": {
+            "final_score": None,
+            "oos_sharpe": None,
+            "oos_mdd": None,
+            "is_sharpe": None,
+            "trades_count": None,
+        },
+        "gate": {"overall": "UNKNOWN", "recommendation": "UNKNOWN"},
+        "metrics_status": "UNKNOWN",
+        "metrics_unavailable_reason": "missing_metrics:final_score,oos_sharpe,oos_mdd",
+    }
+
+
+def _latest_local_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
+    if not isinstance(rows, list) or not rows:
+        return _unknown_backtest_head("missing_research_leaderboard")
+
+    chosen = max(
+        (r for r in rows if isinstance(r, dict)),
+        key=lambda x: _parse_ts_epoch(x.get("timestamp")) or 0.0,
+    )
+    report_dir_raw = chosen.get("report_dir") or ""
+    report_dir_path = Path(str(report_dir_raw)) if report_dir_raw else None
+    if report_dir_path and not report_dir_path.is_absolute():
+        report_dir_path = repo_root / report_dir_path
+
+    summary_path = report_dir_path / "summary.json" if report_dir_path else None
+    gate_path = report_dir_path / "gate.json" if report_dir_path else None
+    selection_path = report_dir_path / "selection.json" if report_dir_path else None
+    summary_obj = read_json(summary_path) if summary_path and summary_path.exists() else {}
+    gate_obj = read_json(gate_path) if gate_path and gate_path.exists() else {}
+    if not isinstance(summary_obj, dict):
+        summary_obj = {}
+    if not isinstance(gate_obj, dict):
+        gate_obj = {}
+
+    final_score = _as_float_opt(chosen.get("final_score"))
+    if final_score is None:
+        final_score = _as_float_opt(gate_obj.get("final_score"))
+    oos_sharpe = _as_float_opt(chosen.get("oos_sharpe"))
+    if oos_sharpe is None:
+        oos_sharpe = _as_float_opt(summary_obj.get("sharpe"))
+    oos_mdd = _as_float_opt(chosen.get("oos_mdd"))
+    if oos_mdd is None:
+        oos_mdd = _as_float_opt(summary_obj.get("max_drawdown"))
+    is_sharpe = _as_float_opt(chosen.get("is_sharpe"))
+    if is_sharpe is None:
+        is_sharpe = _as_float_opt(summary_obj.get("is_sharpe"))
+    trades_count = _as_float_opt(chosen.get("trades_count"))
+    if trades_count is None:
+        trades_count = _as_float_opt(summary_obj.get("trades_count"))
+
+    metrics_status, reason = _metrics_status(
+        {"final_score": final_score, "oos_sharpe": oos_sharpe, "oos_mdd": oos_mdd}
+    )
+    gate_overall = _normalize_gate_status(chosen.get("gate_overall") or gate_obj.get("overall"))
+    recommendation = str(gate_obj.get("recommendation") or "UNKNOWN").upper()
+    if recommendation not in {"PROMOTE", "WATCHLIST", "DEMOTE", "UNKNOWN"}:
+        recommendation = "UNKNOWN"
+    timestamp_raw = chosen.get("timestamp") or summary_obj.get("timestamp") or ""
+    timestamp_utc = _normalize_ts_utc(timestamp_raw)
+    summary_rel = _safe_rel_path(summary_path or "", repo_root)
+    report_dir_rel = _safe_rel_path(report_dir_path or "", repo_root)
+
+    return {
+        "status": "OK",
+        "source": "local",
+        "path": summary_rel or report_dir_rel,
+        "bundle": None,
+        "candidate_id": chosen.get("candidate_id") or chosen.get("experiment_id") or "unknown",
+        "strategy_id": chosen.get("strategy_id") or "unknown",
+        "direction": chosen.get("direction") or summary_obj.get("direction") or "UNKNOWN",
+        "variant": chosen.get("variant") or summary_obj.get("variant") or "base",
+        "timestamp": timestamp_raw,
+        "timestamp_utc": timestamp_utc,
+        "reason": "selected newest local research leaderboard entry",
+        "artifacts": {
+            "report_dir": report_dir_rel,
+            "summary": summary_rel,
+            "gate": _safe_rel_path(gate_path or "", repo_root),
+            "selection": _safe_rel_path(selection_path or "", repo_root),
+        },
+        "metrics": {
+            "final_score": final_score,
+            "oos_sharpe": oos_sharpe,
+            "oos_mdd": oos_mdd,
+            "is_sharpe": is_sharpe,
+            "trades_count": int(trades_count) if trades_count is not None else None,
+        },
+        "gate": {"overall": gate_overall, "recommendation": recommendation},
+        "metrics_status": metrics_status,
+        "metrics_unavailable_reason": reason,
+    }
+
+
+def _latest_worker_backtest_head(repo_root: Path) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    meta = {
+        "present": False,
+        "latest_bundle": "",
+        "bundle_path": "",
+        "bundle_ts_utc": None,
+        "ingested_into_state": False,
+        "note": "",
+    }
+    inbox_dir = repo_root / WORKER_INBOX_DIR
+    if not inbox_dir.exists() or not inbox_dir.is_dir():
+        return None, meta
+
+    bundles: list[tuple[float, str, Path, str | None]] = []
+    for child in inbox_dir.iterdir():
+        if not child.is_dir() or "_backtests_" not in child.name:
+            continue
+        bundle_ts_utc = _worker_bundle_ts_utc(child.name) or _path_mtime_utc(child)
+        bundle_epoch = _parse_ts_epoch(bundle_ts_utc) if bundle_ts_utc else None
+        if bundle_epoch is None:
+            try:
+                bundle_epoch = child.stat().st_mtime
+            except Exception:
+                bundle_epoch = 0.0
+        bundles.append((float(bundle_epoch), child.name, child, bundle_ts_utc))
+
+    if not bundles:
+        return None, meta
+
+    _, bundle_name, bundle_dir, bundle_ts_utc = max(bundles, key=lambda row: (row[0], row[1]))
+    meta.update(
+        {
+            "present": True,
+            "latest_bundle": bundle_name,
+            "bundle_path": _safe_rel_path(bundle_dir, repo_root),
+            "bundle_ts_utc": bundle_ts_utc,
+            "ingested_into_state": True,
+            "note": "偵測到 worker backtests bundle",
+        }
+    )
+
+    summary_path = bundle_dir / "summary.json"
+    gate_path = bundle_dir / "gate.json"
+    selection_path = bundle_dir / "selection.json"
+    if not summary_path.exists():
+        meta["note"] = "worker 產物不完整：缺少 summary.json，沿用 local"
+        return None, meta
+
+    summary_obj = read_json(summary_path)
+    if not isinstance(summary_obj, dict):
+        meta["note"] = "worker 產物不可讀：summary.json，沿用 local"
+        return None, meta
+
+    gate_obj = read_json(gate_path) if gate_path.exists() else {}
+    selection_obj = read_json(selection_path) if selection_path.exists() else {}
+    if not isinstance(gate_obj, dict):
+        gate_obj = {}
+    if not isinstance(selection_obj, dict):
+        selection_obj = {}
+
+    gate_results = gate_obj.get("results", {})
+    if not isinstance(gate_results, dict):
+        gate_results = {}
+    overall_obj = gate_results.get("overall", {})
+    if not isinstance(overall_obj, dict):
+        overall_obj = {}
+    overall_pass = overall_obj.get("pass")
+    if isinstance(overall_pass, bool):
+        gate_overall = "PASS" if overall_pass else "FAIL"
+    else:
+        gate_overall = _normalize_gate_status(gate_obj.get("overall"))
+
+    selected_obj = selection_obj.get("selected", {})
+    if not isinstance(selected_obj, dict):
+        selected_obj = {}
+    selected_params = selected_obj.get("params", {})
+    if not isinstance(selected_params, dict):
+        selected_params = {}
+    strategy_id = str(selected_params.get("strategy") or summary_obj.get("strategy") or "worker_backtest_bundle")
+    direction = str(
+        (
+            gate_obj.get("inputs", {})
+            if isinstance(gate_obj.get("inputs"), dict)
+            else {}
+        ).get("mode")
+        or summary_obj.get("direction")
+        or "UNKNOWN"
+    ).upper()
+    if direction not in {"LONG", "SHORT", "LONGSHORT"}:
+        direction = "UNKNOWN"
+    variant = str(selection_obj.get("regime") or summary_obj.get("variant") or "worker_bundle")
+    timestamp_raw = (
+        summary_obj.get("timestamp")
+        or selection_obj.get("generated_at")
+        or gate_obj.get("generated_at")
+        or bundle_ts_utc
+        or ""
+    )
+    timestamp_utc = _normalize_ts_utc(timestamp_raw) or bundle_ts_utc
+
+    final_score = _as_float_opt(gate_obj.get("final_score"))
+    oos_sharpe = _as_float_opt(summary_obj.get("sharpe"))
+    oos_mdd = _as_float_opt(summary_obj.get("max_drawdown"))
+    is_sharpe = _as_float_opt(summary_obj.get("is_sharpe"))
+    trades_count = _as_float_opt(summary_obj.get("trades_count"))
+
+    worker_missing = []
+    if oos_sharpe is None:
+        worker_missing.append("oos_sharpe")
+    if oos_mdd is None:
+        worker_missing.append("oos_mdd")
+    if worker_missing:
+        metrics_status = "UNKNOWN"
+        metrics_reason = "missing_metrics:" + ",".join(worker_missing)
+    else:
+        metrics_status = "OK"
+        metrics_reason = None
+
+    return (
+        {
+            "status": "OK",
+            "source": "worker_inbox",
+            "path": _safe_rel_path(summary_path, repo_root),
+            "bundle": bundle_name,
+            "candidate_id": strategy_id,
+            "strategy_id": strategy_id,
+            "direction": direction,
+            "variant": variant,
+            "timestamp": timestamp_raw or "",
+            "timestamp_utc": timestamp_utc,
+            "reason": "worker bundle available for comparison",
+            "artifacts": {
+                "report_dir": _safe_rel_path(bundle_dir, repo_root),
+                "summary": _safe_rel_path(summary_path, repo_root),
+                "gate": _safe_rel_path(gate_path, repo_root) if gate_path.exists() else "",
+                "selection": _safe_rel_path(selection_path, repo_root) if selection_path.exists() else "",
+            },
+            "metrics": {
+                "final_score": final_score,
+                "oos_sharpe": oos_sharpe,
+                "oos_mdd": oos_mdd,
+                "is_sharpe": is_sharpe,
+                "trades_count": int(trades_count) if trades_count is not None else None,
+            },
+            "gate": {"overall": gate_overall, "recommendation": "UNKNOWN"},
+            "metrics_status": metrics_status,
+            "metrics_unavailable_reason": metrics_reason,
+        },
+        meta,
+    )
+
+
+def _latest_backtest_head_with_worker_provenance(
+    leaderboard: dict[str, Any], repo_root: Path
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    local_head = _latest_local_backtest_head(leaderboard, repo_root)
+    worker_head, worker_meta = _latest_worker_backtest_head(repo_root)
+    local_epoch = _parse_ts_epoch(local_head.get("timestamp_utc") or local_head.get("timestamp"))
+    worker_epoch = None
+    if isinstance(worker_head, dict):
+        worker_epoch = _parse_ts_epoch(worker_head.get("timestamp_utc") or worker_head.get("timestamp"))
+
+    if isinstance(worker_head, dict) and (
+        local_epoch is None or (worker_epoch is not None and worker_epoch > local_epoch)
+    ):
+        worker_meta["note"] = "worker 較新，已選為最新回測"
+        worker_head["reason"] = "worker bundle newer than local backtest"
+        return worker_head, worker_meta
+
+    if worker_meta.get("present"):
+        if not isinstance(worker_head, dict):
+            if local_head.get("status") == "UNKNOWN":
+                local_head["reason"] = "worker bundle incomplete and local backtest unavailable"
+            else:
+                local_head["reason"] = "worker bundle incomplete; fallback to local"
+        elif local_epoch is None and worker_epoch is None:
+            worker_meta["note"] = "worker 與 local 時間戳不可判定，沿用 local"
+            local_head["reason"] = "worker and local timestamps unreadable; default to local"
+        else:
+            worker_meta["note"] = "worker 較舊或同時戳，沿用 local"
+            local_head["reason"] = "local backtest newer or equal to worker bundle"
+
+    return local_head, worker_meta
+
+
+def _latest_backtest_head(leaderboard: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    head, _ = _latest_backtest_head_with_worker_provenance(leaderboard, repo_root)
+    return head
+
+
+def _governance_summary(leaderboard: dict[str, Any], policy_payload: dict[str, Any], now_utc: str) -> dict[str, Any]:
+    rows = leaderboard.get("entries", []) if isinstance(leaderboard, dict) else []
+    today = now_utc[:10]
+    today_rows = [
+        r for r in rows if isinstance(r, dict) and str(r.get("timestamp") or "").startswith(today)
+    ]
+    scope = "today_utc" if today_rows else "all_entries_fallback"
+    target_rows = today_rows if today_rows else [r for r in rows if isinstance(r, dict)]
+    counts = {"PASS": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0}
+    for row in target_rows:
+        gate_st = _normalize_gate_status(row.get("gate_overall"))
+        counts[gate_st] = counts.get(gate_st, 0) + 1
+
+    return {
+        "overfit_gates_policy": {
+            "name": str(policy_payload.get("name") or "UNKNOWN"),
+            "path": "research/policy/overfit_gates_aggressive.json",
+        },
+        "today_gate_summary": {
+            "date_utc": today,
+            "scope": scope,
+            "total": sum(counts.values()),
+            "pass": counts["PASS"],
+            "warn": counts["WARN"],
+            "fail": counts["FAIL"],
+            "unknown": counts["UNKNOWN"],
+        },
+    }
+
+
+def _guardrails_summary(pool_data: dict[str, Any], loop_state: dict[str, Any]) -> dict[str, Any]:
+    report_only_val = pool_data.get("report_only") if isinstance(pool_data, dict) else None
+    actions = loop_state.get("actions") if isinstance(loop_state, dict) else None
+    actions_empty = isinstance(actions, list) and len(actions) == 0
+    return {
+        "status": "PASS" if report_only_val is True and actions_empty else "WARN",
+        "checks": {
+            "report_only_from_strategy_pool": {
+                "status": "PASS" if report_only_val is True else "UNKNOWN",
+                "value": report_only_val,
+                "source": "data/state/strategy_pool.json#report_only",
+            },
+            "actions_empty_from_loop_state": {
+                "status": "PASS" if actions_empty else "UNKNOWN",
+                "value": actions if isinstance(actions, list) else None,
+                "source": "data/state/_research/loop_state.json#actions",
+            },
+            "core_diff_src_hongstr": {"status": "PASS_EXPECTED", "source": "preflight_required"},
+            "tg_cp_no_exec": {"status": "PASS_EXPECTED", "source": "preflight_required"},
+            "no_data_committed": {"status": "PASS_EXPECTED", "source": "preflight_required"},
+        },
+    }
+
+
+def _build_daily_report_payload(
+    *,
+    now_utc: str,
+    now_ts: float,
+    system_health: dict[str, Any],
+    freshness_table: dict[str, Any],
+    strategy_pool_summary: dict[str, Any],
+    strategy_pool_data: dict[str, Any],
+    research_leaderboard: dict[str, Any],
+    loop_state: dict[str, Any],
+    policy_payload: dict[str, Any],
+    repo_root: Path,
+) -> dict[str, Any]:
+    components = system_health.get("components", {}) if isinstance(system_health, dict) else {}
+    if not isinstance(components, dict):
+        components = {}
+    pool_counts = strategy_pool_summary.get("counts", {}) if isinstance(strategy_pool_summary, dict) else {}
+    if not isinstance(pool_counts, dict):
+        pool_counts = {}
+    latest_backtest_head, worker_inbox_source = _latest_backtest_head_with_worker_provenance(
+        research_leaderboard, repo_root
+    )
+
+    payload = {
+        "schema": _daily_schema_spec(),
+        "generated_utc": now_utc,
+        "refresh_hint": str(system_health.get("refresh_hint") or "bash scripts/refresh_state.sh"),
+        "ssot_status": str(system_health.get("ssot_status") or "UNKNOWN"),
+        "ssot_components": components,
+        "freshness_summary": _freshness_summary(freshness_table),
+        "latest_backtest_head": latest_backtest_head,
+        "strategy_pool": {
+            "summary": {
+                "counts": {
+                    "candidates": int(pool_counts.get("candidates", 0) or 0),
+                    "promoted": int(pool_counts.get("promoted", 0) or 0),
+                    "demoted": int(pool_counts.get("demoted", 0) or 0),
+                },
+                "last_updated_utc": strategy_pool_summary.get("last_updated_utc"),
+            },
+            "leaderboard_top": _strategy_pool_top_entries(strategy_pool_data, top_n=5),
+            "direction_coverage": _strategy_pool_direction_coverage(strategy_pool_data),
+        },
+        "research_leaderboard": {
+            "generated_at": research_leaderboard.get("generated_at") if isinstance(research_leaderboard, dict) else None,
+            "top_n": int(research_leaderboard.get("top_n", 0) or 0) if isinstance(research_leaderboard, dict) else 0,
+            "top_entries": _research_top_entries(research_leaderboard, top_n=5),
+        },
+        "governance": _governance_summary(research_leaderboard, policy_payload, now_utc),
+        "guardrails": _guardrails_summary(strategy_pool_data, loop_state),
+        "sources": {
+            "system_health_latest": _source_meta(STATE_DIR / "system_health_latest.json", now_ts),
+            "freshness_table": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
+            "strategy_pool_summary": _source_meta(STATE_DIR / "strategy_pool_summary.json", now_ts),
+            "strategy_pool": _source_meta(STATE_DIR / "strategy_pool.json", now_ts),
+            "watchdog_status_latest": _source_meta(STATE_DIR / "watchdog_status_latest.json", now_ts),
+            "research_leaderboard": _source_meta(STATE_DIR / "_research/leaderboard.json", now_ts, ["generated_at"]),
+            "research_loop_state": _source_meta(STATE_DIR / "_research/loop_state.json", now_ts, ["last_run"]),
+            "worker_inbox": worker_inbox_source,
+        },
+    }
+
+    ordered_payload: dict[str, Any] = {}
+    for key in DAILY_REPORT_TOP_LEVEL_ORDER:
+        ordered_payload[key] = payload.get(key)
+    return ordered_payload
 
 
 def main():
@@ -544,7 +1410,83 @@ def main():
         }
         write_json(STATE_DIR / "brake_health_latest.json", brake_data)
 
-    # 12. Optional Health Pack Aggregator (SSOT summary only)
+    # 12. Canonicalize Watchdog Status (state_snapshots is the final writer to data/state)
+    watchdog_data = _normalize_watchdog_snapshot(read_json(ATOMIC_WATCHDOG_STATUS), now_utc)
+    if isinstance(watchdog_data, dict) and watchdog_data:
+        write_json(STATE_DIR / "watchdog_status_latest.json", watchdog_data)
+    else:
+        watchdog_data = {
+            "schema_version": "watchdog_status.v1",
+            "generated_utc": now_utc,
+            "ts_utc": now_utc,
+            "label": "com.hongstr.tg_cp_watchdog",
+            "launchctl_target": "gui/UNKNOWN/com.hongstr.tg_cp_watchdog",
+            "status": "UNKNOWN",
+            "status_reason": "missing_watchdog_atomic",
+            "launchctl": {
+                "ok": False,
+                "target": "gui/UNKNOWN/com.hongstr.tg_cp_watchdog",
+                "state": None,
+                "active_count": None,
+                "runs": None,
+                "last_exit_code": None,
+                "path": None,
+                "stdout_path": None,
+                "stderr_path": None,
+                "program": None,
+                "run_interval_seconds": None,
+                "command_return_code": None,
+                "command_stderr": None,
+            },
+            "last_check": {
+                "log_path": None,
+                "exists": False,
+                "last_line": None,
+                "line_status": "UNKNOWN",
+                "line_reason": "missing_log",
+                "updated_at_utc": None,
+                "age_sec": None,
+                "expected_within_sec": None,
+            },
+            "sources": {
+                "launchctl_command": None,
+                "log_path": None,
+                "output_path": str(ATOMIC_WATCHDOG_STATUS),
+            },
+        }
+        write_json(STATE_DIR / "watchdog_status_latest.json", watchdog_data)
+
+    # 13. Cost Sensitivity Matrix (read-only, derived from existing backtest artifacts)
+    try:
+        from cost_sensitivity_matrix import build_cost_sensitivity_matrix_payload
+
+        cost_sensitivity_matrix = build_cost_sensitivity_matrix_payload(
+            repo_root=Path(".").resolve(),
+            generated_utc=now_utc,
+        )
+        if not isinstance(cost_sensitivity_matrix, dict):
+            raise TypeError("cost_sensitivity_matrix payload must be a dict")
+    except Exception as exc:
+        logging.warning("Cost sensitivity matrix unavailable: %s", exc)
+        cost_sensitivity_matrix = {
+            "schema_version": "cost_sensitivity_matrix.v1",
+            "producer_git_sha": "UNKNOWN",
+            "generated_utc": now_utc,
+            "candidates_source": "index",
+            "overall": "UNKNOWN",
+            "totals": {
+                "rows_total": 0,
+                "scenario_rows": 0,
+                "baseline_only_rows": 0,
+                "status_counts": {"OK": 0, "WARN": 0, "FAIL": 0, "UNKNOWN": 0},
+            },
+            "source_inputs": [],
+            "rows": [],
+            "notes": ["SNAPSHOT_BUILD_FAILED"],
+        }
+    write_json(STATE_DIR / "cost_sensitivity_matrix_latest.json", cost_sensitivity_matrix)
+
+    # 14. Optional Health Pack Aggregator (SSOT summary only)
     fresh_rows = freshness_table.get("rows", [])
     freshness_statuses = []
     freshness_non_ok = 0
@@ -640,6 +1582,17 @@ def main():
             regime_top_reason = top_reason.strip()
     if regime_top_reason and len(regime_top_reason) > 120:
         regime_top_reason = regime_top_reason[:117] + "..."
+    regime_threshold_value = _as_float_opt(regime_data.get("threshold_value"))
+    regime_threshold_source_path_raw = str(regime_data.get("threshold_source_path") or "").strip()
+    regime_threshold_source_path = regime_threshold_source_path_raw or None
+    regime_threshold_policy_sha_raw = str(regime_data.get("threshold_policy_sha") or "").strip()
+    regime_threshold_policy_sha = regime_threshold_policy_sha_raw or None
+    regime_threshold_rationale_raw = str(regime_data.get("threshold_rationale") or "").strip()
+    regime_threshold_rationale = regime_threshold_rationale_raw or None
+    regime_calibration_status_raw = str(regime_data.get("calibration_status") or "").upper().strip()
+    regime_calibration_status = regime_calibration_status_raw if regime_calibration_status_raw in {"OK", "WARN", "STALE", "UNKNOWN"} else "UNKNOWN"
+    regime_last_calibrated_raw = regime_data.get("last_calibrated_utc")
+    regime_last_calibrated_utc = str(regime_last_calibrated_raw).strip() if isinstance(regime_last_calibrated_raw, str) and str(regime_last_calibrated_raw).strip() else None
 
     regime_age_h = None
     if regime_path.exists():
@@ -652,9 +1605,39 @@ def main():
     if regime_age_h is not None:
         regime_monitor_status = "OK" if regime_age_h <= regime_ok_h else "WARN"
 
+    cost_totals = cost_sensitivity_matrix.get("totals", {}) if isinstance(cost_sensitivity_matrix, dict) else {}
+    cost_status = _normalize_simple_status(cost_sensitivity_matrix.get("overall"))
+    if cost_status == "PASS":
+        cost_status = "OK"
+    if cost_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        cost_status = "UNKNOWN"
+
+    watchdog_status = _normalize_simple_status(watchdog_data.get("status"))
+    if watchdog_status == "PASS":
+        watchdog_status = "OK"
+    if watchdog_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        watchdog_status = "UNKNOWN"
+    watchdog_launchctl = watchdog_data.get("launchctl", {}) if isinstance(watchdog_data, dict) else {}
+    if not isinstance(watchdog_launchctl, dict):
+        watchdog_launchctl = {}
+    watchdog_last_check = watchdog_data.get("last_check", {}) if isinstance(watchdog_data, dict) else {}
+    if not isinstance(watchdog_last_check, dict):
+        watchdog_last_check = {}
+    watchdog_last_check_status = _normalize_simple_status(watchdog_last_check.get("line_status"))
+    if watchdog_last_check_status == "PASS":
+        watchdog_last_check_status = "OK"
+    if watchdog_last_check_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+        watchdog_last_check_status = "UNKNOWN"
+    watchdog_launchctl_state_raw = str(watchdog_launchctl.get("state") or "").strip()
+    watchdog_launchctl_state = watchdog_launchctl_state_raw or None
+    watchdog_runs = _as_int_opt(watchdog_launchctl.get("runs"))
+    watchdog_last_exit_code = _as_int_opt(watchdog_launchctl.get("last_exit_code"))
+    watchdog_last_check_age_sec = _as_int_opt(watchdog_last_check.get("age_sec"))
+    watchdog_expected_within_sec = _as_int_opt(watchdog_last_check.get("expected_within_sec"))
+
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
     ssot_status = _collapse_system_status(
-        [freshness_status, coverage_as_health, brake_status, regime_monitor_status]
+        [freshness_status, coverage_as_health, brake_status, regime_monitor_status, cost_status]
     )
 
     system_health = {
@@ -680,6 +1663,21 @@ def main():
             "brake": {
                 "status": brake_status,
             },
+            "watchdog": {
+                "status": watchdog_status,
+                "launchctl_state": watchdog_launchctl_state,
+                "runs": watchdog_runs,
+                "last_exit_code": watchdog_last_exit_code,
+                "last_check_status": watchdog_last_check_status,
+                "last_check_age_sec": watchdog_last_check_age_sec,
+                "expected_within_sec": watchdog_expected_within_sec,
+            },
+            "cost_sensitivity": {
+                "status": cost_status,
+                "rows_total": int(cost_totals.get("rows_total", 0) or 0),
+                "scenario_rows": int(cost_totals.get("scenario_rows", 0) or 0),
+                "baseline_only_rows": int(cost_totals.get("baseline_only_rows", 0) or 0),
+            },
             "regime_monitor": {
                 "status": regime_monitor_status,
                 "age_h": round(regime_age_h, 1) if regime_age_h is not None else None,
@@ -688,16 +1686,42 @@ def main():
             "regime_signal": {
                 "status": regime_signal,
                 "top_reason": regime_top_reason,
+                "threshold_value": regime_threshold_value,
+                "threshold_source_path": regime_threshold_source_path,
+                "threshold_policy_sha": regime_threshold_policy_sha,
+                "threshold_rationale": regime_threshold_rationale,
+                "calibration_status": regime_calibration_status,
+                "last_calibrated_utc": regime_last_calibrated_utc,
             },
         },
         "sources": {
             "freshness_table.json": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
             "coverage_matrix_latest.json": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "brake_health_latest.json": _source_meta(STATE_DIR / "brake_health_latest.json", now_ts, ["timestamp"]),
+            "watchdog_status_latest.json": _source_meta(STATE_DIR / "watchdog_status_latest.json", now_ts),
+            "cost_sensitivity_matrix_latest.json": _source_meta(STATE_DIR / "cost_sensitivity_matrix_latest.json", now_ts),
             "regime_monitor_latest.json": _source_meta(STATE_DIR / "regime_monitor_latest.json", now_ts),
         },
     }
     write_json(STATE_DIR / "system_health_latest.json", system_health)
+
+    # 15. Daily Report SSOT (single entrypoint for tg_cp/dashboard daily reporting)
+    research_leaderboard = read_json(STATE_DIR / "_research/leaderboard.json") or {}
+    loop_state = read_json(STATE_DIR / "_research/loop_state.json") or {}
+    overfit_policy = read_json(Path("research/policy/overfit_gates_aggressive.json")) or {}
+    daily_report_payload = _build_daily_report_payload(
+        now_utc=now_utc,
+        now_ts=now_ts,
+        system_health=system_health if isinstance(system_health, dict) else {},
+        freshness_table=freshness_table if isinstance(freshness_table, dict) else {},
+        strategy_pool_summary=pool_summary if isinstance(pool_summary, dict) else {},
+        strategy_pool_data=pool_data if isinstance(pool_data, dict) else {},
+        research_leaderboard=research_leaderboard if isinstance(research_leaderboard, dict) else {},
+        loop_state=loop_state if isinstance(loop_state, dict) else {},
+        policy_payload=overfit_policy if isinstance(overfit_policy, dict) else {},
+        repo_root=Path(".").resolve(),
+    )
+    write_json(STATE_DIR / "daily_report_latest.json", daily_report_payload)
 
     logging.info("Snapshots successfully written to data/state/")
 

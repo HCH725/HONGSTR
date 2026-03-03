@@ -19,6 +19,26 @@ tg_retries="${TG_RETRIES:-3}"
 tg_backoff="${TG_RETRY_BACKOFF_SEC:-2}"
 tg_connect_timeout="${TG_CONNECT_TIMEOUT:-5}"
 
+redact_string() {
+  local s="$1"
+  s="$(echo "$s" | sed -E 's/(api\.telegram\.org\/bot)[^\/]+/\1***REDACTED***/g')"
+  s="$(echo "$s" | sed -E 's/((^|[^A-Z0-9_])(KEY|SECRET|TOKEN)[A-Z0-9_]*[[:space:]]*[:=][[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI')"
+  s="$(echo "$s" | sed -E 's/(BINANCE_API_KEY[[:space:]]*=[[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI')"
+  s="$(echo "$s" | sed -E 's/(BINANCE_API_SECRET[[:space:]]*=[[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI')"
+  s="$(echo "$s" | sed -E 's/(BINANCE_SECRET_KEY[[:space:]]*=[[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI')"
+  echo "$s"
+}
+
+redact_file_inplace() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  sed -i '' -E 's/(api\.telegram\.org\/bot)[^\/]+/\1***REDACTED***/g' "$f" 2>/dev/null || true
+  sed -i '' -E 's/((^|[^A-Z0-9_])(KEY|SECRET|TOKEN)[A-Z0-9_]*[[:space:]]*[:=][[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI' "$f" 2>/dev/null || true
+  sed -i '' -E 's/(BINANCE_API_KEY[[:space:]]*=[[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI' "$f" 2>/dev/null || true
+  sed -i '' -E 's/(BINANCE_API_SECRET[[:space:]]*=[[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI' "$f" 2>/dev/null || true
+  sed -i '' -E 's/(BINANCE_SECRET_KEY[[:space:]]*=[[:space:]]*)[^ ,;"]+/\1***REDACTED***/gI' "$f" 2>/dev/null || true
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --title) title="${2:-}"; shift 2 ;;
@@ -41,12 +61,14 @@ done
 
 if [[ -n "$log_tail" && -f "$log_tail" ]]; then
   tail_file="/tmp/hongstr_tg_tail_$(date +%Y%m%d_%H%M%S).log"
+  trap 'rm -f "$tail_file" 2>/dev/null || true' EXIT
   if [[ "$tail_lines" =~ ^[0-9]+$ ]]; then
     tail -n "$tail_lines" "$log_tail" > "$tail_file" 2>/dev/null || true
   else
     tail -n 60 "$log_tail" > "$tail_file" 2>/dev/null || true
   fi
   if [[ -s "$tail_file" ]]; then
+    redact_file_inplace "$tail_file"
     file="$tail_file"
   fi
 fi
@@ -161,7 +183,7 @@ retry_send() {
         last_reason="timeout"
         retryable=1
       else
-        last_reason="curl_exit_${curl_rc}: $(echo "$err_text" | tr '\n' ' ' | cut -c1-140)"
+        last_reason="curl_exit_${curl_rc}: $(redact_string "$err_text" | tr '\n' ' ' | cut -c1-140)"
         retryable=1
       fi
     fi
