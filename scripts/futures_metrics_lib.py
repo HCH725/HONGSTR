@@ -257,6 +257,39 @@ def find_coverage_row(
     return None
 
 
+def sanitize_coverage_reason(status: str, reason: str) -> str:
+    reason_text = str(reason or "").strip()
+    normalized_status = str(status or "UNKNOWN").upper().strip()
+    if normalized_status != "OK":
+        return reason_text
+    if not reason_text:
+        return ""
+    if reason_text == "snapshot_only_endpoint":
+        return reason_text
+
+    lowered = reason_text.lower()
+    error_markers = (
+        "errno",
+        "exception",
+        "http ",
+        "http_",
+        "http:",
+        "api_error",
+        "urlerror",
+        "network error",
+        "network_error",
+        "dns",
+        "timed out",
+        "timeout",
+        "traceback",
+        "fetch_failed",
+        "probe_failed",
+    )
+    if any(marker in lowered for marker in error_markers):
+        return ""
+    return reason_text
+
+
 def load_checkpoint(checkpoint_path: Path) -> dict[str, Any]:
     payload = load_json(checkpoint_path, {"schema": "futures_metrics_backfill_checkpoint.v1", "checkpoints": {}})
     checkpoints = payload.get("checkpoints")
@@ -502,10 +535,13 @@ def compose_coverage_row(
         if str(value or "").strip()
     ]
     latest_utc = max(latest_candidates) if latest_candidates else earliest_utc
-    reason_text = str(reason or prior.get("reason") or "").strip()
     normalized_status = str(status or prior.get("status") or "UNKNOWN").upper().strip()
     if normalized_status not in {"OK", "WARN", "FAIL"}:
         normalized_status = "UNKNOWN"
+    reason_text = sanitize_coverage_reason(
+        normalized_status,
+        str(reason or prior.get("reason") or "").strip(),
+    )
     return {
         "ts_utc": to_iso_utc(utc_now()),
         "symbol": symbol,
