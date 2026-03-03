@@ -1187,7 +1187,7 @@ def _build_daily_report_payload(
     research_leaderboard: dict[str, Any],
     loop_state: dict[str, Any],
     policy_payload: dict[str, Any],
-    cmc_coverage: dict[str, Any],
+    cmc_coverage: Optional[dict[str, Any]] = None,
     repo_root: Path,
 ) -> dict[str, Any]:
     components = system_health.get("components", {}) if isinstance(system_health, dict) else {}
