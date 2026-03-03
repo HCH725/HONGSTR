@@ -31,6 +31,8 @@ ATOMIC_REGIME_MONITOR = ATOMIC_STATE_DIR / "regime_monitor_latest.json"
 ATOMIC_BRAKE_HEALTH = ATOMIC_STATE_DIR / "brake_health_latest.json"
 ATOMIC_WATCHDOG_STATUS = ATOMIC_STATE_DIR / "watchdog_status_latest.json"
 ATOMIC_DATA_CATALOG_SCAN = ATOMIC_STATE_DIR / "data_catalog_scan.json"
+ATOMIC_OKX_PUBLIC_COVERAGE = ATOMIC_STATE_DIR / "okx_public_coverage.json"
+ATOMIC_BITFINEX_PUBLIC_COVERAGE = ATOMIC_STATE_DIR / "bitfinex_public_coverage.json"
 ATOMIC_MANIFEST_DIR = DEFAULT_MANIFEST_DIR
 WORKER_INBOX_DIR = Path("_local/worker_inbox")
 DATA_CATALOG_PREV = STATE_DIR / "_history" / "data_catalog_prev.json"
@@ -283,6 +285,63 @@ def _data_catalog_changes_component(changes_payload: Any, warnings: list[str]) -
         "prev_ts_utc": changes_payload.get("prev_ts_utc") if isinstance(changes_payload, dict) else None,
         "warning_count": len(warnings),
     }
+
+
+def _normalize_public_market_coverage(payload: Any, now_utc: str, dataset_label: str) -> dict[str, Any]:
+    fallback_row = {
+        "dataset": dataset_label,
+        "key": "ALL",
+        "rows": 0,
+        "latest_utc": None,
+        "status": "UNKNOWN",
+        "reason": f"missing_or_invalid_atomic_{dataset_label}",
+        "request_path": None,
+        "source_path": None,
+    }
+    if not isinstance(payload, dict):
+        return {"ts_utc": now_utc, "rows": [fallback_row]}
+
+    ts_utc = payload.get("ts_utc")
+    if not isinstance(ts_utc, str) or not ts_utc.strip():
+        ts_utc = now_utc
+
+    raw_rows = payload.get("rows")
+    if not isinstance(raw_rows, list):
+        return {"ts_utc": ts_utc, "rows": [fallback_row]}
+
+    rows: list[dict[str, Any]] = []
+    for idx, item in enumerate(raw_rows):
+        if not isinstance(item, dict):
+            continue
+        status = _normalize_simple_status(item.get("status"))
+        if status == "PASS":
+            status = "OK"
+        if status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
+            status = "UNKNOWN"
+        latest_utc = item.get("latest_utc")
+        latest_utc_norm = (
+            str(latest_utc).strip()
+            if isinstance(latest_utc, str) and str(latest_utc).strip()
+            else None
+        )
+        rows.append(
+            {
+                "dataset": str(item.get("dataset") or dataset_label).strip() or dataset_label,
+                "key": str(item.get("key") or f"row_{idx}").strip() or f"row_{idx}",
+                "rows": int(_as_int_opt(item.get("rows")) or 0),
+                "latest_utc": latest_utc_norm,
+                "status": status,
+                "reason": str(item.get("reason") or "").strip(),
+                "request_path": str(item.get("request_path") or "").strip() or None,
+                "source_path": str(item.get("source_path") or "").strip() or None,
+            }
+        )
+
+    if not rows:
+        rows = [fallback_row]
+
+    rows = sorted(rows, key=lambda row: (str(row.get("dataset", "")), str(row.get("key", ""))))
+    return {"ts_utc": ts_utc, "rows": rows}
 
 
 def _normalize_regime_snapshot(payload: dict, now_utc: str) -> dict:
@@ -1708,6 +1767,19 @@ def main():
     write_json(STATE_DIR / "data_catalog_changes_latest.json", data_catalog_changes)
     write_json(DATA_CATALOG_PREV, data_catalog_payload)
     data_catalog_component = _data_catalog_changes_component(data_catalog_changes, data_catalog_warnings)
+
+    okx_public_coverage = _normalize_public_market_coverage(
+        read_json(ATOMIC_OKX_PUBLIC_COVERAGE),
+        now_utc,
+        "okx_public",
+    )
+    bitfinex_public_coverage = _normalize_public_market_coverage(
+        read_json(ATOMIC_BITFINEX_PUBLIC_COVERAGE),
+        now_utc,
+        "bitfinex_public",
+    )
+    write_json(STATE_DIR / "okx_public_coverage_latest.json", okx_public_coverage)
+    write_json(STATE_DIR / "bitfinex_public_coverage_latest.json", bitfinex_public_coverage)
 
     coverage_as_health = "OK" if coverage_status == "PASS" else coverage_status
     ssot_status = _collapse_system_status(
