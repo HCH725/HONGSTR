@@ -37,6 +37,8 @@ def build_leaderboard(top_n: int = 10) -> List[Dict[str, Any]]:
                 "oos_sharpe": data.get("oos_sharpe", 0.0),
                 "oos_mdd": data.get("oos_mdd", 0.0),
                 "is_sharpe": data.get("is_sharpe", 0.0),
+                "direction": str(data.get("direction", "long")).upper(),
+                "variant": data.get("variant", "base"),
                 "timestamp": data.get("timestamp", ""),
                 "status": data.get("status", "UNKNOWN"),
                 "report_dir": str(results_file.parent),

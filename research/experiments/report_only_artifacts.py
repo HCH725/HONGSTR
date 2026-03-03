@@ -92,6 +92,38 @@ _BASELINE_METRICS: Dict[str, Dict[str, float]] = {
         "total_return": 0.12,
         "win_rate": 0.43,
     },
+    "trend_supertrend_eth_1h_short": {
+        "is_sharpe": 1.10,
+        "oos_sharpe": 0.81,
+        "max_drawdown": -0.15,
+        "trades_count": 182,
+        "total_return": 0.15,
+        "win_rate": 0.45,
+    },
+    "trend_supertrend_eth_1h_longshort": {
+        "is_sharpe": 1.29,
+        "oos_sharpe": 1.01,
+        "max_drawdown": -0.13,
+        "trades_count": 214,
+        "total_return": 0.20,
+        "win_rate": 0.47,
+    },
+    "trend_ma_cross_bnb_4h_short": {
+        "is_sharpe": 0.96,
+        "oos_sharpe": 0.70,
+        "max_drawdown": -0.11,
+        "trades_count": 128,
+        "total_return": 0.11,
+        "win_rate": 0.43,
+    },
+    "trend_ma_cross_bnb_4h_longshort": {
+        "is_sharpe": 1.16,
+        "oos_sharpe": 0.94,
+        "max_drawdown": -0.12,
+        "trades_count": 169,
+        "total_return": 0.17,
+        "win_rate": 0.46,
+    },
 }
 
 

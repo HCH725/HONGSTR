@@ -100,3 +100,57 @@ def family_counts(candidates: Iterable[StrategyCandidate]) -> Dict[str, int]:
     for candidate in candidates:
         counts[candidate.family] = counts.get(candidate.family, 0) + 1
     return counts
+
+
+def phase2_pr2_candidates() -> List[StrategyCandidate]:
+    """
+    PR-2 extends PR-1 with direction variants for two strategies:
+    - supertrend
+    - ma_cross
+
+    Required proof point: leaderboard includes long + short/longshort entries.
+    """
+    base = phase2_pr1_candidates()
+    variants = [
+        StrategyCandidate(
+            strategy_id="trend_supertrend_eth_1h_short",
+            family="trend",
+            strategy="supertrend",
+            symbol="ETHUSDT",
+            timeframe="1h",
+            parameters={"atr_period": 10, "atr_mult": 2.5},
+            direction="short",
+            variant="v_short",
+        ),
+        StrategyCandidate(
+            strategy_id="trend_supertrend_eth_1h_longshort",
+            family="trend",
+            strategy="supertrend",
+            symbol="ETHUSDT",
+            timeframe="1h",
+            parameters={"atr_period": 10, "atr_mult": 2.5},
+            direction="longshort",
+            variant="v_longshort",
+        ),
+        StrategyCandidate(
+            strategy_id="trend_ma_cross_bnb_4h_short",
+            family="trend",
+            strategy="ma_cross",
+            symbol="BNBUSDT",
+            timeframe="4h",
+            parameters={"fast_ma": 20, "slow_ma": 80},
+            direction="short",
+            variant="v_short",
+        ),
+        StrategyCandidate(
+            strategy_id="trend_ma_cross_bnb_4h_longshort",
+            family="trend",
+            strategy="ma_cross",
+            symbol="BNBUSDT",
+            timeframe="4h",
+            parameters={"fast_ma": 20, "slow_ma": 80},
+            direction="longshort",
+            variant="v_longshort",
+        ),
+    ]
+    return [*base, *variants]
