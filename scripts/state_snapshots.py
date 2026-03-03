@@ -21,6 +21,7 @@ from state_atomic.data_catalog_scan import (
     build_changes_summary,
     scan_manifest_dir,
 )
+from strategy_dashboard_snapshot import build_strategy_dashboard_payload
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -1890,10 +1891,12 @@ def main():
     )
     write_json(STATE_DIR / "daily_report_latest.json", daily_report_payload)
 
-    # 16. Strategy Dashboard Component
+    # 16. Strategy Dashboard SSOT (strategy/backtest-only web surface)
     try:
-        from strategy_dashboard_snapshot import generate_snapshot as gen_strategy_dashboard
-        strategy_dashboard_payload = gen_strategy_dashboard()
+        strategy_dashboard_payload = build_strategy_dashboard_payload(
+            repo_root=Path(".").resolve(),
+            now_utc=now_utc,
+        )
         write_json(STATE_DIR / "strategy_dashboard_latest.json", strategy_dashboard_payload)
     except Exception as exc:
         logging.warning("Strategy dashboard snapshot failed: %s", exc)
