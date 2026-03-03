@@ -86,6 +86,20 @@ bash scripts/tg_sanity.sh
 
 DNS 不穩時，Telegram 通知會輸出 WARN 並跳過，不會阻斷 ETL/backfill/recovery 主流程。
 
+### 報表去重（Control Plane Converge, Phase-1）
+
+可用環境變數控制「重複摘要輸出」：
+
+```bash
+export HONGSTR_USE_CONTROL_PLANE_REPORTS=1
+```
+
+啟用後：
+
+- `daily_etl.sh` / `backfill_1m_from_2020.sh` 仍會執行 `check_data_coverage.sh`（硬 gate 不變）
+- 但會減少重複的長表格輸出，改由 control-plane/event 報表彙整
+- `recover_dashboard_full.sh` 會跳過一次重複 healthcheck（`one_click_dashboard.sh` 已有硬性 healthcheck）
+
 範例（只替換 `__REPO_ROOT__`，不把 TG secret 注入 plist）：
 
 ```bash
