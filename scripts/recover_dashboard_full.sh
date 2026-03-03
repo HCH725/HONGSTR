@@ -21,7 +21,9 @@ notify() {
 }
 
 run_control_plane() {
-  if [[ -x "$REPO_ROOT/scripts/control_plane_run.sh" ]]; then
+  if [[ -x "$REPO_ROOT/scripts/control_plane_report.sh" ]]; then
+    bash "$REPO_ROOT/scripts/control_plane_report.sh" || true
+  elif [[ -x "$REPO_ROOT/scripts/control_plane_run.sh" ]]; then
     bash "$REPO_ROOT/scripts/control_plane_run.sh" || true
   fi
 }

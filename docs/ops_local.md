@@ -126,6 +126,24 @@ sed \
 launchctl list | grep hongstr
 ```
 
+## Canonical Outputs (Phase-2)
+
+To avoid duplicated probe/report noise, pipeline summaries are converged to control-plane artifacts:
+
+- Canonical summary files:
+  - `reports/control_plane_latest.json`
+  - `reports/control_plane_latest.md`
+- Canonical summary command:
+  - `bash scripts/control_plane_report.sh`
+
+Hard gates remain authoritative and unchanged:
+
+- `bash scripts/check_data_coverage.sh` (fails non-zero on coverage FAIL)
+- `bash scripts/healthcheck_dashboard.sh` (PID/LISTEN/HTTP 200 gate)
+
+Operational entrypoints (`daily_etl`, `backfill_1m_from_2020`, `recover_dashboard_full`) now call
+`scripts/control_plane_report.sh` as a non-blocking final summary step.
+
 ### Observability Tools
 
 We provide specialized scripts for monitoring:
