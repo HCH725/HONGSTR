@@ -4,7 +4,7 @@ Goal: make all Ollama models follow the same engineering-grade operating procedu
 
 Models:
 - qwen2.5-coder:7b-instruct (coding-focused, proposal-first)
-- deepseek-r1:7b (reasoning specialist)
+- qwen2.5:7b-instruct (reasoning specialist)
 - qwen2.5:7b-instruct (ops/partner-friendly)
 
 This pack is **spec-first** in v1: it defines contracts and templates, and tg_cp may inject the prompt files directly at runtime. Dispatcher wiring is a later PR.
