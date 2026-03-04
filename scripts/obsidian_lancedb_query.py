@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from obsidian_common import compose_context
+from obsidian_common import DEFAULT_LANCEDB_DIR, compose_context, load_index_rows
 from obsidian_rag_lib import rag_search
 
 
@@ -30,6 +30,41 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _fallback_text_search(query: str, k: int) -> list[dict[str, object]]:
+    query_norm = str(query or "").strip().lower()
+    if not query_norm:
+        return []
+
+    try:
+        source_rows = load_index_rows(DEFAULT_LANCEDB_DIR)
+    except Exception:
+        return []
+
+    hits: list[dict[str, object]] = []
+    max_hits = max(int(k), 50)
+    for row in source_rows:
+        heading_path = str(row.get("heading_path") or row.get("vault_rel_path") or "UNKNOWN")
+        vault_rel_path = str(row.get("vault_rel_path") or "UNKNOWN")
+        chunk_text = str(row.get("chunk_text") or "")
+        haystack = f"{heading_path}\n{vault_rel_path}\n{chunk_text}".lower()
+        if query_norm not in haystack:
+            continue
+
+        metadata = row.get("metadata")
+        hits.append(
+            {
+                "score": 0.0,
+                "heading_path": heading_path,
+                "vault_rel_path": vault_rel_path,
+                "chunk_text": chunk_text,
+                "metadata": metadata if isinstance(metadata, dict) else {},
+            }
+        )
+        if len(hits) >= max_hits:
+            break
+    return hits
+
+
 def main() -> int:
     args = parse_args()
     payload = rag_search(
@@ -51,14 +86,26 @@ def main() -> int:
                 "metadata": chunk.get("metadata", {}),
             }
         )
+
+    # HONGSTR_FALLBACK_TEXTSEARCH_V1: deterministic fallback when vector search returns 0
+    if not rows:
+        rows = _fallback_text_search(args.query, args.k)
+
     if args.print_context:
         print(compose_context(rows), end="")
         return 0
     # Apply filter-type post-search (stable across LanceDB API versions)
     if args.filter_type:
         # HONGSTR_FILTER_BY_POINTER_V1
-        def _ptr(r):
-            return r.get("pointer") or r.get("path") or r.get("source_path") or ""
+        def _ptr(r: dict[str, object]) -> str:
+            return str(
+                r.get("pointer")
+                or r.get("vault_rel_path")
+                or r.get("heading_path")
+                or r.get("path")
+                or r.get("source_path")
+                or ""
+            )
         ft = args.filter_type
         if ft == "daily_ssot":
             rows = [r for r in rows if _ptr(r).startswith("KB/SSOT/Daily/")]
