@@ -55,10 +55,10 @@ def main() -> int:
         print(compose_context(rows), end="")
         return 0
     # Apply filter-type post-search (stable across LanceDB API versions)
-if args.filter_type:
-    rows = [r for r in rows if r.get("type") == args.filter_type]
+    if args.filter_type:
+        rows = [r for r in rows if r.get("type") == args.filter_type]
 
-for row in rows:
+    for row in rows:
         print(
             f"{row.get('score', 0.0):.4f}\t"
             f"{row.get('heading_path', row.get('vault_rel_path', 'UNKNOWN'))}\t"
