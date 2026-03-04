@@ -56,7 +56,19 @@ def main() -> int:
         return 0
     # Apply filter-type post-search (stable across LanceDB API versions)
     if args.filter_type:
-        rows = [r for r in rows if r.get("type") == args.filter_type]
+        # HONGSTR_FILTER_BY_POINTER_V1
+        def _ptr(r):
+            return r.get("pointer") or r.get("path") or r.get("source_path") or ""
+        ft = args.filter_type
+        if ft == "daily_ssot":
+            rows = [r for r in rows if _ptr(r).startswith("KB/SSOT/Daily/")]
+        elif ft == "daily":
+            rows = [r for r in rows if _ptr(r).startswith("Daily/")]
+        elif ft == "incident":
+            rows = [r for r in rows if _ptr(r).startswith("Incidents/")]
+        elif ft == "strategy":
+            rows = [r for r in rows if _ptr(r).startswith("Strategies/") or _ptr(r).startswith("StrategyCards/")]
+
 
     for row in rows:
         print(
