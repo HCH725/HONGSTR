@@ -13,7 +13,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--k", type=int, default=10, help="Maximum number of chunks to return.")
     parser.add_argument(
         "--filter-type",
-        choices=("daily", "strategy", "incident"),
+        choices=("daily","daily_ssot","strategy","incident"),
         default=None,
         help="Optional note type filter.",
     )
