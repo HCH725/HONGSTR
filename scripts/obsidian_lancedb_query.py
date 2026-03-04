@@ -13,7 +13,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--k", type=int, default=10, help="Maximum number of chunks to return.")
     parser.add_argument(
         "--filter-type",
-        choices=("daily", "strategy", "incident"),
+        choices=("daily","daily_ssot","strategy","incident"),
         default=None,
         help="Optional note type filter.",
     )
@@ -54,6 +54,10 @@ def main() -> int:
     if args.print_context:
         print(compose_context(rows), end="")
         return 0
+    # Apply filter-type post-search (stable across LanceDB API versions)
+    if args.filter_type:
+        rows = [r for r in rows if r.get("type") == args.filter_type]
+
     for row in rows:
         print(
             f"{row.get('score', 0.0):.4f}\t"
