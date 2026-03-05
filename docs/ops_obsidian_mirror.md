@@ -2,7 +2,12 @@
 
 ## Overview
 
-`com.hongstr.obsidian_mirror` runs `scripts/obsidian_mirror_publish.sh` once per day and performs a one-way mirror from the local primary Obsidian vault into iCloud Obsidian vault `HONGSTR_MIRROR`.
+`com.hongstr.obsidian_mirror` runs `scripts/obsidian_mirror_run.sh` once per day and performs an export-then-mirror chain to iCloud Obsidian vault `HONGSTR_MIRROR`.
+
+Current launchd chain uses `scripts/obsidian_mirror_run.sh`:
+
+1. Export dashboards from SSOT: `scripts/obsidian_dashboards_export.sh`
+2. Publish mirror to iCloud: `scripts/obsidian_mirror_publish.sh`
 
 This mirror is governance-only and non-blocking:
 
@@ -63,7 +68,7 @@ bash scripts/install_obsidian_mirror_launchd.sh uninstall
 Manual one-shot run:
 
 ```bash
-bash scripts/obsidian_mirror_publish.sh
+bash scripts/obsidian_mirror_run.sh
 ```
 
 ## Kill switch
@@ -72,6 +77,12 @@ Temporary one-shot disable:
 
 ```bash
 MIRROR_ENABLED=0 bash scripts/obsidian_mirror_publish.sh
+```
+
+Skip dashboards export while keeping mirror run:
+
+```bash
+DASHBOARDS_EXPORT_ENABLED=0 bash scripts/obsidian_mirror_run.sh
 ```
 
 Disable launchd runtime:
