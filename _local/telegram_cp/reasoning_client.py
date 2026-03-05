@@ -12,7 +12,7 @@ from .schemas_reasoning import ReasoningAnalysis
 
 # Environment overrides
 OLLAMA_ENDPOINT = os.getenv("HONGSTR_LLM_ENDPOINT", "http://127.0.0.1:11434")
-REASONING_MODEL = os.getenv("HONGSTR_REASONING_MODEL", "deepseek-r1:7b")
+REASONING_MODEL = os.getenv("HONGSTR_REASONING_MODEL", "qwen2.5:7b-instruct")
 REASONING_TIMEOUT = int(os.getenv("HONGSTR_REASONING_TIMEOUT", "120"))
 DEBUG_JSON = os.getenv("HONGSTR_DEBUG_JSON", "0") == "1"
 REFRESH_HINT = "bash scripts/refresh_state.sh"
@@ -95,7 +95,7 @@ def _extract_reasoning_payload(raw_response: str) -> tuple[dict[str, Any] | None
     if not isinstance(outer, dict):
         return None, "outer_not_object"
 
-    # Priority 2: extract from message.content (DeepSeek may wrap prose + JSON)
+    # Priority 2: extract from message.content (model may wrap prose + JSON)
     msg = outer.get("message")
     if isinstance(msg, dict):
         content = _message_content_to_text(msg.get("content"))

@@ -744,13 +744,13 @@ def test_system_prompt_includes_user_memories(monkeypatch, tmp_path):
 
 def test_prompt_pack_overlay_selection():
     assert select_overlay("qwen2.5-coder:7b-instruct") == "overlay_qwen2.5-coder_7b_instruct.md"
-    assert select_overlay("deepseek-r1:7b") == "overlay_deepseek-r1_7b.md"
+    assert select_overlay("deepseek-r1:7b") == "overlay_qwen2.5_7b_instruct.md"  # legacy alias => qwen2.5
     assert select_overlay("qwen2.5:7b-instruct") == "overlay_qwen2.5_7b_instruct.md"
     assert select_overlay("unknown-model") == "overlay_qwen2.5_7b_instruct.md"
 
 
 def test_prompt_pack_builds_for_supported_models():
-    for model_name in ("qwen2.5-coder:7b-instruct", "deepseek-r1:7b", "qwen2.5:7b-instruct"):
+    for model_name in ("qwen2.5-coder:7b-instruct", "qwen2.5:7b-instruct"):
         prompt = build_prompt_pack_system_prompt(model_name)
         assert prompt
         assert "HARD RED LINES" in prompt
