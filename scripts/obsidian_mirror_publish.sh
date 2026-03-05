@@ -7,11 +7,12 @@ readonly DEFAULT_PRIMARY_ROOT_REL="_local/obsidian_vault"
 readonly DEFAULT_ICLOUD_OBSIDIAN_ROOT="${HOME}/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian"
 readonly DEFAULT_ICLOUD_VAULT_NAME="HONGSTR_MIRROR"
 readonly DEFAULT_MIRROR_ENABLED="1"
-readonly LOCK_DIR="/tmp/${JOB_LABEL}.lock"
+readonly DEFAULT_LOCK_DIR="/tmp/${JOB_LABEL}.lock"
 
 export PATH="${DEFAULT_PATH}"
 
 LOCK_ACQUIRED=0
+LOCK_DIR="${OBSIDIAN_MIRROR_LOCK_DIR:-${DEFAULT_LOCK_DIR}}"
 
 now_utc() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
@@ -69,9 +70,12 @@ sync_dir() {
   local source_vault="$1"
   local target_vault="$2"
   local rel="$3"
+  local strict_mirror="$4"
+  local dry_run="$5"
   local src="${source_vault}/${rel}"
   local dst="${target_vault}/${rel}"
   local -a rsync_opts
+  local -a rsync_dry_run_flags
   rsync_opts=(
     --archive
     --human-readable
@@ -92,6 +96,11 @@ sync_dir() {
     --exclude "*.pickle"
     --exclude "*.joblib"
   )
+  if [[ "${dry_run}" == "1" ]]; then
+    rsync_dry_run_flags=(--dry-run --itemize-changes)
+  else
+    rsync_dry_run_flags=(--itemize-changes)
+  fi
 
   if [[ ! -d "${src}" ]]; then
     log_warn "source_missing rel=${rel} source=${src}"
@@ -103,9 +112,16 @@ sync_dir() {
     return 11
   fi
 
-  if rsync "${rsync_opts[@]}" "${src}/" "${dst}/"; then
-    log_info "synced rel=${rel} source=${src} target=${dst}"
-    return 0
+  if [[ "${strict_mirror}" == "1" ]]; then
+    if rsync "${rsync_opts[@]}" "${rsync_dry_run_flags[@]}" --delete --delete-excluded "${src}/" "${dst}/"; then
+      log_info "synced rel=${rel} source=${src} target=${dst}"
+      return 0
+    fi
+  else
+    if rsync "${rsync_opts[@]}" "${rsync_dry_run_flags[@]}" "${src}/" "${dst}/"; then
+      log_info "synced rel=${rel} source=${src} target=${dst}"
+      return 0
+    fi
   fi
 
   log_warn "rsync_failed rel=${rel} source=${src} target=${dst}"
@@ -118,11 +134,25 @@ main() {
   local -a include_dirs
   local synced_count=0
   local missing_count=0
+  local strict_mirror
+  local dry_run
+  local delete_mode
+  local run_mode
 
   mirror_enabled="${MIRROR_ENABLED:-${DEFAULT_MIRROR_ENABLED}}"
   if [[ "${mirror_enabled}" != "1" ]]; then
     log_info "disabled MIRROR_ENABLED=${mirror_enabled}"
     return 0
+  fi
+
+  strict_mirror="${STRICT_MIRROR:-0}"
+  if [[ "${strict_mirror}" != "1" ]]; then
+    strict_mirror="0"
+  fi
+
+  dry_run="${DRY_RUN:-0}"
+  if [[ "${dry_run}" != "1" ]]; then
+    dry_run="0"
   fi
 
   if ! command -v rsync >/dev/null 2>&1; then
@@ -151,9 +181,21 @@ main() {
     return 0
   fi
 
-  log_info "start source_vault=${source_vault} target_vault=${target_vault} includes=${include_dirs[*]}"
+  if [[ "${strict_mirror}" == "1" ]]; then
+    delete_mode="strict"
+  else
+    delete_mode="disabled"
+  fi
+
+  if [[ "${dry_run}" == "1" ]]; then
+    run_mode="dry_run"
+  else
+    run_mode="apply"
+  fi
+
+  log_info "start source_vault=${source_vault} target_vault=${target_vault} includes=${include_dirs[*]} strict_mirror=${strict_mirror} dry_run=${dry_run}"
   for rel in "${include_dirs[@]}"; do
-    if sync_dir "${source_vault}" "${target_vault}" "${rel}"; then
+    if sync_dir "${source_vault}" "${target_vault}" "${rel}" "${strict_mirror}" "${dry_run}"; then
       ((synced_count += 1))
     else
       rc="$?"
@@ -163,7 +205,7 @@ main() {
     fi
   done
 
-  log_info "done synced_dirs=${synced_count} missing_dirs=${missing_count} delete_mode=disabled retention=permanent"
+  log_info "done synced_dirs=${synced_count} missing_dirs=${missing_count} delete_mode=${delete_mode} run_mode=${run_mode} retention=permanent"
   return 0
 }
 
