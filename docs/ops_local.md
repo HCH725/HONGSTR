@@ -126,6 +126,28 @@ sed \
 launchctl list | grep hongstr
 ```
 
+### Silence Noisy Jobs (obsidian_daily / kb_sync)
+
+If `com.hongstr.obsidian_daily` is failing with `rc=127` (missing script), or `com.hongstr.kb_sync` is not needed, disable both safely:
+
+```bash
+cd /Users/hong/Projects/HONGSTR
+bash scripts/disable_noisy_jobs.sh
+```
+
+The helper script is non-blocking and safe to re-run. It attempts `bootout + disable` and then checks `launchctl print-disabled`.
+
+If you need `kb_sync`, configure token first:
+
+```bash
+cd /Users/hong/Projects/HONGSTR
+export GITHUB_TOKEN='...'
+export GH_TOKEN='...'
+bash scripts/kb_sync_run.sh
+```
+
+If token is not configured and you do not use KB sync, keep `com.hongstr.kb_sync` disabled.
+
 ## Canonical Outputs (Phase-2)
 
 To avoid duplicated probe/report noise, pipeline summaries are converged to control-plane artifacts:
