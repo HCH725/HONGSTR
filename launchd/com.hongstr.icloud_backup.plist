@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.hongstr.icloud_backup</string>
+
+    <key>Program</key>
+    <string>/bin/bash</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>bash</string>
+      <string>__REPO_ROOT__/scripts/icloud_backup_run.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Hour</key>
+      <integer>8</integer>
+      <key>Minute</key>
+      <integer>30</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/_local/logs/launchd_icloud_backup.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/_local/logs/launchd_icloud_backup.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>HOME</key>
+      <string>__HOME__</string>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+      <key>BACKUP_ENABLED</key>
+      <string>1</string>
+      <key>BACKUP_MODE</key>
+      <string>full</string>
+    </dict>
+  </dict>
+</plist>
