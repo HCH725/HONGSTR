@@ -10,7 +10,7 @@ Mode: report_only (no trading behavior changes)
 |---|---|---|
 | Backtest pipeline cadence + artifacts | PASS | `daily_backtest` schedule and `summary/gate/selection` artifact chain are present and verifiable. |
 | IS/OOS split + gate thresholds source-of-truth | PASS | Split constants and gate thresholds are centralized and traceable to code/config. |
-| Research loop operating + outputs verifiable | WARN | Loop/poller run, proposals/results exist, DeepSeek JSON contract works; research leaderboard refresh is stale. |
+| Research loop operating + outputs verifiable | WARN | Loop/poller run, proposals/results exist, Reasoning Model JSON contract works; research leaderboard refresh is stale. |
 | Strategy pool / leaderboard defaults consistency | WARN | Strategy pool summary follows expected default ranking; research leaderboard update cadence appears broken/stale. |
 | tg_cp quant skill help/schema UX | FAIL | `/skills help` behavior and `/run help`/error payloads are not yet aligned with requested richer contract. |
 
@@ -19,6 +19,7 @@ Mode: report_only (no trading behavior changes)
 ## A) Inventory (Source-of-Truth Mapping)
 
 ### 1) Backtest schedule + orchestration
+
 - Launchd schedule source:
   - `ops/launchagents/com.hongstr.daily_backtest.plist`: daily `05:00`
   - Installed runtime: `~/Library/LaunchAgents/com.hongstr.daily_backtest.plist`
@@ -34,6 +35,7 @@ Mode: report_only (no trading behavior changes)
     7. verify + gate summary + action items
 
 ### 2) Strategy definitions + default parameter sets
+
 - Core strategy implementation:
   - `src/hongstr/signal/strategies/vwap_supertrend.py`
 - Backtest default strategy + params source:
@@ -47,6 +49,7 @@ Mode: report_only (no trading behavior changes)
   - observed candidate: `trend_mvp_btc_1h` (score `0.5`, OOS sharpe `1.2`)
 
 ### 3) Gate/scoring thresholds + enforcement
+
 - Backtest gate config SSOT:
   - `configs/gate_thresholds.json`
 - Enforcer:
@@ -60,6 +63,7 @@ Mode: report_only (no trading behavior changes)
   - `research/loop/gates.py` (`min_oos_sharpe=0.5`, `max_oos_mdd=-0.15`, `overfit_ratio=2.0`)
 
 ### 4) Selection + summary expected fields
+
 - `summary.json` observed top-level fields:
   - `sharpe`, `max_drawdown`, `trades_count`, `per_symbol`, `config`, `start_ts`, `end_ts`, etc.
 - `gate.json` observed fields:
@@ -73,6 +77,7 @@ Mode: report_only (no trading behavior changes)
 ## B) SSOT Verification (Executed)
 
 ### 1) State refresh execution
+
 - Executed: `bash scripts/refresh_state.sh`
 - Result: success (`exit 0`)
 - Generated/updated:
@@ -83,6 +88,7 @@ Mode: report_only (no trading behavior changes)
   - `data/state/brake_health_latest.json`
 
 Observed from `data/state/system_health_latest.json`:
+
 - `ssot_status=OK`
 - `refresh_hint=bash scripts/refresh_state.sh`
 - freshness thresholds include profile split:
@@ -90,6 +96,7 @@ Observed from `data/state/system_health_latest.json`:
   - `backtest`: `ok_h=26.0`, `warn_h=50.0`, `fail_h=72.0`
 
 ### 2) Latest backtest artifact verification
+
 - Latest run dir:
   - `data/backtests/2026-02-25/20260226_050003_f431`
 - Parsed metrics:
@@ -98,6 +105,7 @@ Observed from `data/state/system_health_latest.json`:
   - `selection.json`: `decision=TRADE`, `selected.symbol=BTCUSDT`
 
 ### 3) Strategy pool + research leaderboard cadence
+
 - Strategy pool:
   - `data/state/strategy_pool_summary.json` updated by `refresh_state.sh` (fresh)
   - leaderboard top entry: `trend_mvp_btc_1h`
@@ -110,12 +118,13 @@ Observed from `data/state/system_health_latest.json`:
 
 ## C) Quant Specialist Readiness
 
-### 1) Ollama/DeepSeek readiness
+### 1) Ollama/Reasoning Model readiness
+
 - Model manifests present:
   - `~/.ollama/models/manifests/registry.ollama.ai/library/deepseek-r1/7b`
   - `~/.ollama/models/manifests/registry.ollama.ai/library/qwen2.5/7b-instruct`
   - `~/.ollama/models/manifests/registry.ollama.ai/library/qwen2.5/0.5b`
-- Live reasoning client test (DeepSeek via Ollama `/api/chat`):
+- Live reasoning client test (Reasoning Model via Ollama `/api/chat`):
   - returned normalized JSON contract
   - `actions=[]` enforced
   - keys present: `status/problem/key_findings/hypotheses/recommended_next_steps/risks/actions/citations/refresh_hint`
@@ -123,11 +132,13 @@ Observed from `data/state/system_health_latest.json`:
 ### 2) tg_cp `/skills` + `/run help` schema alignment checks (quant skills)
 
 Audited skills:
+
 - `backtest_reproducibility_audit`
 - `factor_health_and_drift_report`
 - `strategy_regime_sensitivity_report`
 
 Observed current behavior:
+
 - `/run <skill> key=value ...`: works
 - `/run <skill> {"k":"v"}`: works
 - `/run help <skill>`:
@@ -141,6 +152,7 @@ Observed current behavior:
   - currently not supported as a dedicated help handler in this branch
 
 Conclusion:
+
 - Parsing capability: PASS (supports key=value + JSON object)
 - Help/error contract richness: FAIL (missing requested diagnostics)
 
@@ -149,12 +161,14 @@ Conclusion:
 ## D) SOP Compliance Notes
 
 ### What is source-of-truth for backtest params and gates
+
 - Backtest gate thresholds: `configs/gate_thresholds.json`
 - Backtest gate enforcement: `scripts/generate_gate_artifact.py`
 - Research gate enforcement: `research/loop/gates.py`
 - Split constants: `scripts/splits.py` (`IS_END_DATE=2024-12-31`, `OOS_START_DATE=2025-01-01`)
 
 ### Current cadence and freshness profile meaning
+
 - `com.hongstr.daily_backtest`: daily `05:00`
 - `com.hongstr.refresh_state`: `RunAtLoad + StartInterval=3600`
 - `com.hongstr.daily_healthcheck`: daily `02:30` (alias path to `refresh_state.sh`)
@@ -162,10 +176,12 @@ Conclusion:
 - `com.hongstr.research_loop`: daily `06:20`
 
 Freshness profiles:
+
 - `realtime` profile is strict (minute-scale)
 - `backtest` profile is tolerant for daily batch cadence (26h/50h/72h bands)
 
 ### When results look wrong, check in this order
+
 1. `bash scripts/refresh_state.sh`
 2. `data/state/system_health_latest.json` (`ssot_status`, component statuses)
 3. Latest `summary.json` metrics (`sharpe/max_drawdown/trades_count`)

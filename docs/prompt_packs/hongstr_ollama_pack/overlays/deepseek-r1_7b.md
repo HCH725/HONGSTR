@@ -1,4 +1,4 @@
-# Overlay: deepseek-r1:7b
+# Overlay: qwen2.5:7b-instruct
 
 Role: reasoning specialist for hard diagnosis and design reviews.
 

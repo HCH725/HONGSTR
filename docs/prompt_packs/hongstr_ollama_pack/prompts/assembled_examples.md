@@ -7,7 +7,7 @@ Example A: qwen2.5-coder:7b-instruct
 - ssot snapshot: system_health_latest.json (short)
 - blocks: STATUS, FRESHNESS
 
-Example B: deepseek-r1:7b
+Example B: qwen2.5:7b-instruct
 - base_system_prompt
 - overlay_deepseek-r1_7b
 - skills: status_overview

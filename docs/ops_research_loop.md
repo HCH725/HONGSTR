@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Autonomous Research Loop leverages the Reasoning Specialist (`deepseek-r1:7b`) to analyze system state and propose/run research experiments (backtests) to improve future model performance.
+The Autonomous Research Loop leverages the Reasoning Specialist (`qwen2.5:7b-instruct`) to analyze system state and propose/run research experiments (backtests) to improve future model performance.
 
 ## Workflow
 

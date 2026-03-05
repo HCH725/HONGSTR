@@ -4,7 +4,7 @@ Policy SSOT: `docs/skills/global_red_lines.md`
 
 This document is the canonical schema reference for:
 - tg_cp Qwen system prompt skill responses
-- Quant Specialist DeepSeek reasoning responses
+- Quant Specialist Reasoning Model reasoning responses
 
 ## Prompt Injection Contract (v1)
 
@@ -101,7 +101,7 @@ All tg_cp schemas are read-only and must not contain executable actions.
 }
 ```
 
-## B) Quant Specialist Skill Schemas (DeepSeek)
+## B) Quant Specialist Skill Schemas (Reasoning Model)
 
 All quant specialist outputs are `report_only` by default.
 
