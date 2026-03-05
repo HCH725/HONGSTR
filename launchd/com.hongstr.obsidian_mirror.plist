@@ -11,7 +11,7 @@
     <key>ProgramArguments</key>
     <array>
       <string>bash</string>
-      <string>__REPO_ROOT__/scripts/obsidian_mirror_publish.sh</string>
+      <string>__REPO_ROOT__/scripts/obsidian_mirror_run.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
