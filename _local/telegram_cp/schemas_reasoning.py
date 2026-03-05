@@ -3,7 +3,7 @@ from typing import List
 
 class ReasoningAnalysis(BaseModel):
     """
-    Strict schema for Reasoning Specialist (deepseek-r1:7b) output.
+    Strict schema for Reasoning Specialist (qwen2.5:7b-instruct) output.
     All fields are mandatory to ensure the Specialist provides structured insights.
     """
     status: str = Field(..., description="Overall status of the analysis: OK, WARN, or FAIL")

@@ -26,7 +26,7 @@ def select_overlay(model_name: str) -> str:
     if "qwen2.5-coder:7b-instruct" in normalized or "qwen2.5-coder" in normalized:
         return "overlay_qwen2.5-coder_7b_instruct.md"
     if "deepseek-r1:7b" in normalized or "deepseek-r1" in normalized:
-        return "overlay_deepseek-r1_7b.md"
+        return _DEFAULT_OVERLAY  # legacy alias; deepseek-r1 removed, route to qwen2.5
     if "qwen2.5:7b-instruct" in normalized or "qwen2.5" in normalized:
         return _DEFAULT_OVERLAY
     return _DEFAULT_OVERLAY
