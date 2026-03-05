@@ -22,15 +22,15 @@ log_warn() {
 print_disabled_state() {
   local label="$1"
   local disabled_output="$2"
-  if printf '%s\n' "${disabled_output}" | grep -Fq "\"${label}\" => disabled"; then
+  if printf '%s\n' "${disabled_output}" | grep -Eq "^[[:space:]]*\"${label}\"[[:space:]]*=>[[:space:]]*(disabled|true)\\b"; then
     log_info "disabled_confirmed label=${label}"
     return 0
   fi
-  if printf '%s\n' "${disabled_output}" | grep -Fq "${label}"; then
-    log_info "disabled_listed label=${label}"
+  if printf '%s\n' "${disabled_output}" | grep -Eq "^[[:space:]]*\"${label}\"[[:space:]]*=>[[:space:]]*(enabled|false)\\b"; then
+    log_warn "disabled_not_effective label=${label}"
     return 0
   fi
-  log_warn "disabled_not_found_in_print_disabled label=${label}"
+  log_warn "disabled_missing label=${label}"
   return 0
 }
 
