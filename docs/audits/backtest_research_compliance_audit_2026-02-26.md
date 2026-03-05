@@ -120,8 +120,8 @@ Observed from `data/state/system_health_latest.json`:
 
 ### 1) Ollama/Reasoning Model readiness
 
-- Model manifests present:
-  - `~/.ollama/models/manifests/registry.ollama.ai/library/deepseek-r1/7b`
+- Model manifests present (as of audit date 2026-02-26; **deepseek-r1 decommissioned 2026-03-05**):
+  - ~~`~/.ollama/models/manifests/registry.ollama.ai/library/deepseek-r1/7b`~~ (removed; migrated to qwen2.5)
   - `~/.ollama/models/manifests/registry.ollama.ai/library/qwen2.5/7b-instruct`
   - `~/.ollama/models/manifests/registry.ollama.ai/library/qwen2.5/0.5b`
 - Live reasoning client test (Reasoning Model via Ollama `/api/chat`):
