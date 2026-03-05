@@ -18,7 +18,18 @@ No writes are made to SSOT.
 - `data/state/brake_health_latest.json`
 - `data/state/regime_monitor_latest.json`
 - `data/state/data_catalog_latest.json` (optional)
-- `data/state/changes_latest.json` (optional)
+- `data/state/changes_latest.json` (canonical alias from `scripts/state_snapshots.py`)
+
+`data/state/changes_latest.json` is published from `data/state/data_catalog_changes_latest.json`.
+
+Degrade rule for alias publication:
+
+- If source exists and is readable, exporter consumes alias payload with deterministic summary.
+- If source is missing or unreadable, `state_snapshots.py` still writes `changes_latest.json` with:
+  - `ts_utc`
+  - `status: WARN`
+  - `reason: missing_source`
+  - `changes: []`
 
 ## Outputs
 

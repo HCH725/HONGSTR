@@ -289,6 +289,63 @@ def _data_catalog_changes_component(changes_payload: Any, warnings: list[str]) -
     }
 
 
+def _changes_latest_fallback(now_utc: str, source_path: Path) -> dict[str, Any]:
+    return {
+        "ts_utc": now_utc,
+        "status": "WARN",
+        "reason": "missing_source",
+        "changes": [],
+        "source": {
+            "path": str(source_path),
+            "status": "missing",
+        },
+    }
+
+
+def _build_changes_latest_alias(source_payload: Any, now_utc: str, source_path: Path) -> dict[str, Any]:
+    if not isinstance(source_payload, dict):
+        return _changes_latest_fallback(now_utc, source_path)
+
+    ts_utc_raw = source_payload.get("ts_utc")
+    ts_utc = str(ts_utc_raw).strip() if isinstance(ts_utc_raw, str) and str(ts_utc_raw).strip() else now_utc
+
+    source_status, source_summary = build_changes_summary(source_payload)
+    status = _normalize_simple_status(source_status)
+    if status == "PASS":
+        status = "OK"
+
+    changes = source_payload.get("changes")
+    if not isinstance(changes, list):
+        rows = source_payload.get("rows")
+        changes = rows if isinstance(rows, list) else []
+
+    alias_payload: dict[str, Any] = {
+        "ts_utc": ts_utc,
+        "status": status,
+        "reason": "alias_data_catalog_changes_latest",
+        "summary": source_summary,
+        "changes": changes,
+        "source": {
+            "path": str(source_path),
+            "status": "present",
+        },
+    }
+
+    prev_ts_utc = source_payload.get("prev_ts_utc")
+    if isinstance(prev_ts_utc, str) and prev_ts_utc.strip():
+        alias_payload["prev_ts_utc"] = prev_ts_utc.strip()
+
+    return alias_payload
+
+
+def _write_changes_latest_alias(now_utc: str, source_path: Path | None = None) -> dict[str, Any]:
+    changes_source_path = source_path or (STATE_DIR / "data_catalog_changes_latest.json")
+    source_payload = read_json(changes_source_path)
+    alias_payload = _build_changes_latest_alias(source_payload, now_utc, changes_source_path)
+    write_json(STATE_DIR / "changes_latest.json", alias_payload)
+    return alias_payload
+
+
 def _normalize_public_market_coverage(payload: Any, now_utc: str, dataset_label: str) -> dict[str, Any]:
     fallback_row = {
         "dataset": dataset_label,
@@ -1783,6 +1840,7 @@ def main():
     data_catalog_payload, data_catalog_changes, data_catalog_warnings = _build_data_catalog_artifacts(now_utc)
     write_json(STATE_DIR / "data_catalog_latest.json", data_catalog_payload)
     write_json(STATE_DIR / "data_catalog_changes_latest.json", data_catalog_changes)
+    _write_changes_latest_alias(now_utc, STATE_DIR / "data_catalog_changes_latest.json")
     write_json(DATA_CATALOG_PREV, data_catalog_payload)
     data_catalog_component = _data_catalog_changes_component(data_catalog_changes, data_catalog_warnings)
 
