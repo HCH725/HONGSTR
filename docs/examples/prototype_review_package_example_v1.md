@@ -48,7 +48,7 @@ A complete review package should contain these pieces:
 
 | Package item | Purpose | Required source |
 |---|---|---|
-| evidence summary | proves the review is evidence-based | `docs/architecture/prototype_evidence_collection_plan_v1.md` |
+| evidence summary | proves the review is evidence-based | `docs/templates/prototype_evidence_summary_template_v1.md` |
 | review template | structures the formal review | `docs/templates/prototype_upgrade_review_template_v1.md` or `docs/templates/prototype_retirement_review_template_v1.md` |
 | author checklist | confirms the author did not skip prerequisites | `docs/templates/prototype_review_pr_author_checklist_v1.md` |
 | kickoff SOP reference | defines whether the review may start at all | `docs/ops/prototype_review_kickoff_sop_v1.md` |
@@ -107,6 +107,7 @@ If `retirement review`:
 
 At minimum, complete:
 
+- Evidence summary using `docs/templates/prototype_evidence_summary_template_v1.md`
 - Review basic information
 - Evidence summary
 - Boundary checks
@@ -154,6 +155,7 @@ The following is a minimal example structure an author can copy.
 - review_author: <name or handle>
 - reviewer: <name or handle>
 - related_docs:
+  - docs/templates/prototype_evidence_summary_template_v1.md
   - docs/architecture/prototype_evidence_collection_plan_v1.md
   - docs/architecture/prototype_retirement_criteria_v1.md
   - docs/ops/prototype_review_kickoff_sop_v1.md
