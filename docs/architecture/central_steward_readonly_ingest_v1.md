@@ -214,11 +214,15 @@ Prototype caveat:
 - restart may clear suppression memory and cause repeated shadow summaries if the feature is manually enabled
 - this is acceptable for prototype/shadow mode because no formal operator-visible Telegram notification is sent
 
+Disposition note:
+
+- current recommended posture is to keep shadow summary `internal-log only`; see `docs/architecture/shadow_summary_disposition_v1.md`
+
 Suggested follow-on adoption path:
 
 1. producer-side artifact schema validation outside runtime
 2. one small producer PR for atomic `alerts_latest.json` / `alerts_journal.jsonl`
    Current producer posture: manual-only helper, no schedule, no steward runtime dependency; see `docs/architecture/atomic_alert_producer_invocation_decision_v1.md`.
 3. disabled-by-default shadow prototype may read artifacts only and emit no-op internal summaries only
-4. only after shadow validation should a later PR decide whether operator-visible Telegram summary is warranted
+4. only after shadow validation should a later PR revisit whether operator-visible Telegram summary is warranted; current disposition says no rollout yet
 5. only after that, evaluate whether a canonical mirror under `data/state/*` is needed, and if so, route it only through `scripts/state_snapshots.py`
