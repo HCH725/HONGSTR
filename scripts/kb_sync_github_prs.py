@@ -41,9 +41,9 @@ FILES_CHANGED_MAX_LINES = 200
 _REPO_ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 _VAULT_REL = Path("_local/obsidian_vault/HONGSTR")
 _KB_REL = _VAULT_REL / "KB"
-_META_REL = _KB_REL / "_meta"
+_VAULT_META_REL = _VAULT_REL / "_meta"
+_KB_META_REL = _KB_REL / "_meta"
 _PR_REL = _KB_REL / "PR"
-_STATE_FILE = "_meta/kb_sync_state.json"
 
 UTC = timezone.utc
 
@@ -52,13 +52,7 @@ UTC = timezone.utc
 # State helpers
 # ---------------------------------------------------------------------------
 
-def _load_state(meta_dir: Path) -> dict[str, Any]:
-    path = meta_dir / "kb_sync_state.json"
-    if path.exists():
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+def _default_state() -> dict[str, Any]:
     return {
         "last_merged_at_utc": None,
         "last_run_utc": None,
@@ -67,12 +61,35 @@ def _load_state(meta_dir: Path) -> dict[str, Any]:
     }
 
 
-def _save_state(meta_dir: Path, state: dict[str, Any]) -> None:
-    meta_dir.mkdir(parents=True, exist_ok=True)
-    path = meta_dir / "kb_sync_state.json"
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    tmp.replace(path)
+def _load_state(meta_dirs: list[Path]) -> dict[str, Any]:
+    for meta_dir in meta_dirs:
+        path = meta_dir / "kb_sync_state.json"
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                return payload
+        except Exception:
+            continue
+    return _default_state()
+
+
+def _save_state(meta_dirs: list[Path], state: dict[str, Any]) -> None:
+    write_errors: list[str] = []
+    write_count = 0
+    for meta_dir in meta_dirs:
+        path = meta_dir / "kb_sync_state.json"
+        try:
+            meta_dir.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            tmp.replace(path)
+            write_count += 1
+        except OSError as exc:
+            write_errors.append(f"{path}: {exc}")
+    if write_count == 0 and write_errors:
+        raise OSError("; ".join(write_errors))
 
 
 def _now_utc_iso() -> str:
@@ -378,15 +395,15 @@ def sync_prs(
     dry_run: bool = False,
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, Any]:
-    vault_root = repo_root / _VAULT_REL
-    meta_dir = repo_root / _VAULT_REL / "_meta"
+    meta_dirs = [repo_root / _VAULT_META_REL, repo_root / _KB_META_REL]
     kb_pr_dir = repo_root / _PR_REL
 
     if not dry_run:
-        meta_dir.mkdir(parents=True, exist_ok=True)
+        for meta_dir in meta_dirs:
+            meta_dir.mkdir(parents=True, exist_ok=True)
         kb_pr_dir.mkdir(parents=True, exist_ok=True)
 
-    state = _load_state(meta_dir)
+    state = _load_state(meta_dirs)
     cursor_raw: str | None = state.get("last_merged_at_utc")
     cursor_dt = _parse_iso(cursor_raw)
 
@@ -403,7 +420,7 @@ def sync_prs(
         warnings.append(f"WARN rate_limit: {exc}")
         state.update({"last_run_utc": run_utc, "last_status": "WARN", "last_error": str(exc)})
         if not dry_run:
-            _save_state(meta_dir, state)
+            _save_state(meta_dirs, state)
         return {
             "written": 0,
             "skipped": 0,
@@ -467,7 +484,7 @@ def sync_prs(
     state["last_error"] = warnings[-1] if warnings else None
 
     if not dry_run:
-        _save_state(meta_dir, state)
+        _save_state(meta_dirs, state)
 
     return {
         "written": written,

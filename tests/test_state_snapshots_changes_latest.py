@@ -88,3 +88,17 @@ def test_main_writes_changes_latest_json(tmp_path: Path, monkeypatch):
     assert isinstance(payload.get("ts_utc"), str)
     assert payload.get("status") in {"OK", "WARN", "FAIL", "UNKNOWN"}
     assert isinstance(payload.get("changes"), list)
+
+
+def test_main_writes_system_health_ts_utc(tmp_path: Path, monkeypatch):
+    mod = _load_state_snapshots_module()
+    monkeypatch.chdir(tmp_path)
+
+    mod.main()
+
+    health_path = tmp_path / "data" / "state" / "system_health_latest.json"
+    assert health_path.exists()
+    payload = json.loads(health_path.read_text(encoding="utf-8"))
+    assert isinstance(payload.get("generated_utc"), str)
+    assert isinstance(payload.get("ts_utc"), str)
+    assert payload["ts_utc"] == payload["generated_utc"]
