@@ -82,7 +82,7 @@ Current helper behavior:
 - if watchdog input is missing or unreadable, it emits a stable sample fallback
 - it does not write `data/state/*`
 - it does not notify Telegram
-- it does not wire into central steward
+- it is not required by central steward; the only allowed consumer posture is a later disabled-by-default shadow ingest prototype
 
 Scheduling implication:
 
@@ -125,7 +125,7 @@ This helper is not a Stage 7 path today because:
 
 - it does not invoke Telegram
 - it does not call `_local/telegram_cp/**`
-- it does not feed central steward runtime yet
+- any later central steward consumer must stay shadow-only and default-off until separately approved
 
 That is precisely why it should stay manual-only for now:
 
