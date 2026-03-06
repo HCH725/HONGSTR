@@ -31,6 +31,7 @@ Recommended companion docs:
 - `docs/templates/prototype_review_pr_author_checklist_v1.md`
 - `docs/examples/prototype_review_package_example_v1.md`
 - `docs/ops/prototype_review_package_naming_convention_v1.md`
+- `docs/ops/prototype_review_field_glossary_v1.md`
 
 ## 1. Basic Information
 
