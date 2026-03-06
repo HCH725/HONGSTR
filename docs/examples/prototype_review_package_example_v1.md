@@ -53,6 +53,7 @@ A complete review package should contain these pieces:
 | evidence summary | proves the review is evidence-based | `docs/templates/prototype_evidence_summary_template_v1.md` |
 | review template | structures the formal review | `docs/templates/prototype_upgrade_review_template_v1.md` or `docs/templates/prototype_retirement_review_template_v1.md` |
 | author checklist | confirms the author did not skip prerequisites | `docs/templates/prototype_review_pr_author_checklist_v1.md` |
+| re-review resubmission checklist | confirms request-changes items are closed before resubmission | `docs/templates/prototype_re_review_resubmission_checklist_v1.md` |
 | decision record | standardizes the reviewer’s final outcome once review is complete | `docs/templates/prototype_review_decision_record_template_v1.md` |
 | request-changes note | standardizes reviewer return-for-fixes feedback when the package is not ready | `docs/templates/prototype_review_request_changes_note_template_v1.md` |
 | kickoff SOP reference | defines whether the review may start at all | `docs/ops/prototype_review_kickoff_sop_v1.md` |

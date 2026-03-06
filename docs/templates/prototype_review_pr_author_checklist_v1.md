@@ -5,6 +5,7 @@ Use this checklist before opening any central steward shadow/prototype review PR
 This checklist is for authors only.
 
 Reviewer-side validation belongs in `docs/templates/prototype_review_reviewer_checklist_v1.md`.
+If this PR is being resubmitted after `request changes`, also use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`.
 
 It does not replace:
 

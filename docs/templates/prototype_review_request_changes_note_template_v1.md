@@ -25,6 +25,8 @@ If the package later reaches a real review conclusion, use:
 
 - `docs/templates/prototype_review_decision_record_template_v1.md`
 
+Before resubmitting after fixes, authors should complete `docs/templates/prototype_re_review_resubmission_checklist_v1.md`.
+
 ## 1. Basic Information
 
 | Field | Value |
