@@ -1,6 +1,6 @@
 # HONGSTR Prototype Retirement Review Template v1
 
-Use this template only for a future `retirement review` of the central steward shadow/prototype path.
+Use this template only for a future `retirement-review` of the central steward shadow/prototype path.
 
 Before opening a review PR, satisfy `docs/ops/prototype_review_kickoff_sop_v1.md`.
 Authors should also complete `docs/templates/prototype_review_pr_author_checklist_v1.md` before opening the PR.
@@ -11,7 +11,7 @@ Reviewers should record the final outcome in `docs/templates/prototype_review_de
 
 Do not use this template for rollout.
 
-Do not use this template for upgrade review. Use `docs/templates/prototype_upgrade_review_template_v1.md` instead.
+Do not use this template for `upgrade-review`. Use `docs/templates/prototype_upgrade_review_template_v1.md` instead.
 
 ## 0. Review Start Rule
 
@@ -22,7 +22,7 @@ Start this template only when:
 
 Filled by:
 
-- the author of the future retirement-review PR
+- the author of the future `retirement-review` PR
 
 Reviewed by:
 
@@ -33,10 +33,10 @@ Reviewed by:
 | Field | Value |
 |---|---|
 | `review_id` | `<prototype-retirement-review-YYYYMMDD>` |
-| `review_type` | `retirement` |
-| `review_window` | `<YYYY-MM-DD to YYYY-MM-DD>` |
+| `review_type` | `retirement-review` |
+| `review_window` | `<YYYY-MM-DD..YYYY-MM-DD>` |
 | `reviewer` | `<name or handle>` |
-| `review_author` | `<name or handle>` |
+| `author` | `<name or handle>` |
 | `related_prs` | `<PR links>` |
 | `related_docs` | `docs/architecture/prototype_evidence_collection_plan_v1.md`, `docs/architecture/prototype_retirement_criteria_v1.md`, `docs/architecture/shadow_summary_disposition_v1.md`, `docs/architecture/central_steward_readonly_ingest_v1.md` |
 | `current_runtime_posture` | `default-off / internal-only / not-canonical / no-actioning` |
@@ -139,7 +139,7 @@ If retirement is approved:
 
 ## 8. Removal / Archive Note
 
-Required only for retirement review.
+Required only for `retirement-review`.
 
 | Field | Value |
 |---|---|
@@ -168,5 +168,5 @@ Confirm all remain unchanged:
 
 | Role | Name | Decision | Date |
 |---|---|---|---|
-| review author | `<name>` | `<decision>` | `<YYYY-MM-DD>` |
-| governance reviewer | `<name>` | `<approve / request changes>` | `<YYYY-MM-DD>` |
+| author | `<name>` | `<decision>` | `<YYYY-MM-DD>` |
+| governance reviewer | `<name>` | `<approve / request-changes note>` | `<YYYY-MM-DD>` |

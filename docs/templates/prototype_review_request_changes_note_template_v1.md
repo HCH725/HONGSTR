@@ -2,7 +2,7 @@
 
 Use this template when a reviewer needs to return a central steward shadow/prototype review package for changes.
 
-This template standardizes reviewer-side `request changes` notes for governance review only.
+This template standardizes reviewer-side `request-changes notes` for governance review only.
 
 It is not:
 
@@ -33,9 +33,9 @@ Authors may use `docs/examples/prototype_resubmission_example_v1.md` if they nee
 | Field | Value |
 |---|---|
 | `review_id` | `<prototype-upgrade-review-YYYYMMDD or prototype-retirement-review-YYYYMMDD>` |
-| `review_type` | `<upgrade / retirement>` |
+| `review_type` | `<upgrade-review / retirement-review>` |
 | `reviewer` | `<name or handle>` |
-| `review_author` | `<name or handle>` |
+| `author` | `<name or handle>` |
 | `related_prs` | `<PR links>` |
 | `related_docs` | `docs/templates/prototype_review_reviewer_checklist_v1.md`, `docs/templates/prototype_review_decision_record_template_v1.md`, `docs/ops/prototype_review_kickoff_sop_v1.md` |
 
@@ -152,7 +152,7 @@ State explicitly:
 |---|---|
 | `reviewer` | `<name or handle>` |
 | `date` | `<YYYY-MM-DD>` |
-| `request_changes_reasons` | `<selected reasons>` |
+| `request_changes_reason` | `<selected reason values>` |
 | `re-review_allowed_after_fixes` | `<yes / no>` |
 | `rollout_mixed_in` | `<yes / no>` |
 | `further_scope_split_required` | `<yes / no>` |

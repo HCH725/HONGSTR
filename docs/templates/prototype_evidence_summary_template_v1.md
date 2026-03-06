@@ -17,9 +17,9 @@ This template must not be used to change `/status`, `/daily`, or `/dashboard` tr
 
 1. complete this template before or alongside the matching review template
 2. use it for:
-   - `upgrade review`
-   - `retirement review`
-   - `evidence review`, if a docs-only evidence review is opened
+   - `upgrade-review`
+   - `retirement-review`
+   - `evidence-review`, if a docs-only evidence review is opened
 3. keep the filled output non-canonical and docs-only
 4. do not treat a completed evidence summary as a rollout decision
 
@@ -40,7 +40,7 @@ Recommended companion docs:
 | `prototype_id` | `central-steward-shadow-prototype` |
 | `review_type` | `<upgrade-review / retirement-review / evidence-review>` |
 | `review_window` | `<YYYY-MM-DD..YYYY-MM-DD>` |
-| `review_author` | `<name or handle>` |
+| `author` | `<name or handle>` |
 | `reviewer` | `<name or handle>` |
 | `related_prs` | `<links or none>` |
 | `related_docs` | `docs/architecture/prototype_evidence_collection_plan_v1.md`, `docs/architecture/prototype_retirement_criteria_v1.md`, `docs/ops/prototype_review_kickoff_sop_v1.md` |
@@ -65,8 +65,8 @@ Every row must be filled with evidence, not opinion.
 
 | Boundary check | Pass / Fail | Evidence | Notes |
 |---|---|---|---|
-| `internal_only` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
-| `not_canonical` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
+| `internal-only` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
+| `not-canonical` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not affect `/status` | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not affect `/daily` | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not affect `/dashboard` truth | `<pass/fail>` | `<evidence>` | `<note>` |
@@ -101,8 +101,8 @@ Non-canonical reminder:
 Select one:
 
 - `keep`
-- `candidate for upgrade review`
-- `candidate for retirement review`
+- `candidate for upgrade-review`
+- `candidate for retirement-review`
 - `insufficient evidence`
 
 Current assessment:

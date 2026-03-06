@@ -38,8 +38,8 @@ Reviewer rule:
 ## 1. How To Use
 
 1. identify the review type first:
-   - `upgrade review`
-   - `retirement review`
+   - `upgrade-review`
+   - `retirement-review`
 2. stop immediately if the package is incomplete or mixed with rollout/runtime work
 3. review evidence adequacy before discussing decision outcome
 4. review boundary integrity before discussing decision outcome
@@ -47,7 +47,7 @@ Reviewer rule:
 
 If any required item fails:
 
-- request changes
+- issue a `request-changes note`
 - return for more evidence
 - or stop the review and require the scope to be split
 
@@ -56,8 +56,8 @@ Use `docs/templates/prototype_review_request_changes_note_template_v1.md` when t
 ## A. Review Package Completeness
 
 - [ ] The PR clearly states the correct review type:
-  - `upgrade review`
-  - or `retirement review`
+  - `upgrade-review`
+  - or `retirement-review`
 - [ ] The PR uses the correct review template for that type.
 - [ ] An evidence summary is attached or linked.
 - [ ] The author checklist is attached, linked, or clearly completed.
@@ -71,7 +71,7 @@ Use `docs/templates/prototype_review_request_changes_note_template_v1.md` when t
 
 If any item above fails:
 
-- outcome should usually be `request changes`, not substantive approval
+- the reviewer response should usually be a `request-changes note`, not substantive approval
 
 ## B. Evidence Adequacy
 
@@ -84,14 +84,14 @@ If any item above fails:
   - shadow summary generation frequency
   - dedupe hit rate
   - cooldown hit rate
-  - `recovery_of` ratio
-  - false positive / noise
-  - decision value
-  - canonical overlap
+  - `recovery_of_ratio`
+  - `false_positive_noise`
+  - `decision_value`
+  - `canonical_overlap`
 - [ ] Evidence sources are approved non-canonical sources only.
 - [ ] There is no obvious evidence gap that prevents a reviewer from understanding value versus risk.
 - [ ] The evidence distinguishes observed facts from interpretation.
-- [ ] The evidence is strong enough to support a review decision, or else the PR explicitly asks for `insufficient evidence / continue observation`.
+- [ ] The evidence is strong enough to support a review decision, or else the PR explicitly asks for `insufficient evidence` with next action `continue observation`.
 
 If evidence is thin or contradictory:
 
@@ -124,7 +124,7 @@ Boundary response rule:
   - `upgrade-review fail`
   - `retirement-review pass`
   - `retirement-review fail`
-  - `insufficient evidence / continue observation`
+  - `insufficient evidence`
 - [ ] I do not need to rely on intuition alone to reach that conclusion.
 - [ ] The chosen review type still matches the evidence.
 - [ ] If the evidence points to the opposite review type, I have asked for redirect rather than forcing a pass/fail on the wrong template.
@@ -134,17 +134,17 @@ Boundary response rule:
 
 Reviewer escalation options:
 
-- request changes
+- issue a `request-changes note`
 - ask for longer observation
-- redirect from `upgrade review` to `retirement review`
-- redirect from `retirement review` to `keep / continue observation`
+- redirect from `upgrade-review` to `retirement-review`
+- redirect from `retirement-review` to `keep` with next action `continue observation`
 
 ## E. Kill Switch / Rollback / Stop Conditions
 
 - [ ] If I see rollout drift, I will stop the review and require a separate PR.
 - [ ] If I see canonical-boundary confusion, I will reject the package until the boundary is restated clearly.
 - [ ] If I see a hidden runtime change, I will stop review and require the runtime change to be split out.
-- [ ] If I see repeated pressure to make the prototype quasi-canonical, I will consider whether retirement review is safer than continued ambiguity.
+- [ ] If I see repeated pressure to make the prototype quasi-canonical, I will consider whether `retirement-review` is safer than continued ambiguity.
 - [ ] I have confirmed the current kill switch remains `HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0`.
 - [ ] I have confirmed no rollback would require writing or repairing canonical `data/state/*`.
 
@@ -157,8 +157,8 @@ Select the current review outcome:
 - `upgrade-review fail`
 - `retirement-review pass`
 - `retirement-review fail`
-- `insufficient evidence / continue observation`
-- `request changes before review`
+- `insufficient evidence`
+- `request-changes note required`
 
 Reviewer rationale:
 
@@ -183,7 +183,7 @@ State explicitly before final review sign-off:
 
 | Field | Value |
 |---|---|
-| `review_type` | `<upgrade / retirement>` |
+| `review_type` | `<upgrade-review / retirement-review>` |
 | `reviewer` | `<name or handle>` |
 | `date` | `<YYYY-MM-DD>` |
 | `review_outcome` | `<selected outcome>` |

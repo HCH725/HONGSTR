@@ -41,8 +41,8 @@ This glossary applies only to the prototype review/package chain around the curr
 It covers fields and terms used in:
 
 - evidence summary
-- upgrade review
-- retirement review
+- upgrade-review
+- retirement-review
 - reviewer request-changes note
 - decision record
 - author and reviewer checklists
@@ -104,23 +104,24 @@ Read these rules before using any term below.
 - When used: every review package and any related request-changes or decision record.
 - Templates using it:
   - evidence summary
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
   - decision record
   - request-changes note
   - author/reviewer/resubmission checklists
 - Required or optional: required.
 - Allowed values:
-  - `upgrade`
-  - `retirement`
   - `upgrade-review`
   - `retirement-review`
   - `evidence-review` only where the template explicitly allows it
+- Deprecated aliases:
+  - `upgrade`
+  - `retirement`
 - Common misuse:
-  - mixing `upgrade` and `retirement` in the same package
+  - mixing `upgrade-review` and `retirement-review` in the same package
   - using a rollout label instead of a review label
   - switching label style inside one package without explanation
-- Example value: `upgrade`
+- Example value: `upgrade-review`
 
 ### 3.4 `review_window`
 
@@ -128,8 +129,8 @@ Read these rules before using any term below.
 - When used: all substantive review artifacts and evidence summaries.
 - Templates using it:
   - evidence summary
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
   - decision record
 - Required or optional: required for live reviews; optional only in reusable examples.
 - Common misuse:
@@ -144,8 +145,8 @@ Read these rules before using any term below.
 - When used: all review-facing templates, request-changes notes, and decision records.
 - Templates using it:
   - evidence summary
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
   - reviewer checklist
   - decision record
   - request-changes note
@@ -160,15 +161,17 @@ Read these rules before using any term below.
 - Definition: the person who assembled or resubmitted the review package.
 - When used: author checklist, review templates, decision record, resubmission checklist, request-changes note.
 - Templates using it:
-  - upgrade review as `review_author`
-  - retirement review as `review_author`
-  - decision record as `review_author`
-  - request-changes note as `review_author`
+  - evidence summary as `author`
+  - upgrade-review template as `author`
+  - retirement-review template as `author`
+  - decision record as `author`
+  - request-changes note as `author`
   - resubmission checklist as `author`
 - Required or optional: required.
 - Common misuse:
   - using reviewer and author interchangeably
   - omitting the author in a resubmission artifact
+  - using deprecated alias `review_author` in new review packages
 - Example value: `hong`
 
 ### 3.7 `evidence summary`
@@ -178,7 +181,7 @@ Read these rules before using any term below.
 - Templates using it:
   - `docs/templates/prototype_evidence_summary_template_v1.md`
   - referenced by all review templates, checklists, request-changes notes, and decision records
-- Required or optional: required for upgrade review and normal retirement review; may be incomplete only when explicitly marked insufficient.
+- Required or optional: required for `upgrade-review` and normal `retirement-review`; may be incomplete only when explicitly marked insufficient.
 - Common misuse:
   - treating it as a final decision
   - writing free-form prose instead of structured fields
@@ -191,8 +194,8 @@ Read these rules before using any term below.
 - When used: evidence summary and both review templates.
 - Templates using it:
   - evidence summary
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
 - Required or optional: required.
 - Common misuse:
   - equating “interesting” with decision value
@@ -202,30 +205,31 @@ Read these rules before using any term below.
 ### 3.9 `canonical_overlap`
 
 - Definition: how much the prototype output simply restates canonical SSOT or already-visible formal alerts.
-- When used: evidence summary, upgrade review, retirement review, request-changes discussions.
+- When used: evidence summary, `upgrade-review`, `retirement-review`, request-changes discussions.
 - Templates using it:
   - evidence summary
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
 - Required or optional: required.
 - Common misuse:
   - treating low overlap as automatic upgrade approval
   - not distinguishing overlap with SSOT versus overlap with formal alerts
 - Example value: `medium; 3 of 7 summaries repeated existing watchdog state`
 
-### 3.10 `false_positive / noise`
+### 3.10 `false_positive_noise`
 
-- Definition: summaries that did not improve understanding or that were ambiguous, repetitive, or operationally unhelpful.
+- Definition: summaries that did not improve understanding or that were ambiguous, repetitive, or operationally unhelpful. In prose this may still be described as false positive / noise, but the field label should stay `false_positive_noise`.
 - When used: evidence summary and review templates, especially when deciding whether to keep or retire.
 - Templates using it:
   - evidence summary
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
   - resubmission checklist as a required re-check
 - Required or optional: required where evidence is being evaluated.
 - Common misuse:
   - counting all activity as noise
   - ignoring ambiguity risk because the path is still internal-only
+  - replacing the canonical field label with ad hoc prose in structured tables
 - Example value: `2 noisy summaries out of 6 because wording duplicated existing state without new context`
 
 ### 3.11 `recovery_of`
@@ -234,8 +238,8 @@ Read these rules before using any term below.
 - When used: evidence summary and review templates when assessing closure versus churn.
 - Templates using it:
   - evidence summary as `recovery_of_ratio`
-  - upgrade review as `recovery_of_ratio`
-  - retirement review as `recovery_of_ratio`
+  - upgrade-review template as `recovery_of_ratio`
+  - retirement-review template as `recovery_of_ratio`
 - Required or optional: required in evidence fields where the ratio is listed; the direct raw field may be absent from docs if only the ratio is being reviewed.
 - Common misuse:
   - treating every recovery as inherently useful
@@ -270,8 +274,8 @@ Read these rules before using any term below.
 - Templates using it:
   - reviewer checklist
   - decision record
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
 - Required or optional: required in final decision artifacts.
 - Allowed values:
   - `keep`
@@ -283,6 +287,7 @@ Read these rules before using any term below.
 - Common misuse:
   - inventing a new status like `soft pass`
   - treating `request changes` as a final decision outcome instead of a return-for-fixes state
+  - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
 ### 3.14 `next action`
@@ -291,8 +296,8 @@ Read these rules before using any term below.
 - When used: evidence summary, review templates, decision record, reviewer notes.
 - Templates using it:
   - evidence summary
-  - upgrade review
-  - retirement review
+  - upgrade-review
+  - retirement-review
   - decision record
   - reviewer checklist
 - Required or optional: required where the template includes an explicit action block.

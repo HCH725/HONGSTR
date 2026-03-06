@@ -1,6 +1,6 @@
 # HONGSTR Prototype Re-Review Resubmission Checklist v1
 
-Use this checklist when an author is preparing to resubmit a central steward shadow/prototype review package after receiving `request changes`.
+Use this checklist when an author is preparing to resubmit a central steward shadow/prototype review package after receiving a `request-changes note`.
 
 This checklist is for resubmission only.
 
@@ -23,7 +23,7 @@ This checklist is not:
 
 Use the prototype review docs in this order for resubmission:
 
-- reviewer sends `request changes`
+- reviewer sends a `request-changes note`
 - author closes every requested item
 - author completes this resubmission checklist
 - author updates the review package
@@ -35,7 +35,7 @@ Rule:
 
 ## 1. Request-Changes Closure
 
-- [ ] I have reviewed the latest `request changes` note.
+- [ ] I have reviewed the latest `request-changes note`.
 - [ ] I have responded to every requested item individually.
 - [ ] I have marked each request-changes item as:
   - `completed`
@@ -54,12 +54,12 @@ Request-changes closure note:
 - [ ] I have filled the missing evidence identified in the request-changes note.
 - [ ] I have updated `docs/templates/prototype_evidence_summary_template_v1.md` content or its filled review artifact.
 - [ ] I have re-checked:
-  - `false positive / noise`
-  - `canonical overlap`
-  - `decision value`
-  - `dedupe hit rate`
-  - `cooldown hit rate`
-  - `recovery_of ratio`
+  - `false_positive_noise`
+  - `canonical_overlap`
+  - `decision_value`
+  - `dedupe_hit_rate`
+  - `cooldown_hit_rate`
+  - `recovery_of_ratio`
 - [ ] I have completed any missing observation window requirement.
 - [ ] I have completed any missing manual observation session requirement.
 - [ ] If evidence is still partial, I have said so explicitly instead of pretending the gap is closed.
@@ -106,7 +106,7 @@ Boundary re-check note:
 - [ ] I have stated whether evidence window extension was required.
 - [ ] I have stated whether reviewer re-check should focus on any specific corrected area.
 - [ ] I believe the package now contains enough information for the next review step.
-- [ ] If the package is still not ready for decision, I am explicitly asking for continued observation instead of forcing re-review.
+- [ ] If the package is still not ready for decision, I am explicitly asking for `continue observation` instead of forcing re-review.
 
 Evidence window extension:
 
@@ -146,7 +146,7 @@ State explicitly:
 | Field | Value |
 |---|---|
 | `review_id` | `<id>` |
-| `review_type` | `<upgrade / retirement>` |
+| `review_type` | `<upgrade-review / retirement-review>` |
 | `author` | `<name or handle>` |
 | `date` | `<YYYY-MM-DD>` |
 | `request_changes_fully_addressed` | `<yes / no>` |

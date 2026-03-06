@@ -1,6 +1,6 @@
 # HONGSTR Prototype Upgrade Review Template v1
 
-Use this template only for a future `upgrade review` of the central steward shadow/prototype path.
+Use this template only for a future `upgrade-review` of the central steward shadow/prototype path.
 
 Before opening a review PR, satisfy `docs/ops/prototype_review_kickoff_sop_v1.md`.
 Authors should also complete `docs/templates/prototype_review_pr_author_checklist_v1.md` before opening the PR.
@@ -11,7 +11,7 @@ Reviewers should record the final outcome in `docs/templates/prototype_review_de
 
 Do not use this template for rollout.
 
-Do not use this template for retirement review. Use `docs/templates/prototype_retirement_review_template_v1.md` instead.
+Do not use this template for `retirement-review`. Use `docs/templates/prototype_retirement_review_template_v1.md` instead.
 
 ## 0. Review Start Rule
 
@@ -19,11 +19,11 @@ Start this template only when:
 
 - the observation window defined in `docs/architecture/prototype_evidence_collection_plan_v1.md` has completed
 - evidence has been summarized in a human-reviewed note or PR
-- the review author believes the path may be ready for `upgrade review`
+- the author believes the path may be ready for `upgrade-review`
 
 Filled by:
 
-- the author of the future upgrade-review PR
+- the author of the future `upgrade-review` PR
 
 Reviewed by:
 
@@ -34,10 +34,10 @@ Reviewed by:
 | Field | Value |
 |---|---|
 | `review_id` | `<prototype-upgrade-review-YYYYMMDD>` |
-| `review_type` | `upgrade` |
-| `review_window` | `<YYYY-MM-DD to YYYY-MM-DD>` |
+| `review_type` | `upgrade-review` |
+| `review_window` | `<YYYY-MM-DD..YYYY-MM-DD>` |
 | `reviewer` | `<name or handle>` |
-| `review_author` | `<name or handle>` |
+| `author` | `<name or handle>` |
 | `related_prs` | `<PR links>` |
 | `related_docs` | `docs/architecture/prototype_evidence_collection_plan_v1.md`, `docs/architecture/prototype_retirement_criteria_v1.md`, `docs/architecture/shadow_summary_disposition_v1.md`, `docs/architecture/central_steward_readonly_ingest_v1.md` |
 | `current_runtime_posture` | `default-off / internal-only / not-canonical / no-actioning` |
@@ -90,9 +90,9 @@ Map the evidence to the criteria in `docs/architecture/prototype_retirement_crit
 | producer contract stability | `<pass/fail>` | `<evidence>` | `<stay internal-log only / collect more evidence>` |
 | message distinction is testable | `<pass/fail>` | `<evidence>` | `<rewrite proposal or stop>` |
 | operational usefulness is evidenced | `<pass/fail>` | `<evidence>` | `<stay internal-log only>` |
-| confusion risk is bounded | `<pass/fail>` | `<evidence>` | `<stop upgrade review>` |
-| no P0 dependency emerges | `<pass/fail>` | `<evidence>` | `<stop upgrade review>` |
-| single-entry semantics survive | `<pass/fail>` | `<evidence>` | `<stop upgrade review>` |
+| confusion risk is bounded | `<pass/fail>` | `<evidence>` | `<stop upgrade-review evaluation>` |
+| no P0 dependency emerges | `<pass/fail>` | `<evidence>` | `<stop upgrade-review evaluation>` |
+| single-entry semantics survive | `<pass/fail>` | `<evidence>` | `<stop upgrade-review evaluation>` |
 
 ## 5. Decision
 
@@ -124,7 +124,7 @@ If decision is `upgrade-review pass`:
 
 If decision is `upgrade-review fail`:
 
-- `<remain internal-log only or redirect to retirement review>`
+- `<remain internal-log only or redirect to retirement-review>`
 
 ## 7. Kill Switch / Rollback Note
 
@@ -153,5 +153,5 @@ Confirm all remain unchanged:
 
 | Role | Name | Decision | Date |
 |---|---|---|---|
-| review author | `<name>` | `<decision>` | `<YYYY-MM-DD>` |
-| governance reviewer | `<name>` | `<approve / request changes>` | `<YYYY-MM-DD>` |
+| author | `<name>` | `<decision>` | `<YYYY-MM-DD>` |
+| governance reviewer | `<name>` | `<approve / request-changes note>` | `<YYYY-MM-DD>` |

@@ -96,6 +96,7 @@ Use this to keep review package naming, title format, and attachment naming cons
 
 - `docs/ops/prototype_review_package_naming_convention_v1.md`
 - `docs/ops/prototype_review_field_glossary_v1.md`
+- `docs/ops/prototype_enum_alignment_record_v1.md`
 
 ### 3.6 Templates
 
@@ -155,13 +156,13 @@ When a future author actually wants to open a review PR, use this minimum flow.
 3. complete the evidence window defined in `docs/architecture/prototype_evidence_collection_plan_v1.md`
 4. fill `docs/templates/prototype_evidence_summary_template_v1.md`
 5. choose exactly one review type:
-   - `upgrade review`
-   - `retirement review`
+   - `upgrade-review`
+   - `retirement-review`
 6. fill the matching review template
 7. complete `docs/templates/prototype_review_pr_author_checklist_v1.md`
 8. use `docs/ops/prototype_review_kickoff_sop_v1.md` as the final gate
 9. after the PR opens, reviewers use `docs/templates/prototype_review_reviewer_checklist_v1.md`
-10. if the package gets `request changes`, authors complete `docs/templates/prototype_re_review_resubmission_checklist_v1.md` before resubmitting
+10. if the package gets a `request-changes note`, authors complete `docs/templates/prototype_re_review_resubmission_checklist_v1.md` before resubmitting
 11. use `docs/ops/prototype_review_package_naming_convention_v1.md` to format the PR title and attachments
 12. use `docs/ops/prototype_review_field_glossary_v1.md` if any field meaning or enum label is unclear
 13. use `docs/examples/prototype_review_package_example_v1.md` if the initial package still feels unclear
@@ -180,14 +181,15 @@ If any prerequisite fails:
 | understand read-only ingest boundary | `docs/architecture/central_steward_readonly_ingest_v1.md` |
 | understand current shadow-summary posture | `docs/architecture/shadow_summary_disposition_v1.md` |
 | understand producer invocation posture | `docs/architecture/atomic_alert_producer_invocation_decision_v1.md` |
-| decide keep / upgrade / retire criteria | `docs/architecture/prototype_retirement_criteria_v1.md` |
+| decide keep / `upgrade-review` / `retirement-review` criteria | `docs/architecture/prototype_retirement_criteria_v1.md` |
 | know which evidence to collect | `docs/architecture/prototype_evidence_collection_plan_v1.md` |
 | know whether review may start | `docs/ops/prototype_review_kickoff_sop_v1.md` |
 | standardize package naming | `docs/ops/prototype_review_package_naming_convention_v1.md` |
 | standardize recurring field meanings | `docs/ops/prototype_review_field_glossary_v1.md` |
+| see drift-to-canonical enum mapping | `docs/ops/prototype_enum_alignment_record_v1.md` |
 | write evidence summary | `docs/templates/prototype_evidence_summary_template_v1.md` |
-| write upgrade review | `docs/templates/prototype_upgrade_review_template_v1.md` |
-| write retirement review | `docs/templates/prototype_retirement_review_template_v1.md` |
+| write `upgrade-review` | `docs/templates/prototype_upgrade_review_template_v1.md` |
+| write `retirement-review` | `docs/templates/prototype_retirement_review_template_v1.md` |
 | pre-submit self-check | `docs/templates/prototype_review_pr_author_checklist_v1.md` |
 | post-request-changes resubmission self-check | `docs/templates/prototype_re_review_resubmission_checklist_v1.md` |
 | reviewer-side review gate | `docs/templates/prototype_review_reviewer_checklist_v1.md` |

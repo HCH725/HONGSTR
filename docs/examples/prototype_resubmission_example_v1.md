@@ -9,7 +9,7 @@ Expected SSOT/output impact: none
 
 ## 0. Purpose
 
-This file shows the minimum resubmission flow for a central steward shadow/prototype review PR after a reviewer issues `request changes`.
+This file shows the minimum resubmission flow for a central steward shadow/prototype review PR after a reviewer issues a `request-changes note`.
 
 This is a resubmission-flow example only.
 
@@ -28,9 +28,9 @@ Core rule:
 
 Use this example when:
 
-- a reviewer has already returned a review PR with `request changes`
+- a reviewer has already returned a review PR with a `request-changes note`
 - the author needs a concrete example of how to close the requests
-- the package needs to move from `request changes` to `re-review`
+- the package needs to move from `request-changes note` to `re-review`
 - the reviewer then needs to close with a decision record
 
 Do not use this example as:
@@ -45,7 +45,7 @@ If you need the whole doc map first, start with `docs/ops/prototype_review_packa
 
 Use this flow in order.
 
-1. reviewer issues `request changes`
+1. reviewer issues a `request-changes note`
 2. author closes the requests with `docs/templates/prototype_re_review_resubmission_checklist_v1.md`
 3. author updates evidence summary, review template, and package notes
 4. reviewer re-runs `docs/templates/prototype_review_reviewer_checklist_v1.md`
@@ -62,12 +62,12 @@ If any step fails:
 ### 3.1 Request-Changes Note Snippet
 
 ```md
-## Request Changes
+## Request-Changes Note
 - reason: insufficient evidence
 - reason: boundary unclear
 
 Required fixes:
-- add missing canonical overlap explanation
+- add missing `canonical_overlap` explanation
 - restate that the package does not affect /status or /daily
 - remove rollout-oriented wording from next action
 
@@ -86,8 +86,8 @@ Re-review conditions:
 - [x] added requested docs clarifications
 
 ## Evidence Refresh
-- [x] updated canonical overlap section
-- [x] refreshed false positive / noise notes
+- [x] updated `canonical_overlap` section
+- [x] refreshed `false_positive_noise` notes
 - [x] confirmed observation window already complete
 
 ## Boundary Re-Check
@@ -119,7 +119,7 @@ Current reviewer outcome:
 
 ## Reasoning Summary
 - key evidence now complete
-- canonical overlap clarified
+- `canonical_overlap` clarified
 - no rollout drift remains
 
 ## Next Action
@@ -131,11 +131,11 @@ Current reviewer outcome:
 
 ## 4. End-To-End Example
 
-### Step 1: Reviewer Sends Request Changes
+### Step 1: Reviewer Sends A Request-Changes Note
 
 Reviewer sees:
 
-- evidence gap on canonical overlap
+- evidence gap on `canonical_overlap`
 - ambiguous boundary wording
 - next-action wording that sounds too close to rollout
 
@@ -189,7 +189,7 @@ If re-check passes:
 
 If re-check does not pass:
 
-- reviewer issues another `request changes` note
+- reviewer issues another `request-changes note`
 - author stays in governance-only resubmission mode
 
 ## 5. Boundary Reminder
@@ -211,7 +211,7 @@ This example only remains valid while all of the following are still true:
 
 If the author resubmits without filling the missing evidence:
 
-- reviewer should send `request changes` again
+- reviewer should send another `request-changes note`
 - reviewer may require a longer observation window
 - no decision record should be treated as a rollout step
 
@@ -235,7 +235,7 @@ If the resubmission tries to add rollout or runtime work:
 
 The canonical v1 answer is:
 
-- reviewer issues `request changes`
+- reviewer issues a `request-changes note`
 - author closes it with the resubmission checklist
 - reviewer re-checks the corrected package
 - reviewer records the result in a decision record
