@@ -1,5 +1,8 @@
 # L2 Self-Heal
 
+Status: bounded non-Telegram ingress / keep-for-now under ingress review
+Reference: `docs/architecture/legacy_dispatcher_ingress_review_v1.md`
+
 ## Definition
 L2 Self-Heal = auto open PR + request review + never auto-merge + strict allowed_paths + required checks.
 
