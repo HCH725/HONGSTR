@@ -112,8 +112,12 @@ tail -n 80 ~/Library/Logs/hongstr/kb_sync.err.log
 ## Cursor / State
 
 ```text
+_local/obsidian_vault/HONGSTR/_meta/kb_sync_state.json
 _local/obsidian_vault/HONGSTR/KB/_meta/kb_sync_state.json
 ```
+
+`kb_sync_github_prs.py` writes both files each run so users can check either location.
+If only one file exists, the sync job reads from the first available state file.
 
 | Field | Description |
 | --- | --- |
@@ -125,7 +129,8 @@ _local/obsidian_vault/HONGSTR/KB/_meta/kb_sync_state.json
 To **reset** the cursor (re-sync all recent PRs):
 
 ```bash
-rm _local/obsidian_vault/HONGSTR/KB/_meta/kb_sync_state.json
+rm -f _local/obsidian_vault/HONGSTR/_meta/kb_sync_state.json
+rm -f _local/obsidian_vault/HONGSTR/KB/_meta/kb_sync_state.json
 ```
 
 > ⚠️ After reset, the first run will attempt to backfill up to **50 PRs**. Run again to continue backfilling older PRs.

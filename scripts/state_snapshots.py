@@ -1864,6 +1864,7 @@ def main():
 
     system_health = {
         "generated_utc": now_utc,
+        "ts_utc": now_utc,
         "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
         "ssot_status": ssot_status,
         "refresh_hint": "bash scripts/refresh_state.sh",

@@ -114,8 +114,8 @@ def test_frontmatter_schema_presence() -> None:
 
 def test_cursor_not_advanced_on_rate_limit(tmp_path: Path) -> None:
     """When the PR list fetch hits a 403, cursor must stay unchanged."""
-    meta_dir = tmp_path / "_local/obsidian_vault/HONGSTR/KB/_meta"
-    meta_dir.mkdir(parents=True, exist_ok=True)
+    kb_meta_dir = tmp_path / "_local/obsidian_vault/HONGSTR/KB/_meta"
+    kb_meta_dir.mkdir(parents=True, exist_ok=True)
 
     initial_state = {
         "last_merged_at_utc": "2026-01-01T00:00:00Z",
@@ -123,7 +123,7 @@ def test_cursor_not_advanced_on_rate_limit(tmp_path: Path) -> None:
         "last_status": None,
         "last_error": None,
     }
-    (meta_dir / "kb_sync_state.json").write_text(
+    (kb_meta_dir / "kb_sync_state.json").write_text(
         json.dumps(initial_state), encoding="utf-8"
     )
 
@@ -142,10 +142,14 @@ def test_cursor_not_advanced_on_rate_limit(tmp_path: Path) -> None:
     assert result["written"] == 0
 
     # State must not advance cursor
-    saved = json.loads((meta_dir / "kb_sync_state.json").read_text())
-    assert saved["last_merged_at_utc"] == "2026-01-01T00:00:00Z", (
+    kb_saved = json.loads((kb_meta_dir / "kb_sync_state.json").read_text())
+    assert kb_saved["last_merged_at_utc"] == "2026-01-01T00:00:00Z", (
         "Cursor must not advance on rate-limit"
     )
+    vault_saved = json.loads(
+        (tmp_path / "_local/obsidian_vault/HONGSTR/_meta/kb_sync_state.json").read_text()
+    )
+    assert vault_saved["last_merged_at_utc"] == "2026-01-01T00:00:00Z"
 
 
 # ---------------------------------------------------------------------------
@@ -179,12 +183,13 @@ def test_skip_existing_note(tmp_path: Path) -> None:
 
 def test_cursor_advances_on_success(tmp_path: Path) -> None:
     """After writing one PR note, cursor must advance to that PR's merged_at."""
-    # Create vault dirs so no mkdir errors
-    # meta_dir matches sync_prs: repo_root / _VAULT_REL / "_meta"
+    # Create vault dirs so no mkdir errors.
     kb_pr_dir = tmp_path / "_local/obsidian_vault/HONGSTR/KB/PR"
-    meta_dir  = tmp_path / "_local/obsidian_vault/HONGSTR/_meta"
+    vault_meta_dir = tmp_path / "_local/obsidian_vault/HONGSTR/_meta"
+    kb_meta_dir = tmp_path / "_local/obsidian_vault/HONGSTR/KB/_meta"
     kb_pr_dir.mkdir(parents=True, exist_ok=True)
-    meta_dir.mkdir(parents=True, exist_ok=True)
+    vault_meta_dir.mkdir(parents=True, exist_ok=True)
+    kb_meta_dir.mkdir(parents=True, exist_ok=True)
 
     # PR list: one new PR (merged after an empty cursor)
     pr_list_page1 = _make_mock_response([_FAKE_PR])
@@ -198,11 +203,17 @@ def test_cursor_advances_on_success(tmp_path: Path) -> None:
     assert result["written"] == 1, f"Expected 1 written, got {result}"
     assert result["status"] in ("OK", "WARN")
 
-    state_file = meta_dir / "kb_sync_state.json"
-    assert state_file.exists(), f"State file not found at {state_file}"
-    saved = json.loads(state_file.read_text())
-    assert saved["last_merged_at_utc"] == _FAKE_PR["merged_at"], (
-        f"Cursor should be {_FAKE_PR['merged_at']!r}, got {saved['last_merged_at_utc']!r}"
+    vault_state_file = vault_meta_dir / "kb_sync_state.json"
+    kb_state_file = kb_meta_dir / "kb_sync_state.json"
+    assert vault_state_file.exists(), f"State file not found at {vault_state_file}"
+    assert kb_state_file.exists(), f"State file not found at {kb_state_file}"
+    vault_saved = json.loads(vault_state_file.read_text())
+    kb_saved = json.loads(kb_state_file.read_text())
+    assert vault_saved["last_merged_at_utc"] == _FAKE_PR["merged_at"], (
+        f"Cursor should be {_FAKE_PR['merged_at']!r}, got {vault_saved['last_merged_at_utc']!r}"
+    )
+    assert kb_saved["last_merged_at_utc"] == _FAKE_PR["merged_at"], (
+        f"Cursor should be {_FAKE_PR['merged_at']!r}, got {kb_saved['last_merged_at_utc']!r}"
     )
 
     # Verify the note file was actually created
