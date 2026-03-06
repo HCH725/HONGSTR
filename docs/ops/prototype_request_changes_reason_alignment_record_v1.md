@@ -80,6 +80,7 @@ Field split rule:
 - request-changes reason is not a next action enum
 - `insufficient evidence` may also appear as a final decision outcome, but only when the field is explicitly `decision outcome`
 - assessment-status `needs more evidence` remains separate from request-changes reason `insufficient evidence`
+- required-fix labels such as `missing evidence added` or `boundary wording clarified` are governed separately by `docs/ops/prototype_required_fix_alignment_record_v1.md`
 
 ## 4. Legacy Aliases No Longer Recommended
 

@@ -1,6 +1,6 @@
 # HONGSTR Prototype Review PR Author Checklist v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / checklist-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review PR author checklist PR
@@ -27,6 +27,7 @@ This checklist is for authors only.
 
 Reviewer-side validation belongs in `docs/templates/prototype_review_reviewer_checklist_v1.md`.
 If this PR is being resubmitted after a `request-changes note`, also use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`.
+For canonical blocker-closure wording in that resubmission flow, use `docs/ops/prototype_required_fix_alignment_record_v1.md`.
 
 It does not replace:
 
