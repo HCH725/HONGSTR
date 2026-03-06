@@ -252,4 +252,5 @@ The canonical invocation decision in v1 is:
 - do not insert it into `refresh_state`
 - do not treat `alerts_*` as canonical state
 - current shadow-summary disposition is `internal-log only`, not operator-visible Telegram output; see `docs/architecture/shadow_summary_disposition_v1.md`
+- prototype lifecycle criteria now live in `docs/architecture/prototype_retirement_criteria_v1.md`
 - if a later PR needs cleaner invocation, start with a manual one-shot wrapper and re-review before any schedule is proposed
