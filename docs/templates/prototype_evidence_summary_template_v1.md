@@ -1,6 +1,6 @@
 # HONGSTR Prototype Evidence Summary Template v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / template-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype evidence summary template PR
@@ -53,6 +53,7 @@ Recommended companion docs:
 - `docs/examples/prototype_review_package_example_v1.md`
 - `docs/ops/prototype_review_package_naming_convention_v1.md`
 - `docs/ops/prototype_review_field_glossary_v1.md`
+- `docs/ops/prototype_assessment_status_alignment_record_v1.md`
 
 ## 1. Basic Information
 
@@ -117,16 +118,16 @@ Non-canonical reminder:
 - this evidence summary must not be reused as canonical status
 - this evidence summary must not back-fill `/status`, `/daily`, or `/dashboard`
 
-## 5. Preliminary Assessment
+## 5. Assessment Status
 
 Select one:
 
-- `keep`
+- `continue observation`
 - `candidate for upgrade-review`
 - `candidate for retirement-review`
-- `insufficient evidence`
+- `needs more evidence`
 
-Current assessment:
+Current assessment status:
 
 `<selected status>`
 
@@ -135,6 +136,11 @@ Assessment rationale:
 - `<reason 1>`
 - `<reason 2>`
 - `<reason 3>`
+
+Assessment-status rule:
+
+- use `continue observation` here instead of decision outcome `keep`
+- use `needs more evidence` here instead of decision outcome or request-changes reason `insufficient evidence`
 
 ## 6. Next Action
 

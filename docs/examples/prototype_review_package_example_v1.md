@@ -1,6 +1,6 @@
 # HONGSTR Prototype Review Package Example v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / example-package-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review package example PR
@@ -106,7 +106,7 @@ Author confirms:
 
 If not true:
 
-- outcome = `insufficient evidence`
+- assessment status = `needs more evidence`
 - next action = `continue observation`
 - do not open review PR yet
 

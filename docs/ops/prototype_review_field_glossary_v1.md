@@ -281,7 +281,29 @@ Read these rules before using any term below.
   - mixing several different blockers without naming them clearly
 - Example value: `boundary unclear`
 
-### 3.13 `decision outcome`
+### 3.13 `assessment status`
+
+- Definition: the provisional evidence-summary posture recorded before a final review decision exists.
+- When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
+- Templates using it:
+  - evidence summary
+  - package example notes
+- Required or optional: required where a template includes an explicit assessment-status field.
+- Governing record:
+  - `docs/ops/prototype_assessment_status_alignment_record_v1.md`
+- Allowed values:
+  - `continue observation`
+  - `candidate for upgrade-review`
+  - `candidate for retirement-review`
+  - `needs more evidence`
+- Common misuse:
+  - using `keep` as a preliminary assessment label instead of the canonical observation posture
+  - using `insufficient evidence` as a preliminary assessment label instead of `needs more evidence`
+  - treating `candidate for upgrade-review` or `candidate for retirement-review` as final decision outcomes
+  - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
+- Example value: `continue observation`
+
+### 3.14 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -301,11 +323,12 @@ Read these rules before using any term below.
 - Common misuse:
   - inventing a new status like `soft pass`
   - treating `request changes` as a final decision outcome instead of a return-for-fixes state
+  - treating `continue observation` or `needs more evidence` as final decision outcomes instead of assessment status or next action
   - treating assessment-only labels like `candidate for upgrade-review` or `candidate for retirement-review` as final decision outcomes
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.14 `next action`
+### 3.15 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -330,7 +353,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.15 `boundary check labels`
+### 3.16 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
