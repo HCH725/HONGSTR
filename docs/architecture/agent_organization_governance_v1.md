@@ -32,6 +32,8 @@ Use this document as the umbrella overview only. Use the following docs as the c
 | Agent roles, single-entry model, plane map | `docs/architecture/agent_organization_governance_v1.md` |
 | Direct `/dispatch` retirement | `docs/architecture/direct_dispatch_retirement_v1.md` |
 | Bounded `/selfheal` disposition | `docs/architecture/bounded_selfheal_disposition_v1.md` |
+| Alert artifact skeleton | `docs/architecture/alert_artifact_skeleton_v1.md` |
+| Central steward read-only ingest | `docs/architecture/central_steward_readonly_ingest_v1.md` |
 | Agent event fields and vocabulary | `docs/architecture/agent_event_schema_v1.md` |
 | Escalation targets, repair classes, cooldown/dedupe | `docs/architecture/escalation_taxonomy_v1.md` |
 | Legacy Keep / Merge / Kill decisions | `docs/architecture/legacy_keep_kill_merge_review_v1.md` |
