@@ -3,6 +3,7 @@
 Use this template only for a future `retirement review` of the central steward shadow/prototype path.
 
 Before opening a review PR, satisfy `docs/ops/prototype_review_kickoff_sop_v1.md`.
+Authors should also complete `docs/templates/prototype_review_pr_author_checklist_v1.md` before opening the PR.
 
 Do not use this template for rollout.
 
