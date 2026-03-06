@@ -95,6 +95,7 @@ Use this to decide whether a review PR may start at all.
 Use this to keep review package naming, title format, and attachment naming consistent.
 
 - `docs/ops/prototype_review_package_naming_convention_v1.md`
+- `docs/ops/prototype_review_field_glossary_v1.md`
 
 ### 3.6 Templates
 
@@ -130,11 +131,12 @@ Read in this order.
 5. `docs/architecture/prototype_evidence_collection_plan_v1.md`
 6. `docs/ops/prototype_review_kickoff_sop_v1.md`
 7. `docs/ops/prototype_review_package_naming_convention_v1.md`
-8. `docs/templates/prototype_evidence_summary_template_v1.md`
-9. `docs/templates/prototype_upgrade_review_template_v1.md`
-10. `docs/templates/prototype_retirement_review_template_v1.md`
-11. `docs/templates/prototype_review_pr_author_checklist_v1.md`
-12. `docs/examples/prototype_review_package_example_v1.md`
+8. `docs/ops/prototype_review_field_glossary_v1.md`
+9. `docs/templates/prototype_evidence_summary_template_v1.md`
+10. `docs/templates/prototype_upgrade_review_template_v1.md`
+11. `docs/templates/prototype_retirement_review_template_v1.md`
+12. `docs/templates/prototype_review_pr_author_checklist_v1.md`
+13. `docs/examples/prototype_review_package_example_v1.md`
 
 Reason for this order:
 
@@ -161,8 +163,9 @@ When a future author actually wants to open a review PR, use this minimum flow.
 9. after the PR opens, reviewers use `docs/templates/prototype_review_reviewer_checklist_v1.md`
 10. if the package gets `request changes`, authors complete `docs/templates/prototype_re_review_resubmission_checklist_v1.md` before resubmitting
 11. use `docs/ops/prototype_review_package_naming_convention_v1.md` to format the PR title and attachments
-12. use `docs/examples/prototype_review_package_example_v1.md` if the initial package still feels unclear
-13. use `docs/examples/prototype_resubmission_example_v1.md` if the re-review flow still feels unclear
+12. use `docs/ops/prototype_review_field_glossary_v1.md` if any field meaning or enum label is unclear
+13. use `docs/examples/prototype_review_package_example_v1.md` if the initial package still feels unclear
+14. use `docs/examples/prototype_resubmission_example_v1.md` if the re-review flow still feels unclear
 
 If any prerequisite fails:
 
@@ -181,6 +184,7 @@ If any prerequisite fails:
 | know which evidence to collect | `docs/architecture/prototype_evidence_collection_plan_v1.md` |
 | know whether review may start | `docs/ops/prototype_review_kickoff_sop_v1.md` |
 | standardize package naming | `docs/ops/prototype_review_package_naming_convention_v1.md` |
+| standardize recurring field meanings | `docs/ops/prototype_review_field_glossary_v1.md` |
 | write evidence summary | `docs/templates/prototype_evidence_summary_template_v1.md` |
 | write upgrade review | `docs/templates/prototype_upgrade_review_template_v1.md` |
 | write retirement review | `docs/templates/prototype_retirement_review_template_v1.md` |
