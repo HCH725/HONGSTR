@@ -19,6 +19,8 @@ The only decision question is:
 
 This file does not roll out any runtime change.
 
+Supporting evidence collection plan now lives in `docs/architecture/prototype_evidence_collection_plan_v1.md`.
+
 ## 1. Current State
 
 Current prototype behavior in `_local/telegram_cp/tg_cp_server.py`:

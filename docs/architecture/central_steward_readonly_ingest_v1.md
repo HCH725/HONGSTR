@@ -219,6 +219,7 @@ Disposition note:
 
 - current recommended posture is to keep shadow summary `internal-log only`; see `docs/architecture/shadow_summary_disposition_v1.md`
 - lifecycle criteria for keep / upgrade / retire now live in `docs/architecture/prototype_retirement_criteria_v1.md`
+- evidence collection for future upgrade / retire review now lives in `docs/architecture/prototype_evidence_collection_plan_v1.md`
 
 Suggested follow-on adoption path:
 
