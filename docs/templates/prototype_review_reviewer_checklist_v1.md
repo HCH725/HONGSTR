@@ -21,6 +21,8 @@ It is not:
 - canonical status publication
 - a reason to change `/status`, `/daily`, or `/dashboard`
 
+If the review reaches a final outcome, record it with `docs/templates/prototype_review_decision_record_template_v1.md`.
+
 ## 0. Reviewer Role Split
 
 Use the two checklists differently.

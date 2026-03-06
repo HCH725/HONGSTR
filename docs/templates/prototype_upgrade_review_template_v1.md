@@ -7,6 +7,7 @@ Authors should also complete `docs/templates/prototype_review_pr_author_checklis
 Authors may use `docs/examples/prototype_review_package_example_v1.md` as a package assembly example.
 Authors should follow `docs/ops/prototype_review_package_naming_convention_v1.md` for review package titles and attachment names.
 Authors should use `docs/templates/prototype_evidence_summary_template_v1.md` for the evidence summary block.
+Reviewers should record the final outcome in `docs/templates/prototype_review_decision_record_template_v1.md`.
 
 Do not use this template for rollout.
 
