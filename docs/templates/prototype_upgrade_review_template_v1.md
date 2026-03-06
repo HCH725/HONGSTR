@@ -5,6 +5,7 @@ Use this template only for a future `upgrade review` of the central steward shad
 Before opening a review PR, satisfy `docs/ops/prototype_review_kickoff_sop_v1.md`.
 Authors should also complete `docs/templates/prototype_review_pr_author_checklist_v1.md` before opening the PR.
 Authors may use `docs/examples/prototype_review_package_example_v1.md` as a package assembly example.
+Authors should follow `docs/ops/prototype_review_package_naming_convention_v1.md` for review package titles and attachment names.
 
 Do not use this template for rollout.
 

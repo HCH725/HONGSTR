@@ -40,6 +40,8 @@ Do not use this example package as:
 - a runtime change request
 - a substitute for the evidence plan or lifecycle criteria
 
+For title, attachment, and section-order conventions, see `docs/ops/prototype_review_package_naming_convention_v1.md`.
+
 ## 2. Package Manifest
 
 A complete review package should contain these pieces:
