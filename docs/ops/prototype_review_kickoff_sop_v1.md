@@ -28,6 +28,7 @@ Core rule:
 
 - a review PR is not a rollout PR
 - no rollout PR may start until the kickoff conditions in this SOP are satisfied and the review result is documented separately
+- authors should complete `docs/templates/prototype_review_pr_author_checklist_v1.md` before opening any review PR
 
 ## 1. Definitions
 
