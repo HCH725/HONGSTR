@@ -106,9 +106,10 @@ Use these to structure the review package itself.
 
 ### 3.7 Checklist
 
-Use this before opening any review PR.
+Use these at the correct stage of the review flow.
 
 - `docs/templates/prototype_review_pr_author_checklist_v1.md`
+- `docs/templates/prototype_review_reviewer_checklist_v1.md`
 
 ### 3.8 Example Package
 
@@ -155,8 +156,9 @@ When a future author actually wants to open a review PR, use this minimum flow.
 6. fill the matching review template
 7. complete `docs/templates/prototype_review_pr_author_checklist_v1.md`
 8. use `docs/ops/prototype_review_kickoff_sop_v1.md` as the final gate
-9. use `docs/ops/prototype_review_package_naming_convention_v1.md` to format the PR title and attachments
-10. use `docs/examples/prototype_review_package_example_v1.md` if the package still feels unclear
+9. after the PR opens, reviewers use `docs/templates/prototype_review_reviewer_checklist_v1.md`
+10. use `docs/ops/prototype_review_package_naming_convention_v1.md` to format the PR title and attachments
+11. use `docs/examples/prototype_review_package_example_v1.md` if the package still feels unclear
 
 If any prerequisite fails:
 
@@ -179,6 +181,7 @@ If any prerequisite fails:
 | write upgrade review | `docs/templates/prototype_upgrade_review_template_v1.md` |
 | write retirement review | `docs/templates/prototype_retirement_review_template_v1.md` |
 | pre-submit self-check | `docs/templates/prototype_review_pr_author_checklist_v1.md` |
+| reviewer-side review gate | `docs/templates/prototype_review_reviewer_checklist_v1.md` |
 | see one assembled example | `docs/examples/prototype_review_package_example_v1.md` |
 
 ## 7. Non-Rollout Reminder

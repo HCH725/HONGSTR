@@ -4,6 +4,8 @@ Use this checklist before opening any central steward shadow/prototype review PR
 
 This checklist is for authors only.
 
+Reviewer-side validation belongs in `docs/templates/prototype_review_reviewer_checklist_v1.md`.
+
 It does not replace:
 
 - `docs/ops/prototype_review_kickoff_sop_v1.md`
