@@ -1,6 +1,6 @@
 # HONGSTR Prototype Review Package Index v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / index-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review package index PR
@@ -113,6 +113,7 @@ Use this to keep review package naming, title format, and attachment naming cons
 - `docs/ops/prototype_enum_alignment_record_v1.md`
 - `docs/ops/prototype_boundary_check_row_alignment_record_v1.md`
 - `docs/ops/prototype_decision_next_action_alignment_record_v1.md`
+- `docs/ops/prototype_assessment_status_alignment_record_v1.md`
 
 ### 3.6 Templates
 
@@ -203,6 +204,7 @@ If any prerequisite fails:
 | standardize package naming | `docs/ops/prototype_review_package_naming_convention_v1.md` |
 | standardize recurring field meanings | `docs/ops/prototype_review_field_glossary_v1.md` |
 | see drift-to-canonical enum mapping | `docs/ops/prototype_enum_alignment_record_v1.md` |
+| see drift-to-canonical assessment-status mapping | `docs/ops/prototype_assessment_status_alignment_record_v1.md` |
 | write evidence summary | `docs/templates/prototype_evidence_summary_template_v1.md` |
 | write `upgrade-review` | `docs/templates/prototype_upgrade_review_template_v1.md` |
 | write `retirement-review` | `docs/templates/prototype_retirement_review_template_v1.md` |

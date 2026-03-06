@@ -1,6 +1,6 @@
 # HONGSTR Prototype Review Reviewer Checklist v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / checklist-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review reviewer checklist PR
@@ -139,6 +139,10 @@ Boundary response rule:
 
 ## D. Decision Hygiene
 
+- [ ] I have kept assessment status, decision outcome, and next action separate:
+  - assessment status: `continue observation`, `candidate for upgrade-review`, `candidate for retirement-review`, `needs more evidence`
+  - decision outcome: `keep`, `upgrade-review pass`, `upgrade-review fail`, `retirement-review pass`, `retirement-review fail`, `insufficient evidence`
+  - next action: `continue observation`, `extend evidence window`, `open review PR`, `open retirement PR`, or `no action`
 - [ ] I can map the submitted evidence to one of the allowed outcomes:
   - `keep`
   - `upgrade-review pass`

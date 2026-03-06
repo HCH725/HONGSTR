@@ -1,6 +1,6 @@
 # HONGSTR Prototype Review Request Changes Note Template v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / template-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review request-changes note template PR
@@ -76,6 +76,10 @@ Selected reason(s):
 
 - `<reason 1>`
 - `<reason 2>`
+
+Reason-split rule:
+
+- `insufficient evidence` is a request-changes reason here; use assessment-status `needs more evidence` inside the evidence summary instead of reusing this reason label there
 
 If `other` is used, explain it explicitly:
 

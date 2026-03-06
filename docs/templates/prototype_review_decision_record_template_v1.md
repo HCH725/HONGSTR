@@ -1,6 +1,6 @@
 # HONGSTR Prototype Review Decision Record Template v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / template-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review decision record template PR
@@ -111,6 +111,11 @@ Choose exactly one fixed outcome:
 Recorded outcome:
 
 `<selected outcome>`
+
+Decision-outcome rule:
+
+- do not use assessment-status labels such as `candidate for upgrade-review`, `candidate for retirement-review`, or `needs more evidence` in this field
+- do not use next-action label `continue observation` in this field
 
 ## 5. Reasoning Summary
 
