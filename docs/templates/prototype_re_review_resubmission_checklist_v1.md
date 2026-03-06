@@ -1,6 +1,6 @@
 # HONGSTR Prototype Re-Review Resubmission Checklist v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / checklist-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype re-review resubmission checklist PR
@@ -53,6 +53,12 @@ Use the prototype review docs in this order for resubmission:
 Rule:
 
 - do not resubmit until the blocking request-changes items are closed or explicitly marked `not applicable` with explanation
+
+Reviewer response-state rule:
+
+- use this checklist while the package remains in reviewer response state `return for fixes`
+- ask for re-review only when the requested next reviewer response state is `re-review allowed after fixes`
+- do not describe the package as `ready for decision record` until reviewer-side re-check is complete
 
 ## 1. Request-Changes Closure
 
@@ -172,5 +178,5 @@ State explicitly:
 | `date` | `<YYYY-MM-DD>` |
 | `request_changes_fully_addressed` | `<yes / no>` |
 | `boundary_rechecked` | `<yes / no>` |
-| `ready_for_re_review` | `<yes / no>` |
+| `requested_reviewer_response_state` | `<re-review allowed after fixes / return for fixes>` |
 | `rollout_mixed_in` | `<yes / no>` |

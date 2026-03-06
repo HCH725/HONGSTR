@@ -49,6 +49,12 @@ If the package later reaches a real review conclusion, use:
 Before resubmitting after fixes, authors should complete `docs/templates/prototype_re_review_resubmission_checklist_v1.md`.
 Authors may use `docs/examples/prototype_resubmission_example_v1.md` if they need a concrete resubmission flow example.
 
+Reviewer response-state rule:
+
+- this template is triggered by reviewer response state `request-changes note required`
+- once the note is issued, the package remains in reviewer response state `return for fixes`
+- after the listed conditions are satisfied, the reviewer may move the package to `re-review allowed after fixes`
+
 ## 1. Basic Information
 
 | Field | Value |
@@ -178,6 +184,6 @@ State explicitly:
 | `reviewer` | `<name or handle>` |
 | `date` | `<YYYY-MM-DD>` |
 | `request_changes_reason` | `<selected reason values>` |
-| `re-review_allowed_after_fixes` | `<yes / no>` |
+| `reviewer_response_state_after_fixes` | `<re-review allowed after fixes / return for fixes>` |
 | `rollout_mixed_in` | `<yes / no>` |
 | `further_scope_split_required` | `<yes / no>` |

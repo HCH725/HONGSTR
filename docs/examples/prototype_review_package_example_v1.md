@@ -71,7 +71,7 @@ A complete review package should contain these pieces:
 | author checklist | confirms the author did not skip prerequisites | `docs/templates/prototype_review_pr_author_checklist_v1.md` |
 | re-review resubmission checklist | confirms request-changes items are closed before resubmission | `docs/templates/prototype_re_review_resubmission_checklist_v1.md` |
 | decision record | standardizes the reviewer’s final outcome once review is complete | `docs/templates/prototype_review_decision_record_template_v1.md` |
-| request-changes note | standardizes reviewer return-for-fixes feedback when the package is not ready | `docs/templates/prototype_review_request_changes_note_template_v1.md` |
+| request-changes note | standardizes reviewer response-state and return-for-fixes feedback when the package is not ready | `docs/templates/prototype_review_request_changes_note_template_v1.md` |
 | kickoff SOP reference | defines whether the review may start at all | `docs/ops/prototype_review_kickoff_sop_v1.md` |
 | lifecycle criteria reference | defines what counts as keep / upgrade / retire | `docs/architecture/prototype_retirement_criteria_v1.md` |
 | boundary references | restate non-canonical / read-only limits | `docs/architecture/shadow_summary_disposition_v1.md` and `docs/architecture/central_steward_readonly_ingest_v1.md` |

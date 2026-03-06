@@ -303,7 +303,31 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.14 `decision outcome`
+### 3.14 `reviewer response state`
+
+- Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
+- When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
+- Templates using it:
+  - reviewer checklist
+  - request-changes note
+  - re-review resubmission checklist
+  - resubmission example
+- Required or optional: required where a template includes an explicit reviewer response-state field or response-state guardrail note.
+- Governing record:
+  - `docs/ops/prototype_reviewer_response_state_alignment_record_v1.md`
+- Allowed values:
+  - `request-changes note required`
+  - `return for fixes`
+  - `re-review allowed after fixes`
+  - `ready for decision record`
+- Common misuse:
+  - using `request changes` or `request-changes note` as if they were the response-state label itself
+  - using `insufficient evidence for decision` as a reviewer response-state enum instead of request-changes reason or decision outcome wording
+  - putting reviewer response states inside the final decision outcome enum
+  - leaving the state implied by prose only when a structured label is available
+- Example value: `ready for decision record`
+
+### 3.15 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -323,12 +347,13 @@ Read these rules before using any term below.
 - Common misuse:
   - inventing a new status like `soft pass`
   - treating `request changes` as a final decision outcome instead of a return-for-fixes state
+  - treating reviewer response states such as `request-changes note required`, `return for fixes`, `re-review allowed after fixes`, or `ready for decision record` as final decision outcomes
   - treating `continue observation` or `needs more evidence` as final decision outcomes instead of assessment status or next action
   - treating assessment-only labels like `candidate for upgrade-review` or `candidate for retirement-review` as final decision outcomes
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.15 `next action`
+### 3.16 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -353,7 +378,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.16 `boundary check labels`
+### 3.17 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.

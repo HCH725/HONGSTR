@@ -184,9 +184,19 @@ If the package is ready for a decision outcome, use one canonical label:
 - `retirement-review fail`
 - `insufficient evidence`
 
-If the package is not ready for a decision outcome, use reviewer response:
+If the reviewer is recording workflow posture instead of a final decision outcome, use a canonical reviewer response state:
 
 - `request-changes note required`
+- `return for fixes`
+- `re-review allowed after fixes`
+- `ready for decision record`
+
+Reviewer response-state rule:
+
+- use `request-changes note required` when this checklist is telling the reviewer to issue the standardized note
+- use `ready for decision record` only after the package has cleared reviewer-side checks and may move to the decision record
+- use `return for fixes` or `re-review allowed after fixes` only in the request-changes / resubmission flow, not as a final decision outcome
+- treat `insufficient evidence for decision` as reviewer rationale plus request-changes reason or decision outcome wording, not as a response-state enum
 
 Reviewer rationale:
 
@@ -214,7 +224,7 @@ State explicitly before final review sign-off:
 | `review_type` | `<upgrade-review / retirement-review>` |
 | `reviewer` | `<name or handle>` |
 | `date` | `<YYYY-MM-DD>` |
-| `review_outcome_or_response` | `<selected outcome or reviewer response>` |
+| `review_outcome_or_response_state` | `<selected outcome or reviewer response state>` |
 | `package_complete` | `<yes / no>` |
 | `boundary_clear` | `<yes / no>` |
 | `rollout_mixed_in` | `<yes / no>` |

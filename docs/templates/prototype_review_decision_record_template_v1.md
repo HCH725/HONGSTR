@@ -116,6 +116,7 @@ Decision-outcome rule:
 
 - do not use assessment-status labels such as `candidate for upgrade-review`, `candidate for retirement-review`, or `needs more evidence` in this field
 - do not use next-action label `continue observation` in this field
+- do not use reviewer response-state labels such as `request-changes note required`, `return for fixes`, `re-review allowed after fixes`, or `ready for decision record` in this field
 
 ## 5. Reasoning Summary
 
@@ -184,4 +185,4 @@ State explicitly:
 |---|---|---|---|
 | author | `<name>` | `<outcome>` | `<YYYY-MM-DD>` |
 | reviewer | `<name>` | `<outcome>` | `<YYYY-MM-DD>` |
-| governance reviewer | `<name>` | `<approve / request-changes note>` | `<YYYY-MM-DD>` |
+| governance reviewer | `<name>` | `<approve / request-changes note required>` | `<YYYY-MM-DD>` |
