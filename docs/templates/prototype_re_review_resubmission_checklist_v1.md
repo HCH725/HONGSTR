@@ -1,5 +1,16 @@
 # HONGSTR Prototype Re-Review Resubmission Checklist v1
 
+Last updated: 2026-03-06 (UTC+8)
+Status: docs-first / checklist-first / governance-only
+Stage: Stage 2 / Stage 7 / Stage 8
+Checklist item: prototype re-review resubmission checklist PR
+Plane: central steward prototype review/package governance
+Expected SSOT/output impact: none
+Runtime impact: none (docs-only)
+Rollout relation: governance-only; not rollout approval
+Kill switch: HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0
+Canonical truth boundary: does not change canonical SSOT or `/status` `/daily` `/dashboard`; does not write `data/state/*`
+
 Use this checklist when an author is preparing to resubmit a central steward shadow/prototype review package after receiving a `request-changes note`.
 
 This checklist is for resubmission only.
