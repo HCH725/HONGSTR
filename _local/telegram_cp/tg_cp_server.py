@@ -118,6 +118,7 @@ REGIME_MONITOR_FRESH_OK_H = float(os.environ.get("HONGSTR_REGIME_MONITOR_FRESH_O
 ALERT_INGEST_SHADOW_ENABLED = os.environ.get("HONGSTR_TG_ALERT_INGEST_PROTOTYPE", "0") != "0"
 ALERT_INGEST_SHADOW_COOLDOWN_SEC = max(0, int(os.environ.get("HONGSTR_TG_ALERT_INGEST_COOLDOWN_SEC", "900")))
 ALERT_INGEST_SHADOW_MAX_JOURNAL_LINES = max(1, int(os.environ.get("HONGSTR_TG_ALERT_INGEST_JOURNAL_LINES", "50")))
+ALERT_INGEST_SHADOW_PREFIX = "INTERNAL_ONLY | SHADOW_ONLY | NOT_CANONICAL | NO_ACTIONING"
 
 # Process-local shadow ingest cache. This is delivery-local only and never canonical SSOT.
 _ALERT_INGEST_LAST_SIGNATURE = ""
@@ -2078,7 +2079,10 @@ def _shadow_render_line(alert: dict, *, kind: str) -> str:
     summary = str(alert.get("summary") or "").strip() or "alert summary unavailable"
     source = str(alert.get("source") or "unknown_source").strip() or "unknown_source"
     ts_utc = str(alert.get("ts_utc") or "").strip() or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return f"{kind.upper()} {severity} {alert_type} @{ts_utc} | {summary} | source={source}"
+    return (
+        f"{ALERT_INGEST_SHADOW_PREFIX} | "
+        f"{kind.upper()} {severity} {alert_type} @{ts_utc} | {summary} | source={source}"
+    )
 
 
 def _select_shadow_alerts() -> tuple[list[dict], str, str]:
@@ -2132,11 +2136,34 @@ def _shadow_candidate_visible(alert: dict, *, now_ts: float) -> tuple[bool, str]
     return True, "alert"
 
 
+def _log_shadow_summary(*, mode: str, reason: str, alert: dict) -> None:
+    """Internal-log-only shadow sink.
+
+    Hard guardrail:
+    - never call `_send(...)`
+    - never emit operator-visible Telegram output
+    - never rewrite canonical SSOT
+    """
+    dedupe_key, cooldown_key, _ = _alert_shadow_identity(alert)
+    log_event(
+        "ALERT_INGEST_SHADOW",
+        visibility="internal_only",
+        canonical="not_canonical",
+        delivery="runtime_log_only",
+        actioning="no_actioning",
+        mode=mode,
+        reason=reason,
+        dedupe_key=dedupe_key,
+        cooldown_key=cooldown_key,
+        shadow=_shadow_render_line(alert, kind=reason),
+    )
+
+
 def _poll_shadow_alert_ingest() -> None:
     """Prototype-only read-only ingest for atomic alert artifacts.
 
-    The path is disabled by default and emits only runtime-log shadow summaries.
-    It never rewrites canonical SSOT, never recomputes /status or /daily, and never sends Telegram.
+    The path is disabled by default and emits only INTERNAL_ONLY runtime-log shadow summaries.
+    It never rewrites canonical SSOT, never recomputes /status or /daily, and must never send Telegram.
     """
     global _ALERT_INGEST_LAST_SIGNATURE
 
@@ -2157,19 +2184,20 @@ def _poll_shadow_alert_ingest() -> None:
         visible, reason = _shadow_candidate_visible(alert, now_ts=now_ts)
         if not visible:
             continue
-        dedupe_key, cooldown_key, _ = _alert_shadow_identity(alert)
-        log_event(
-            "ALERT_INGEST_SHADOW",
-            mode=mode,
-            reason=reason,
-            dedupe_key=dedupe_key,
-            cooldown_key=cooldown_key,
-            shadow=_shadow_render_line(alert, kind=reason),
-        )
+        _log_shadow_summary(mode=mode, reason=reason, alert=alert)
         emitted += 1
 
     if emitted > 0:
-        log_event("ALERT_INGEST_SHADOW_BATCH", mode=mode, emitted=emitted, count=len(alerts))
+        log_event(
+            "ALERT_INGEST_SHADOW_BATCH",
+            visibility="internal_only",
+            canonical="not_canonical",
+            delivery="runtime_log_only",
+            actioning="no_actioning",
+            mode=mode,
+            emitted=emitted,
+            count=len(alerts),
+        )
 
 
 # ────────────────────── deferred followup queue ──────────────────────

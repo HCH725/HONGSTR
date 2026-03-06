@@ -30,6 +30,7 @@ Current prototype behavior in `_local/telegram_cp/tg_cp_server.py`:
 - applies process-local `cooldown_key` suppression
 - emits recovery shadow summary only when `recovery_of` refers to a previously surfaced alert inside the same in-process cache
 - writes shadow output only through `runtime.log`
+- prefixes each runtime-log summary with `INTERNAL_ONLY | SHADOW_ONLY | NOT_CANONICAL | NO_ACTIONING`
 - does not call `_send(...)`
 - does not rewrite `data/state/*`
 - does not alter `/status`
@@ -61,6 +62,7 @@ The shadow prototype is intentionally harmless today because it is:
 - internal-only
 - non-canonical
 - delivery-local
+- explicitly marked as `NO_ACTIONING`
 
 The moment it becomes operator-visible in Telegram, it crosses a different review bar:
 
@@ -240,6 +242,7 @@ Reason:
 - the current producer is still manual-only and non-canonical
 - the current steward suppression cache is still process-local and therefore not strong enough for human-visible interpretation
 - the repo already has a formal alert path, so adding a second visible class too early would create avoidable ambiguity
+- the runtime path is now explicitly hardened to log `INTERNAL_ONLY | SHADOW_ONLY | NOT_CANONICAL | NO_ACTIONING`, which is enough for prototype observation without rollout
 - retire/archive is premature because the prototype still provides a useful low-risk observation layer
 
 Short version:
