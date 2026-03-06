@@ -290,4 +290,5 @@ The canonical disposition in v1 is:
 - keep central steward shadow summary `internal-log only`
 - do not upgrade it to operator-visible Telegram output yet
 - do not retire it yet
+- lifecycle criteria now live in `docs/architecture/prototype_retirement_criteria_v1.md`
 - revisit operator-visible shadow summary only in a later dedicated runtime PR if clearer value and safer labeling are demonstrated
