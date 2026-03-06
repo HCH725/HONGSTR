@@ -19,6 +19,12 @@ This review inventories legacy dispatcher ingress paths and adjacent non-Telegra
 
 This document is intentionally audit-first. It does not retire workflows, scripts, or templates in this PR.
 
+Follow-up status:
+
+- the direct `/dispatch` chain reviewed here was retired by `docs/architecture/direct_dispatch_retirement_v1.md`
+- the direct `/dispatch` rows below remain the pre-retirement audit basis for that decision
+- self-heal remains intentionally out of scope for the retirement PR
+
 ## 1. Decision Rules
 
 An item is `Removal candidate` when all of the following hold:
@@ -83,20 +89,29 @@ An item is `Deprecated but keep for now` when:
 
 ## 3. Reference Summary
 
-Concrete repo-local findings from this review:
+Pre-retirement repo-local findings from this review:
 
-- the only `issue_comment` workflows found are:
+- the only `issue_comment` workflows in this ingress family were:
   - `.github/workflows/dispatch.yml`
   - `.github/workflows/self_heal.yml`
-- the only `workflow_dispatch` workflow found in this ingress family is:
+- the only `workflow_dispatch` workflow in this ingress family was:
   - `.github/workflows/self_heal.yml`
-- the direct `/dispatch` chain is still cross-linked through:
+- the direct `/dispatch` chain was cross-linked through:
   - `.github/workflows/dispatch.yml`
   - `scripts/dispatch/dispatch_issue.sh`
   - `.github/ISSUE_TEMPLATE/task.yml`
   - `docs/dispatcher_agent.md`
   - `docs/governance/ccpm_adoption.md`
-- `docs/dispatcher_smoke.md` is not free-floating noise yet because it is still referenced by `scripts/dispatch/dispatch_issue.sh`
+- `docs/dispatcher_smoke.md` was not free-floating noise because it was referenced by `scripts/dispatch/dispatch_issue.sh`
+
+Post-retirement follow-up status:
+
+- `.github/workflows/dispatch.yml` has been removed
+- `scripts/dispatch/dispatch_issue.sh` has been removed
+- `.github/ISSUE_TEMPLATE/task.yml` has been removed
+- `docs/dispatcher_agent.md` has been removed
+- `docs/dispatcher_smoke.md` has been removed
+- `.github/workflows/self_heal.yml` remains the only non-Telegram ingress in this review family and stays out of scope here
 
 ## 4. Conflict With Single Telegram Entrance
 
@@ -119,13 +134,18 @@ They should not be treated as equivalent to `/dispatch`, but they still need a l
 
 ## 5. Safe Remove Now
 
-No item qualifies as `Safe remove now`.
+At the time of the audit snapshot, no item qualified as `Safe remove now`.
 
 Reason:
 
-- every dispatcher-path doc or artifact is still referenced by an active workflow, script, or historical governance note
-- every self-heal path is still either active or required by the bounded repair chain
-- removing any one of these in isolation would leave partial legacy wiring, broken references, or an undocumented behavior gap
+- every dispatcher-path doc or artifact was still referenced by an active workflow, script, or historical governance note
+- every self-heal path was still either active or required by the bounded repair chain
+- removing any one of these in isolation would have left partial legacy wiring, broken references, or an undocumented behavior gap
+
+Post-retirement update:
+
+- the dedicated direct `/dispatch` retirement PR has now removed the dispatcher chain as one smallest unit
+- the remaining self-heal paths still do not qualify as `Safe remove now`
 
 ## 6. Stage Risk Summary
 
@@ -147,7 +167,7 @@ Reason:
 
 ## 7. Recommended Smallest-Unit Follow-On Sequence
 
-1. retirement PR for the direct `/dispatch` chain only:
+1. completed: retirement PR for the direct `/dispatch` chain only:
    - `.github/workflows/dispatch.yml`
    - `scripts/dispatch/dispatch_issue.sh`
    - `.github/ISSUE_TEMPLATE/task.yml`
@@ -172,6 +192,6 @@ Kill switch:
 
 Removal plan:
 
-- remove the direct `/dispatch` chain only in one dedicated smallest-unit PR
+- keep the direct `/dispatch` chain retired via its dedicated smallest-unit PR
 - do not mix self-heal retirement with dispatch retirement unless the policy decision is explicit
-- preserve evidence of the legacy paths in governance docs or release notes when retirement happens
+- preserve evidence of the legacy paths in governance docs or release notes after retirement

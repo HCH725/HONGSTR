@@ -54,8 +54,11 @@ The review is policy-first. It does not modify runtime in this PR.
 
 | Path or module | Decision | Why it conflicts with target architecture | Kill switch / containment | Removal plan |
 |---|---|---|---|---|
-| `docs/dispatcher_agent.md` | Kill from production roadmap | It defines an alternate operator-triggered agent execution surface outside the Telegram single-entry model. | Do not extend or operationalize it further. | Move to sandbox/archive docs or delete after dependent references are removed. |
-| `scripts/dispatch/dispatch_issue.sh` | Kill from production roadmap | It creates a second outward control path for task execution, which conflicts with Stage 7 single-entry governance even if allowlisted. | Keep disabled from production use; do not wire into steward flows. | Retire after any sandbox/testing dependency is removed in a dedicated PR. |
+| `docs/dispatcher_agent.md` | Kill from production roadmap | It defined an alternate operator-triggered agent execution surface outside the Telegram single-entry model. | Retired by `docs/architecture/direct_dispatch_retirement_v1.md`. | Removed now; preserve history in retirement/audit docs only. |
+| `scripts/dispatch/dispatch_issue.sh` | Kill from production roadmap | It created a second outward control path for task execution, which conflicts with Stage 7 single-entry governance even if allowlisted. | Retired by `docs/architecture/direct_dispatch_retirement_v1.md`. | Removed now with the direct `/dispatch` workflow and task template. |
+| `.github/workflows/dispatch.yml` | Kill from production roadmap | It allowed GitHub issue comments to act as a second operator ingress. | Retired by `docs/architecture/direct_dispatch_retirement_v1.md`. | Removed now with the direct `/dispatch` chain. |
+| `.github/ISSUE_TEMPLATE/task.yml` | Kill from production roadmap | It actively framed GitHub tasks as dispatchable through `/dispatch`. | Retired by `docs/architecture/direct_dispatch_retirement_v1.md`. | Removed now with the direct `/dispatch` chain. |
+| `docs/dispatcher_smoke.md` | Kill from production roadmap | It existed only as a support artifact for the retired direct dispatcher flow. | Retired by `docs/architecture/direct_dispatch_retirement_v1.md`. | Removed now with the direct `/dispatch` chain. |
 
 ## 4. Explicit Non-Negotiable Keep-But-Do-Not-Expand List
 
@@ -91,5 +94,5 @@ Kill switch:
 
 1. keep `com.hongstr.refresh_state` as the only canonical state-plane owner and retire duplicate schedule semantics under `com.hongstr.daily_healthcheck`
 2. replace duplicated event/escalation wording in broad governance docs with links to the new v1 schema/taxonomy docs
-3. freeze then retire issue-comment dispatcher paths that conflict with Telegram single-entry governance
+3. keep the direct `/dispatch` chain retired and do not reintroduce GitHub issue-comment execution as a production ingress
 4. keep Obsidian/LanceDB as sidecar-only and refuse any proposal that promotes them to control-plane truth

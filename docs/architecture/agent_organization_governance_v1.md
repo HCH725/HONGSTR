@@ -30,6 +30,7 @@ Use this document as the umbrella overview only. Use the following docs as the c
 | Domain | Canonical doc |
 |---|---|
 | Agent roles, single-entry model, plane map | `docs/architecture/agent_organization_governance_v1.md` |
+| Direct `/dispatch` retirement | `docs/architecture/direct_dispatch_retirement_v1.md` |
 | Agent event fields and vocabulary | `docs/architecture/agent_event_schema_v1.md` |
 | Escalation targets, repair classes, cooldown/dedupe | `docs/architecture/escalation_taxonomy_v1.md` |
 | Legacy Keep / Merge / Kill decisions | `docs/architecture/legacy_keep_kill_merge_review_v1.md` |
@@ -48,7 +49,7 @@ This governance skeleton maps to roadmap slices as follows:
 
 - Stage 2 (SSOT/state/events/deterministic):
   - single writer boundary remains unchanged
-  - event/dispatch/escalation defined as docs-first contracts
+  - event and escalation contracts remain docs-first; direct `/dispatch` stays retired
 - Stage 7 (Telegram single entrance/read-only reporting):
   - central steward remains single Telegram interface
   - no free-form shell execution path is introduced

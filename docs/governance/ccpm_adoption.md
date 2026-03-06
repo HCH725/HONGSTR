@@ -4,6 +4,7 @@ Status: historical governance note. Not canonical for the current single-entry m
 For current policy, use:
 
 - `docs/architecture/agent_organization_governance_v1.md`
+- `docs/architecture/direct_dispatch_retirement_v1.md`
 - `docs/architecture/escalation_taxonomy_v1.md`
 - `docs/architecture/legacy_keep_kill_merge_review_v1.md`
 - `docs/architecture/governance_dedupe_record_v1.md`
@@ -42,7 +43,7 @@ Every PR body must reference the Epic/Task GitHub Issue number: `Closes #<issue>
 | PRD        | GitHub Issue (`prd` label)       | Human authored    |
 | Epic       | GitHub Issue (`epic` label)      | Human or agent, after PRD approval |
 | Task       | GitHub Issue (`task` label)      | Agent, after Epic scoped |
-| PR         | GitHub Pull Request              | Historical `/dispatch`-based workflow only; not the target production ingress |
+| PR         | GitHub Pull Request              | Standard reviewed PR flow; the legacy direct `/dispatch` chain has been retired |
 
 **No PR may land without at least one Task Issue reference.**
 
@@ -50,7 +51,7 @@ Every PR body must reference the Epic/Task GitHub Issue number: `Closes #<issue>
 
 ## HONGSTR-Specific Rules
 
-1. **Allowed Paths Gate**: dispatchable Tasks must declare `allowed_paths:` in the issue body. The dispatcher reads this field to bound the changeset. Any diff outside declared paths is rejected.
+1. **Allowed Paths Gate**: bounded repair or future automation paths, if any remain, must declare explicit `allowed_paths:` and stay separately reviewed. The legacy direct `/dispatch` chain has been retired.
 2. **red-line check**: All PRs auto-run `bash scripts/guardrail_check.sh`. Core diff to `src/hongstr` must be zero.
 3. **docs-only detection**: Issues with label `docs-only` skip the core-diff check and may be auto-merged if repo policy allows.
 4. **report_only**: All research changes must include `report_only: true` in their task body.
@@ -58,22 +59,14 @@ Every PR body must reference the Epic/Task GitHub Issue number: `Closes #<issue>
 
 ---
 
-## Historical Workflow Integration (Archive-only)
+## Historical Direct Dispatch (Retired)
 
-The existing `.github/workflows/dispatch.yml` and `.github/ISSUE_TEMPLATE/task.yml` describe a historical issue-comment dispatch flow.
+The legacy direct `/dispatch` chain has been retired. See:
 
-Treat that flow as sandbox/archive-only:
+- `docs/architecture/direct_dispatch_retirement_v1.md`
+- `docs/architecture/legacy_dispatcher_ingress_review_v1.md`
 
-- it is not the canonical governance target
-- it should not be expanded as a second operator ingress
-- any future retirement should happen in a later smallest-unit PR
-
-**Recommended enhancement (safe, no core change):**
-
-- Add a label check: if the issue has `docs-only`, the dispatcher may run with `--docs-only` flag (no core diff allowed).
-- Surface `acceptance_criteria:` from the issue body into the draft PR body automatically.
-
-These notes are retained for historical context only. See `docs/governance/acceptance_criteria.md` for the AC format if the remaining docs are still referenced during retirement planning.
+This document no longer defines or recommends any issue-comment dispatch workflow.
 
 ## Current Governance Direction
 
