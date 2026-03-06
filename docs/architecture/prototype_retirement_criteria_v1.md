@@ -20,6 +20,7 @@ The only lifecycle question is:
 This file does not change runtime behavior.
 
 Supporting evidence collection plan now lives in `docs/architecture/prototype_evidence_collection_plan_v1.md`.
+Reusable review templates now live in `docs/templates/prototype_upgrade_review_template_v1.md` and `docs/templates/prototype_retirement_review_template_v1.md`.
 
 ## 1. Current State Summary
 
