@@ -81,18 +81,19 @@ If any step fails:
 - request_changes_reason: boundary unclear
 
 Required fixes:
-- add missing `canonical_overlap` explanation
-- restate that the package does not affect /status or /daily
-- remove rollout-oriented wording from next action
+- canonical overlap explanation added: add missing `canonical_overlap` explanation
+- boundary wording clarified: restate that the package does not affect /status or /daily
+- rollout wording removed: remove rollout-oriented wording from next action
 
 Re-review conditions:
 - updated evidence summary attached
-- boundary wording rewritten
+- boundary wording clarified
 - request-changes items marked completed or not applicable
 ```
 
 Use only canonical request-changes-reason labels in the structured reason field.
-Keep prose such as `add missing canonical_overlap explanation` or `boundary wording rewritten` in the fix section, not as replacement reason labels.
+Use canonical required-fix labels in the fix section.
+Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
 

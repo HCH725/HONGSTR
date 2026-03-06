@@ -60,6 +60,16 @@ Request-changes-reason rule:
 - use the canonical reason labels exactly as listed below in structured fields
 - treat phrases such as `missing evidence`, `boundary rewrite`, `rollout drift`, `canonical overlap not explained`, or `longer observation needed` as rationale or required-fix prose, not replacement reason labels
 
+Required-fix label rule:
+
+- use the canonical required-fix labels below when structuring blocker closure work:
+  - `missing evidence added`
+  - `template completed`
+  - `boundary wording clarified`
+  - `rollout wording removed`
+  - `canonical overlap explanation added`
+  - `observation window extended`
+
 ## 1. Basic Information
 
 | Field | Value |
@@ -99,19 +109,27 @@ If `other` is used, explain it explicitly:
 
 ## 3. Required Fixes
 
-Missing or insufficient evidence:
+`missing evidence added`:
 
 - `<what evidence is missing>`
 
-Required template or checklist fixes:
+`template completed`:
 
 - `<which template/checklist/decision record is missing or incomplete>`
 
-Boundary rewrites or clarifications:
+`boundary wording clarified`:
 
 - `<which boundary statement must be rewritten>`
 
-Observation window change:
+`rollout wording removed`:
+
+- `<which rollout wording must be removed or split out>`
+
+`canonical overlap explanation added`:
+
+- `<what canonical_overlap explanation must be added>`
+
+`observation window extended`:
 
 - `<extend / complete / no change>`
 
@@ -127,13 +145,14 @@ If `yes`, split guidance:
 
 Re-review may start only after all required conditions below are true.
 
-- [ ] missing evidence has been added
-- [ ] the correct review template is fully completed
+- [ ] `missing evidence added`
+- [ ] `template completed`
 - [ ] the evidence summary has been updated if needed
 - [ ] author checklist is complete
-- [ ] reviewer-facing boundary concerns are addressed
-- [ ] rollout scope has been removed or split out
-- [ ] observation window is complete, if that was the blocker
+- [ ] `boundary wording clarified`
+- [ ] `rollout wording removed`
+- [ ] `canonical overlap explanation added`, if that was the blocker
+- [ ] `observation window extended`, if that was the blocker
 
 Kickoff SOP needs to be re-checked:
 

@@ -286,7 +286,32 @@ Read these rules before using any term below.
   - treating `needs more evidence` as if it were the request-changes reason instead of the assessment-status label
 - Example value: `boundary unclear`
 
-### 3.13 `assessment status`
+### 3.13 `required fix label`
+
+- Definition: the normalized label describing which concrete author-side fix must be completed after a request-changes note.
+- When used: request-changes note, re-review resubmission checklist, reviewer guidance about blocker closure, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - resubmission example
+- Required or optional: required where the docs structure blocker closure as named fix labels instead of freeform prose only.
+- Governing record:
+  - `docs/ops/prototype_required_fix_alignment_record_v1.md`
+- Allowed values:
+  - `missing evidence added`
+  - `template completed`
+  - `boundary wording clarified`
+  - `rollout wording removed`
+  - `canonical overlap explanation added`
+  - `observation window extended`
+- Common misuse:
+  - using request-changes reasons such as `insufficient evidence` or `boundary unclear` as if they were required-fix labels
+  - using prose-only completions such as `boundary wording rewritten`, `reviewer-facing boundary concerns are addressed`, or `observation window is complete` instead of the canonical labels
+  - using next-action labels such as `extend evidence window` as if they were required-fix completion labels
+- Example value: `boundary wording clarified`
+
+### 3.14 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -308,7 +333,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.14 `reviewer response state`
+### 3.15 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -332,7 +357,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.15 `decision outcome`
+### 3.16 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -358,7 +383,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.16 `next action`
+### 3.17 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -383,7 +408,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.17 `boundary check labels`
+### 3.18 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.

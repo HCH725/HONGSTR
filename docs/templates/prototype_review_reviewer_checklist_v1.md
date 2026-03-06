@@ -209,6 +209,16 @@ Request-changes-reason rule:
   - `canonical overlap unclear`
   - `observation window incomplete`
 
+Required-fix label rule:
+
+- if the reviewer chooses `request-changes note required`, the blocker-closure work should map to the canonical required-fix labels:
+  - `missing evidence added`
+  - `template completed`
+  - `boundary wording clarified`
+  - `rollout wording removed`
+  - `canonical overlap explanation added`
+  - `observation window extended`
+
 Reviewer rationale:
 
 - `<reason 1>`

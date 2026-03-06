@@ -71,6 +71,16 @@ Request-changes-reason rule:
   - `observation window incomplete`
   - `other`
 
+Required-fix label rule:
+
+- the blocker-closure work should map back to the canonical required-fix labels:
+  - `missing evidence added`
+  - `template completed`
+  - `boundary wording clarified`
+  - `rollout wording removed`
+  - `canonical overlap explanation added`
+  - `observation window extended`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.
@@ -82,6 +92,7 @@ Request-changes-reason rule:
 - [ ] Every `not applicable` item includes a written reason.
 - [ ] I have added the evidence, explanation, or docs updates the reviewer explicitly requested.
 - [ ] I am not resubmitting with unresolved blocking items hidden in prose.
+- [ ] I can map the completed blocker-closure work to the canonical required-fix labels above.
 
 Request-changes closure note:
 
@@ -89,7 +100,7 @@ Request-changes closure note:
 
 ## 2. Evidence Refresh
 
-- [ ] I have filled the missing evidence identified in the request-changes note.
+- [ ] `missing evidence added`, if that was requested.
 - [ ] I have updated `docs/templates/prototype_evidence_summary_template_v1.md` content or its filled review artifact.
 - [ ] I have re-checked:
   - `false_positive_noise`
@@ -98,7 +109,8 @@ Request-changes closure note:
   - `dedupe_hit_rate`
   - `cooldown_hit_rate`
   - `recovery_of_ratio`
-- [ ] I have completed any missing observation window requirement.
+- [ ] `canonical overlap explanation added`, if that was requested.
+- [ ] `observation window extended`, if that was requested.
 - [ ] I have completed any missing manual observation session requirement.
 - [ ] If evidence is still partial, I have said so explicitly instead of pretending the gap is closed.
 
@@ -108,6 +120,7 @@ Evidence refresh note:
 
 ## 3. Package Consistency
 
+- [ ] `template completed`, if that was requested.
 - [ ] I have updated the correct review template:
   - `docs/templates/prototype_upgrade_review_template_v1.md`
   - or `docs/templates/prototype_retirement_review_template_v1.md`
@@ -123,6 +136,8 @@ Package consistency note:
 
 ## 4. Boundary Re-Check
 
+- [ ] `boundary wording clarified`, if that was requested.
+- [ ] `rollout wording removed`, if that was requested.
 - [ ] The prototype is `internal-only`.
 - [ ] The prototype is `not-canonical`.
 - [ ] The package does not affect `/status`.
