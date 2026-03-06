@@ -11,6 +11,16 @@ Rollout relation: governance-only; not rollout approval
 Kill switch: HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0
 Canonical truth boundary: does not change canonical SSOT or `/status` `/daily` `/dashboard`; does not write `data/state/*`
 
+Boundary reminder:
+
+- This document is not a rollout authorization.
+- This document does not authorize formal Telegram alerting.
+- This document is not canonical SSOT.
+- This document does not change `/status` `/daily` `/dashboard` truth sources.
+- This document does not permit writes to `data/state/*`.
+- This document has no runtime wiring effect.
+- This document does not authorize bounded repair.
+
 Use this template when a reviewer needs to record the final outcome of a central steward shadow/prototype review.
 
 This template standardizes the final decision record after review.
