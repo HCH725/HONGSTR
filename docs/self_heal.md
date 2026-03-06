@@ -16,12 +16,11 @@ L2 Self-Heal = auto open PR + request review + never auto-merge + strict allowed
 - No policy auto-activation that changes trading semantics
 
 ## Trigger
-Current implementation accepts either:
+Current implementation accepts only:
 
-- GitHub issue comment containing `/selfheal`
 - GitHub `workflow_dispatch`
 
-Both are non-Telegram ingress surfaces. Governance currently treats them as sandbox-only, not as part of the target single-entry production model.
+The GitHub issue-comment ingress has been removed as part of runtime-only containment. The remaining workflow is a manual sandbox-only path, not part of the target single-entry production model.
 
 ## Repair Ticket JSON schema (minimum)
 {
@@ -39,6 +38,6 @@ Both are non-Telegram ingress surfaces. Governance currently treats them as sand
 
 ## Governance
 - PR must be Draft
-- PR must request review
+- Reviewer assignment remains manual for workflow-dispatch runs
 - No auto-merge
 - No expansion beyond sandbox-only bounded repair without a separate approved PR
