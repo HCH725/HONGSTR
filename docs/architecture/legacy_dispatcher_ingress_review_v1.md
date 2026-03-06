@@ -23,7 +23,8 @@ Follow-up status:
 
 - the direct `/dispatch` chain reviewed here was retired by `docs/architecture/direct_dispatch_retirement_v1.md`
 - the direct `/dispatch` rows below remain the pre-retirement audit basis for that decision
-- self-heal remains intentionally out of scope for the retirement PR
+- bounded `/selfheal` disposition is now defined by `docs/architecture/bounded_selfheal_disposition_v1.md`
+- self-heal remained intentionally out of scope for the direct `/dispatch` retirement PR
 
 ## 1. Decision Rules
 
@@ -158,7 +159,7 @@ Post-retirement update:
 
 - this is the primary risk area
 - `/dispatch` directly conflicts with the Telegram single outward operator entrance
-- `/selfheal` remains a bounded exception candidate that still requires a policy decision
+- `/selfheal` is now classified separately as sandbox-only rather than a production bounded exception
 
 ### Stage 8
 
@@ -174,8 +175,8 @@ Post-retirement update:
    - `docs/dispatcher_agent.md`
    - `docs/dispatcher_smoke.md`
    - dispatch-specific historical sections in `docs/governance/ccpm_adoption.md`
-2. separate review PR for bounded non-Telegram self-heal ingress:
-   - decide whether it remains a controlled exception, moves to sandbox-only, or is retired
+2. completed: separate review PR for bounded non-Telegram self-heal ingress:
+   - current disposition is sandbox-only; later runtime PR decides containment vs retirement
 3. only after those decisions, clean up any remaining labels/templates/docs that mention dispatch or self-heal
 
 ## 8. Degrade / Kill Switch / Removal Plan

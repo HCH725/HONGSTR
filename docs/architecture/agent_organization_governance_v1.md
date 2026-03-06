@@ -31,6 +31,7 @@ Use this document as the umbrella overview only. Use the following docs as the c
 |---|---|
 | Agent roles, single-entry model, plane map | `docs/architecture/agent_organization_governance_v1.md` |
 | Direct `/dispatch` retirement | `docs/architecture/direct_dispatch_retirement_v1.md` |
+| Bounded `/selfheal` disposition | `docs/architecture/bounded_selfheal_disposition_v1.md` |
 | Agent event fields and vocabulary | `docs/architecture/agent_event_schema_v1.md` |
 | Escalation targets, repair classes, cooldown/dedupe | `docs/architecture/escalation_taxonomy_v1.md` |
 | Legacy Keep / Merge / Kill decisions | `docs/architecture/legacy_keep_kill_merge_review_v1.md` |
@@ -130,7 +131,8 @@ Boundaries:
 
 Current repo anchors:
 
-- `docs/self_heal.md` (L2 self-heal governance)
+- `docs/architecture/bounded_selfheal_disposition_v1.md` (canonical bounded repair ingress disposition)
+- `docs/self_heal.md` (compatibility note for current workflow shape)
 - `scripts/self_heal/enforce_allowed_paths.py`
 - `scripts/self_heal/run_required_checks.sh`
 - `tests/test_self_heal_allowed_paths.py`
@@ -325,6 +327,7 @@ Current anchors:
 - `scripts/tg_cp_healthcheck.py`
 - `docs/tg_cp_watchdog.md`
 - `ops/launchagents/com.hongstr.tg_cp_watchdog.plist`
+- `docs/architecture/bounded_selfheal_disposition_v1.md`
 - `scripts/self_heal/enforce_allowed_paths.py`
 - `scripts/self_heal/run_required_checks.sh`
 - `docs/self_heal.md`
