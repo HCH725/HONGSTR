@@ -71,6 +71,7 @@ Field split rule:
 - reviewer response state is not a final decision outcome
 - reviewer response state is not a next action enum
 - `insufficient evidence for decision` should be expressed through reviewer rationale plus either request-changes reason `insufficient evidence` or decision outcome `insufficient evidence`
+- request-changes-reason labels are governed separately by `docs/ops/prototype_request_changes_reason_alignment_record_v1.md`
 
 ## 4. Legacy Aliases No Longer Recommended
 

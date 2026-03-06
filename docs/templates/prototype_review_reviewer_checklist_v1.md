@@ -118,6 +118,7 @@ If evidence is thin or contradictory:
 
 - request more evidence
 - or require an extended observation window before continuing
+- if a standardized note is needed, use request-changes reason `insufficient evidence` or `observation window incomplete` instead of ad hoc prose labels
 
 ## C. Boundary Checks
 
@@ -197,6 +198,16 @@ Reviewer response-state rule:
 - use `ready for decision record` only after the package has cleared reviewer-side checks and may move to the decision record
 - use `return for fixes` or `re-review allowed after fixes` only in the request-changes / resubmission flow, not as a final decision outcome
 - treat `insufficient evidence for decision` as reviewer rationale plus request-changes reason or decision outcome wording, not as a response-state enum
+
+Request-changes-reason rule:
+
+- if the reviewer chooses `request-changes note required`, the blocking reasons should map to the canonical request-changes labels:
+  - `insufficient evidence`
+  - `incomplete template`
+  - `boundary unclear`
+  - `rollout mixed into review PR`
+  - `canonical overlap unclear`
+  - `observation window incomplete`
 
 Reviewer rationale:
 

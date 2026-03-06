@@ -60,6 +60,17 @@ Reviewer response-state rule:
 - ask for re-review only when the requested next reviewer response state is `re-review allowed after fixes`
 - do not describe the package as `ready for decision record` until reviewer-side re-check is complete
 
+Request-changes-reason rule:
+
+- the blocking request-changes items should still map back to the canonical reason labels from the note:
+  - `insufficient evidence`
+  - `incomplete template`
+  - `boundary unclear`
+  - `rollout mixed into review PR`
+  - `canonical overlap unclear`
+  - `observation window incomplete`
+  - `other`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.

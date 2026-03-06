@@ -77,8 +77,8 @@ If any step fails:
 
 ```md
 ## Request-Changes Note
-- reason: insufficient evidence
-- reason: boundary unclear
+- request_changes_reason: insufficient evidence
+- request_changes_reason: boundary unclear
 
 Required fixes:
 - add missing `canonical_overlap` explanation
@@ -90,6 +90,9 @@ Re-review conditions:
 - boundary wording rewritten
 - request-changes items marked completed or not applicable
 ```
+
+Use only canonical request-changes-reason labels in the structured reason field.
+Keep prose such as `add missing canonical_overlap explanation` or `boundary wording rewritten` in the fix section, not as replacement reason labels.
 
 ### 3.2 Resubmission Checklist Snippet
 

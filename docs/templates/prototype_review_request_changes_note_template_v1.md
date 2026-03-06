@@ -55,6 +55,11 @@ Reviewer response-state rule:
 - once the note is issued, the package remains in reviewer response state `return for fixes`
 - after the listed conditions are satisfied, the reviewer may move the package to `re-review allowed after fixes`
 
+Request-changes-reason rule:
+
+- use the canonical reason labels exactly as listed below in structured fields
+- treat phrases such as `missing evidence`, `boundary rewrite`, `rollout drift`, `canonical overlap not explained`, or `longer observation needed` as rationale or required-fix prose, not replacement reason labels
+
 ## 1. Basic Information
 
 | Field | Value |
@@ -86,6 +91,7 @@ Selected reason(s):
 Reason-split rule:
 
 - `insufficient evidence` is a request-changes reason here; use assessment-status `needs more evidence` inside the evidence summary instead of reusing this reason label there
+- `insufficient evidence` may also appear as a final decision outcome, but only in an explicit `decision outcome` field
 
 If `other` is used, explain it explicitly:
 
