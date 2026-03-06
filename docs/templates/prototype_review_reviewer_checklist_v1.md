@@ -51,6 +51,8 @@ If any required item fails:
 - return for more evidence
 - or stop the review and require the scope to be split
 
+Use `docs/templates/prototype_review_request_changes_note_template_v1.md` when the reviewer needs a standardized return-for-fixes note.
+
 ## A. Review Package Completeness
 
 - [ ] The PR clearly states the correct review type:
