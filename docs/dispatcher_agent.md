@@ -6,6 +6,7 @@ Canonical governance sources:
 - `docs/architecture/agent_organization_governance_v1.md`
 - `docs/architecture/escalation_taxonomy_v1.md`
 - `docs/architecture/legacy_keep_kill_merge_review_v1.md`
+- `docs/architecture/legacy_dispatcher_ingress_review_v1.md`
 - `docs/architecture/governance_dedupe_record_v1.md`
 
 ## 0. Why This Doc Was Downgraded

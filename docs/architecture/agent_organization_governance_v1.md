@@ -33,6 +33,7 @@ Use this document as the umbrella overview only. Use the following docs as the c
 | Agent event fields and vocabulary | `docs/architecture/agent_event_schema_v1.md` |
 | Escalation targets, repair classes, cooldown/dedupe | `docs/architecture/escalation_taxonomy_v1.md` |
 | Legacy Keep / Merge / Kill decisions | `docs/architecture/legacy_keep_kill_merge_review_v1.md` |
+| Legacy dispatcher ingress audit and removal sequencing | `docs/architecture/legacy_dispatcher_ingress_review_v1.md` |
 | Obsidian / LanceDB sidecar boundary | `docs/ops/obsidian_lancedb_sop_appendix_v1.md` |
 
 Dedupe rule:

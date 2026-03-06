@@ -21,6 +21,7 @@ This file is a migration ledger, not a second policy source.
 | Event fields and vocabulary | `docs/architecture/agent_event_schema_v1.md` | Canonical event payload contract |
 | Escalation targets, repair classes, cooldown/dedupe | `docs/architecture/escalation_taxonomy_v1.md` | Canonical routing and suppression policy |
 | Legacy Keep / Merge / Kill decisions | `docs/architecture/legacy_keep_kill_merge_review_v1.md` | Canonical path/module disposition |
+| Legacy dispatcher ingress audit and removal sequencing | `docs/architecture/legacy_dispatcher_ingress_review_v1.md` | Canonical inventory and classification for non-Telegram ingress review |
 | Obsidian / LanceDB sidecar boundary | `docs/ops/obsidian_lancedb_sop_appendix_v1.md` | Canonical sidecar boundary and kill switch |
 
 ## 2. Docs Downgraded In This PR
