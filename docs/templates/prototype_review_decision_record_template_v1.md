@@ -1,0 +1,159 @@
+# HONGSTR Prototype Review Decision Record Template v1
+
+Use this template when a reviewer needs to record the final outcome of a central steward shadow/prototype review.
+
+This template standardizes the final decision record after review.
+
+It is not:
+
+- rollout
+- formal Telegram alerting approval
+- canonical state publication
+- permission to change `/status`, `/daily`, or `/dashboard`
+
+Use it only after the review package has already been assembled and reviewed with:
+
+- `docs/templates/prototype_evidence_summary_template_v1.md`
+- `docs/templates/prototype_upgrade_review_template_v1.md`
+- or `docs/templates/prototype_retirement_review_template_v1.md`
+- `docs/templates/prototype_review_pr_author_checklist_v1.md`
+- `docs/templates/prototype_review_reviewer_checklist_v1.md`
+
+## 0. How To Use
+
+1. fill this only after the reviewer completes package review
+2. use one fixed decision outcome from the allowed enum below
+3. keep the decision record governance-only and non-canonical
+4. if any later rollout is proposed, open a separate PR
+
+## 1. Basic Information
+
+| Field | Value |
+|---|---|
+| `review_id` | `<prototype-upgrade-review-YYYYMMDD or prototype-retirement-review-YYYYMMDD>` |
+| `review_type` | `<upgrade / retirement>` |
+| `review_window` | `<YYYY-MM-DD..YYYY-MM-DD>` |
+| `prototype_id` | `central-steward-shadow-prototype` |
+| `reviewer` | `<name or handle>` |
+| `review_author` | `<name or handle>` |
+| `related_prs` | `<PR links>` |
+| `related_docs` | `docs/templates/prototype_evidence_summary_template_v1.md`, `docs/templates/prototype_upgrade_review_template_v1.md` or `docs/templates/prototype_retirement_review_template_v1.md`, `docs/templates/prototype_review_pr_author_checklist_v1.md`, `docs/templates/prototype_review_reviewer_checklist_v1.md` |
+
+## 2. Evidence Basis
+
+Reference the exact materials used for the decision.
+
+| Input | Reference | Notes |
+|---|---|---|
+| evidence summary | `<path / PR section / attachment>` | `<note>` |
+| review template | `<path / PR section / attachment>` | `<note>` |
+| author checklist | `<path / PR section / attachment>` | `<note>` |
+| reviewer checklist | `<path / PR section / attachment>` | `<note>` |
+| kickoff SOP confirmation | `docs/ops/prototype_review_kickoff_sop_v1.md` | `<pass / fail / exception>` |
+
+Evidence basis rule:
+
+- do not record a decision if the evidence basis is incomplete or unclear
+
+## 3. Boundary Confirmation
+
+Every row must be filled before a final decision is recorded.
+
+| Boundary check | Pass / Fail | Evidence | Notes |
+|---|---|---|---|
+| `internal-only` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
+| `not-canonical` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not affect `/status` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not affect `/daily` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not affect `/dashboard` truth | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not write `data/state/*` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not create a second state writer | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not touch bounded repair | `<pass/fail>` | `<evidence>` | `<note>` |
+
+Boundary rule:
+
+- if any required boundary is `fail`, do not convert this record into rollout or approval language
+
+## 4. Decision Outcome
+
+Choose exactly one fixed outcome:
+
+- `keep`
+- `upgrade-review pass`
+- `upgrade-review fail`
+- `retirement-review pass`
+- `retirement-review fail`
+- `insufficient evidence`
+
+Recorded outcome:
+
+`<selected outcome>`
+
+## 5. Reasoning Summary
+
+Decision reason:
+
+- `<why this outcome was selected>`
+
+Key evidence:
+
+- `<evidence 1>`
+- `<evidence 2>`
+- `<evidence 3>`
+
+Residual risks or gaps:
+
+- `<risk or gap 1>`
+- `<risk or gap 2>`
+
+## 6. Next Action
+
+Choose the next step explicitly:
+
+- `continue observation`
+- `open rollout candidate PR`
+- `open retirement PR`
+- `extend evidence window`
+- `no action`
+
+Selected next action:
+
+`<selected action>`
+
+Next action note:
+
+- if `open rollout candidate PR` is selected, it must be a separate PR and still must not change canonical SSOT without its own review
+- if `open retirement PR` is selected, it must be a separate minimal PR
+- if `extend evidence window` is selected, record the expected new review window
+
+## 7. Kill Switch / Rollback Note
+
+Current kill switch:
+
+- `HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0`
+
+Rollback note:
+
+- `<note>`
+
+Rollback rule:
+
+- rollback must not require changing canonical `data/state/*`
+- rollback must not turn the prototype into a canonical status source
+
+## 8. Non-Rollout Reminder
+
+State explicitly:
+
+- this decision record is not rollout by itself
+- this decision record does not change canonical SSOT
+- this decision record does not change `/status`, `/daily`, or `/dashboard`
+- any rollout, if ever approved, must be a separate PR
+
+## 9. Decision Sign-Off
+
+| Role | Name | Recorded outcome | Date |
+|---|---|---|---|
+| review author | `<name>` | `<outcome>` | `<YYYY-MM-DD>` |
+| reviewer | `<name>` | `<outcome>` | `<YYYY-MM-DD>` |
+| governance reviewer | `<name>` | `<approve / request changes>` | `<YYYY-MM-DD>` |
