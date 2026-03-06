@@ -145,10 +145,14 @@ Author must confirm:
 - correct review type selected
 - correct template selected
 - evidence summary attached
-- internal-only / not-canonical boundary intact
-- no impact to `/status`, `/daily`, or `/dashboard`
-- no write to `data/state/*`
-- no `tg_cp` runtime change
+- `internal-only`
+- `not-canonical`
+- does not affect `/status`
+- does not affect `/daily`
+- does not affect `/dashboard`
+- does not write `data/state/*`
+- does not change `tg_cp` runtime
+- does not touch bounded repair
 - `review PR != rollout PR`
 
 ### 4.5 Step 5: Run kickoff SOP gate
@@ -194,11 +198,13 @@ The following is a minimal example structure an author can copy.
 ## Boundary Checks
 - internal-only: <pass/fail>
 - not-canonical: <pass/fail>
-- affects /status: <pass/fail>
-- affects /daily: <pass/fail>
-- affects /dashboard truth: <pass/fail>
-- writes data/state/*: <pass/fail>
-- touches tg_cp runtime: <pass/fail>
+- does not affect `/status`: <pass/fail>
+- does not affect `/daily`: <pass/fail>
+- does not affect `/dashboard`: <pass/fail>
+- does not write `data/state/*`: <pass/fail>
+- does not change `tg_cp` runtime: <pass/fail>
+- does not touch bounded repair: <pass/fail>
+- review PR != rollout PR: <pass/fail>
 
 ## Decision
 - requested decision: <keep / upgrade-review pass / retirement-review pass / insufficient evidence>

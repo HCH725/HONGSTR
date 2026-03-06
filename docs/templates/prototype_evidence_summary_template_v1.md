@@ -86,11 +86,11 @@ Every row must be filled with evidence, not opinion.
 
 | Boundary check | Pass / Fail | Evidence | Notes |
 |---|---|---|---|
-| `internal-only` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
-| `not-canonical` still holds | `<pass/fail>` | `<evidence>` | `<note>` |
+| `internal-only` | `<pass/fail>` | `<evidence>` | `<note>` |
+| `not-canonical` | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not affect `/status` | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not affect `/daily` | `<pass/fail>` | `<evidence>` | `<note>` |
-| does not affect `/dashboard` truth | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not affect `/dashboard` | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not write `data/state/*` | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not create a second state writer | `<pass/fail>` | `<evidence>` | `<note>` |
 | does not touch bounded repair | `<pass/fail>` | `<evidence>` | `<note>` |

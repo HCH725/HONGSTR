@@ -111,6 +111,7 @@ Use this to keep review package naming, title format, and attachment naming cons
 - `docs/ops/prototype_review_package_naming_convention_v1.md`
 - `docs/ops/prototype_review_field_glossary_v1.md`
 - `docs/ops/prototype_enum_alignment_record_v1.md`
+- `docs/ops/prototype_boundary_check_row_alignment_record_v1.md`
 
 ### 3.6 Templates
 
