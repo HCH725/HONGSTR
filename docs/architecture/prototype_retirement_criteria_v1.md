@@ -19,6 +19,8 @@ The only lifecycle question is:
 
 This file does not change runtime behavior.
 
+Supporting evidence collection plan now lives in `docs/architecture/prototype_evidence_collection_plan_v1.md`.
+
 ## 1. Current State Summary
 
 Current prototype scope:
