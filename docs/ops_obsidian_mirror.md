@@ -24,6 +24,9 @@ Defaults:
 - `ICLOUD_OBSIDIAN_ROOT`: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian`
 - `ICLOUD_VAULT_NAME`: `HONGSTR_MIRROR`
 - `MIRROR_ENABLED`: `1`
+- `STRICT_MIRROR`: `0`
+- `DRY_RUN`: `0`
+- `OBSIDIAN_MIRROR_LOCK_DIR`: `/tmp/com.hongstr.obsidian_mirror.lock`
 
 Resolved vaults:
 
@@ -70,6 +73,38 @@ Manual one-shot run:
 ```bash
 bash scripts/obsidian_mirror_run.sh
 ```
+
+## Strict Mirror (manual repair mode)
+
+`STRICT_MIRROR=1` enables delete sync and makes mirror target exactly match Primary for included paths.
+
+`DRY_RUN=1` prints the plan without changing files.
+
+Run dry-run first:
+
+```bash
+cd /Users/hong/Projects/HONGSTR
+DRY_RUN=1 STRICT_MIRROR=1 bash scripts/obsidian_mirror_publish.sh
+```
+
+Apply strict repair:
+
+```bash
+cd /Users/hong/Projects/HONGSTR
+STRICT_MIRROR=1 bash scripts/obsidian_mirror_publish.sh
+```
+
+SOP:
+
+1. Run dry-run and review files listed by rsync itemized output.
+2. Confirm scope is only `KB/` and `Dashboards/`.
+3. Run strict repair.
+4. Validate mirror notes on iCloud Obsidian vault.
+
+Notes:
+
+- Default launchd schedule remains safe mode with delete disabled.
+- Strict mode is manual-only and should be used for mirror repair.
 
 ## Kill switch
 
