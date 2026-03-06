@@ -134,17 +134,23 @@ Decision rationale:
 
 ## 6. Next Action
 
-If decision is `keep`:
+Select one:
 
-- `<continue observation mode / no runtime change>`
+- `continue observation`
+- `extend evidence window`
+- `open review PR`
+- `open retirement PR`
+- `no action`
 
-If decision is `retirement-review pass`:
+Selected next action:
 
-- `<open one dedicated minimal retirement PR for archive/removal>`
+`<selected action>`
 
-If decision is `retirement-review fail`:
+Next action guidance:
 
-- `<return to keep status or route to upgrade-observation only>`
+- if decision is `keep`, the usual next action is `continue observation`, `extend evidence window`, or `no action`
+- if decision is `retirement-review pass`, the usual next action is `open retirement PR`
+- if decision is `retirement-review fail`, the usual next action is `continue observation`, `open review PR`, or `no action`
 
 ## 7. Kill Switch / Rollback Note
 

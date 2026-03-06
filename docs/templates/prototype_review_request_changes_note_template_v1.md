@@ -156,7 +156,7 @@ Request-changes summary:
 
 Reviewer next step:
 
-- `<wait for resubmission / require PR split / require longer observation / stop review>`
+- `<wait for resubmission / require PR split / extend evidence window / stop review>`
 
 ## 7. Non-Rollout Reminder
 

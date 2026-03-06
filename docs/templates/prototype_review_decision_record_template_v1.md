@@ -134,9 +134,9 @@ Residual risks or gaps:
 Choose the next step explicitly:
 
 - `continue observation`
-- `open rollout candidate PR`
-- `open retirement PR`
 - `extend evidence window`
+- `open review PR`
+- `open retirement PR`
 - `no action`
 
 Selected next action:
@@ -145,7 +145,7 @@ Selected next action:
 
 Next action note:
 
-- if `open rollout candidate PR` is selected, it must be a separate PR and still must not change canonical SSOT without its own review
+- if `open review PR` is selected, it must be a separate PR and still must not change canonical SSOT without its own review
 - if `open retirement PR` is selected, it must be a separate minimal PR
 - if `extend evidence window` is selected, record the expected new review window
 

@@ -207,13 +207,11 @@ The following is a minimal example structure an author can copy.
 - review PR != rollout PR: <pass/fail>
 
 ## Decision
-- requested decision: <keep / upgrade-review pass / retirement-review pass / insufficient evidence>
+- requested decision: <keep / upgrade-review pass / upgrade-review fail / retirement-review pass / retirement-review fail / insufficient evidence>
 - rationale: <short explanation>
 
 ## Next Action
-- if pass: <next small PR only>
-- if fail: <return to observation mode or redirect review type>
-- if insufficient evidence: <continue observation>
+- selected next action: <continue observation / extend evidence window / open review PR / open retirement PR / no action>
 
 ## Kill Switch / Rollback Note
 - HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0

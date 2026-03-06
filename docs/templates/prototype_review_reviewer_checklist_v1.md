@@ -171,7 +171,7 @@ Reviewer escalation options:
 
 ## F. Reviewer Outcome
 
-Select the current review outcome:
+If the package is ready for a decision outcome, use one canonical label:
 
 - `keep`
 - `upgrade-review pass`
@@ -179,6 +179,9 @@ Select the current review outcome:
 - `retirement-review pass`
 - `retirement-review fail`
 - `insufficient evidence`
+
+If the package is not ready for a decision outcome, use reviewer response:
+
 - `request-changes note required`
 
 Reviewer rationale:
@@ -207,7 +210,7 @@ State explicitly before final review sign-off:
 | `review_type` | `<upgrade-review / retirement-review>` |
 | `reviewer` | `<name or handle>` |
 | `date` | `<YYYY-MM-DD>` |
-| `review_outcome` | `<selected outcome>` |
+| `review_outcome_or_response` | `<selected outcome or reviewer response>` |
 | `package_complete` | `<yes / no>` |
 | `boundary_clear` | `<yes / no>` |
 | `rollout_mixed_in` | `<yes / no>` |
