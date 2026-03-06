@@ -117,6 +117,7 @@ Use these at the correct stage of the review flow.
 Use this when an author wants a concrete package assembly example.
 
 - `docs/examples/prototype_review_package_example_v1.md`
+- `docs/examples/prototype_resubmission_example_v1.md`
 
 ## 4. Recommended Reading Order
 
@@ -160,7 +161,8 @@ When a future author actually wants to open a review PR, use this minimum flow.
 9. after the PR opens, reviewers use `docs/templates/prototype_review_reviewer_checklist_v1.md`
 10. if the package gets `request changes`, authors complete `docs/templates/prototype_re_review_resubmission_checklist_v1.md` before resubmitting
 11. use `docs/ops/prototype_review_package_naming_convention_v1.md` to format the PR title and attachments
-12. use `docs/examples/prototype_review_package_example_v1.md` if the package still feels unclear
+12. use `docs/examples/prototype_review_package_example_v1.md` if the initial package still feels unclear
+13. use `docs/examples/prototype_resubmission_example_v1.md` if the re-review flow still feels unclear
 
 If any prerequisite fails:
 
@@ -186,6 +188,7 @@ If any prerequisite fails:
 | post-request-changes resubmission self-check | `docs/templates/prototype_re_review_resubmission_checklist_v1.md` |
 | reviewer-side review gate | `docs/templates/prototype_review_reviewer_checklist_v1.md` |
 | see one assembled example | `docs/examples/prototype_review_package_example_v1.md` |
+| see one resubmission flow example | `docs/examples/prototype_resubmission_example_v1.md` |
 
 ## 7. Non-Rollout Reminder
 

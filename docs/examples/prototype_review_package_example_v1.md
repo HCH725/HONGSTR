@@ -41,6 +41,7 @@ Do not use this example package as:
 - a substitute for the evidence plan or lifecycle criteria
 
 If you need the full document map first, start with `docs/ops/prototype_review_package_index_v1.md`.
+If you need the post-`request changes` flow specifically, use `docs/examples/prototype_resubmission_example_v1.md`.
 
 For title, attachment, and section-order conventions, see `docs/ops/prototype_review_package_naming_convention_v1.md`.
 
