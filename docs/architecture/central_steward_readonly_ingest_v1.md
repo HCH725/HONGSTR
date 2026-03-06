@@ -196,6 +196,7 @@ Current prototype scope in `_local/telegram_cp/tg_cp_server.py`:
 - reads `reports/state_atomic/alerts_latest.json` first
 - reads `reports/state_atomic/alerts_journal.jsonl` only as a fallback input when `alerts_latest.json` is absent
 - emits runtime-log shadow summaries only
+- prefixes shadow summaries with `INTERNAL_ONLY | SHADOW_ONLY | NOT_CANONICAL | NO_ACTIONING`
 - does not send formal Telegram alerts
 - does not rewrite `data/state/*`
 - does not recompute `system_health_latest.json`
