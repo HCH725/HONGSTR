@@ -19,6 +19,8 @@ Use it only after the review package has already been assembled and reviewed wit
 - `docs/templates/prototype_review_pr_author_checklist_v1.md`
 - `docs/templates/prototype_review_reviewer_checklist_v1.md`
 
+If the package is not ready for a final outcome, use `docs/templates/prototype_review_request_changes_note_template_v1.md` instead of this decision record.
+
 ## 0. How To Use
 
 1. fill this only after the reviewer completes package review
