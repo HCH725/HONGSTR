@@ -7,6 +7,7 @@ This checklist is for authors only.
 It does not replace:
 
 - `docs/ops/prototype_review_kickoff_sop_v1.md`
+- `docs/templates/prototype_evidence_summary_template_v1.md`
 - `docs/templates/prototype_upgrade_review_template_v1.md`
 - `docs/templates/prototype_retirement_review_template_v1.md`
 - `docs/examples/prototype_review_package_example_v1.md`
@@ -44,6 +45,7 @@ It exists to prevent a review PR from being opened with missing evidence, missin
   - `14 calendar days`
   - `at least 5 manual observation sessions`
 - [ ] An evidence summary already exists.
+- [ ] The evidence summary uses `docs/templates/prototype_evidence_summary_template_v1.md`.
 - [ ] The evidence summary includes:
   - shadow summary generation frequency
   - dedupe hit rate
