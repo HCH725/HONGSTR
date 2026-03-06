@@ -301,6 +301,7 @@ Read these rules before using any term below.
 - Common misuse:
   - inventing a new status like `soft pass`
   - treating `request changes` as a final decision outcome instead of a return-for-fixes state
+  - treating assessment-only labels like `candidate for upgrade-review` or `candidate for retirement-review` as final decision outcomes
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
@@ -315,16 +316,18 @@ Read these rules before using any term below.
   - decision record
   - reviewer checklist
 - Required or optional: required where the template includes an explicit action block.
+- Governing record:
+  - `docs/ops/prototype_decision_next_action_alignment_record_v1.md`
 - Allowed values:
   - `continue observation`
-  - `open upgrade review`
-  - `open retirement review`
-  - `open rollout candidate PR`
   - `extend evidence window`
+  - `open review PR`
+  - `open retirement PR`
   - `no action`
 - Common misuse:
   - using rollout language inside a review-only artifact without separate approval
-- skipping the action even when the decision is recorded
+  - using stage-specific prose like `open upgrade review`, `open retirement review`, or `open rollout candidate PR` instead of the canonical labels
+  - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
 ### 3.15 `boundary check labels`

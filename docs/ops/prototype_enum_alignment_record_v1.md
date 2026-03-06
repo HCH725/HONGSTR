@@ -53,6 +53,10 @@ This alignment applies to:
 | combined `insufficient evidence / continue observation` | decision outcome `insufficient evidence` plus next action `continue observation` | Do not merge decision outcome and next action into one label. |
 | `request changes` used as the artifact name | `request-changes note` | Keep `request changes` only as generic prose for the GitHub review action when needed. |
 | `request changes before review` | `request-changes note required` | This is a reviewer response state, not a final decision outcome. |
+| `open upgrade review` | next action `open review PR` | Use the neutral follow-on review label. |
+| `open retirement review` | next action `open retirement PR` | Use the dedicated retirement follow-on label. |
+| `open rollout candidate PR` | next action `open review PR` | Do not use rollout-adjacent wording in governance-only next action enums. |
+| `require longer observation` | next action `extend evidence window` | Use the structured observation-extension label. |
 | `YYYY-MM-DD to YYYY-MM-DD` | `YYYY-MM-DD..YYYY-MM-DD` | Canonical `review_window` format. |
 
 ## 3. Deprecated Aliases
@@ -67,6 +71,10 @@ The following aliases may still appear in older PRs or historical examples, but 
 - `review_author`
 - combined `insufficient evidence / continue observation`
 - `request changes before review`
+- `open upgrade review`
+- `open retirement review`
+- `open rollout candidate PR`
+- `require longer observation`
 
 ## 4. Canonical Labels Authors Should Use
 
@@ -95,10 +103,9 @@ Use these labels going forward:
   - `insufficient evidence`
 - next action
   - `continue observation`
-  - `open upgrade review`
-  - `open retirement review`
-  - `open rollout candidate PR`
   - `extend evidence window`
+  - `open review PR`
+  - `open retirement PR`
   - `no action`
 
 ## 5. Files Aligned In This PR

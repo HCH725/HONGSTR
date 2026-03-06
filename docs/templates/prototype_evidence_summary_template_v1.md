@@ -141,8 +141,9 @@ Assessment rationale:
 Select one or more as needed:
 
 - `continue observation`
-- `open upgrade review`
-- `open retirement review`
+- `extend evidence window`
+- `open review PR`
+- `open retirement PR`
 - `no action`
 
 Next action detail:

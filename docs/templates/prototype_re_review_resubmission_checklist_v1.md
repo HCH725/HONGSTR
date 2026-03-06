@@ -127,7 +127,7 @@ Boundary re-check note:
 - [ ] I have stated whether evidence window extension was required.
 - [ ] I have stated whether reviewer re-check should focus on any specific corrected area.
 - [ ] I believe the package now contains enough information for the next review step.
-- [ ] If the package is still not ready for decision, I am explicitly asking for `continue observation` instead of forcing re-review.
+- [ ] If the package is still not ready for decision, I am explicitly asking for `continue observation`, `extend evidence window`, or `no action` instead of forcing re-review.
 
 Evidence window extension:
 
