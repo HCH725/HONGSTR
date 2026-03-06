@@ -1,7 +1,7 @@
 # HONGSTR Central Steward Read-Only Ingest v1
 
 Last updated: 2026-03-06 (UTC+8)
-Status: docs-first / policy-first / read-only ingest design / no runtime wiring
+Status: policy-first / read-only ingest design with disabled-by-default shadow prototype
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: alert artifact skeleton / central steward read-only ingest design
 Plane: Central steward read-only reporting boundary
@@ -185,13 +185,40 @@ Degrade:
 
 Kill switch:
 
-- do not wire this ingest design into runtime yet
-- future runtime rollout must be reversible by disabling the new ingest path without affecting the state writer
+- current prototype kill switch is `HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0` and that remains the default
+- the prototype must stay reversible without affecting the state writer, `/status`, or `/daily`
+
+## 9. Prototype Shadow Path
+
+Current prototype scope in `_local/telegram_cp/tg_cp_server.py`:
+
+- disabled by default via `HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0`
+- reads `reports/state_atomic/alerts_latest.json` first
+- reads `reports/state_atomic/alerts_journal.jsonl` only as a fallback input when `alerts_latest.json` is absent
+- emits runtime-log shadow summaries only
+- does not send formal Telegram alerts
+- does not rewrite `data/state/*`
+- does not recompute `system_health_latest.json`
+- does not alter `/status` or `/daily`
+
+Prototype-only delivery behavior:
+
+- `dedupe_key`: process-local duplicate suppression only
+- `cooldown_key`: process-local cooldown only
+- `recovery_of`: recovery shadow summary only when the referenced alert was previously surfaced by the same in-process prototype cache
+- missing or unreadable artifact: graceful skip, no P0 impact
+
+Prototype caveat:
+
+- cache state is process-local and non-authoritative
+- restart may clear suppression memory and cause repeated shadow summaries if the feature is manually enabled
+- this is acceptable for prototype/shadow mode because no formal operator-visible Telegram notification is sent
 
 Suggested follow-on adoption path:
 
 1. producer-side artifact schema validation outside runtime
 2. one small producer PR for atomic `alerts_latest.json` / `alerts_journal.jsonl`
    Current producer posture: manual-only helper, no schedule, no steward runtime dependency; see `docs/architecture/atomic_alert_producer_invocation_decision_v1.md`.
-3. one small steward PR that reads artifacts only and formats summaries only
-4. only after that, evaluate whether a canonical mirror under `data/state/*` is needed, and if so, route it only through `scripts/state_snapshots.py`
+3. disabled-by-default shadow prototype may read artifacts only and emit no-op internal summaries only
+4. only after shadow validation should a later PR decide whether operator-visible Telegram summary is warranted
+5. only after that, evaluate whether a canonical mirror under `data/state/*` is needed, and if so, route it only through `scripts/state_snapshots.py`

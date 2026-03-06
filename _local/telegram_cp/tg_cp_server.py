@@ -26,6 +26,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import logging
+from datetime import datetime, timezone
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -84,6 +85,8 @@ USER_MEM = STATE_DIR / "user_memory.jsonl"
 RUNTIME_LOG = STATE_DIR / "runtime.log"
 ALERTS_PENDING = STATE_DIR / "alerts_pending.jsonl"  # written by notify_telegram.sh / scripts
 FOLLOWUP_QUEUE = STATE_DIR / "followup_queue.jsonl"
+ATOMIC_ALERTS_LATEST = REPO / "reports/state_atomic/alerts_latest.json"
+ATOMIC_ALERTS_JOURNAL = REPO / "reports/state_atomic/alerts_journal.jsonl"
 
 POLICY_PATH = LOCAL_DIR / "policy.json"
 PERSONA_PATH = LOCAL_DIR / "persona.md"
@@ -112,6 +115,15 @@ BRIEFING_ENABLED = os.environ.get("HONGSTR_BRIEFING_ENABLED", "1") != "0"
 FOLLOWUP_MAX_DELAY_MIN = int(os.environ.get("HONGSTR_FOLLOWUP_MAX_MIN", "60"))
 FOLLOWUP_ENABLED = os.environ.get("HONGSTR_FOLLOWUP_ENABLED", "1") != "0"
 REGIME_MONITOR_FRESH_OK_H = float(os.environ.get("HONGSTR_REGIME_MONITOR_FRESH_OK_H", "12"))
+ALERT_INGEST_SHADOW_ENABLED = os.environ.get("HONGSTR_TG_ALERT_INGEST_PROTOTYPE", "0") != "0"
+ALERT_INGEST_SHADOW_COOLDOWN_SEC = max(0, int(os.environ.get("HONGSTR_TG_ALERT_INGEST_COOLDOWN_SEC", "900")))
+ALERT_INGEST_SHADOW_MAX_JOURNAL_LINES = max(1, int(os.environ.get("HONGSTR_TG_ALERT_INGEST_JOURNAL_LINES", "50")))
+
+# Process-local shadow ingest cache. This is delivery-local only and never canonical SSOT.
+_ALERT_INGEST_LAST_SIGNATURE = ""
+_ALERT_INGEST_SEEN_IDENTITIES: dict[str, str] = {}
+_ALERT_INGEST_COOLDOWN_UNTIL: dict[str, float] = {}
+_ALERT_INGEST_VISIBLE: dict[str, float] = {}
 
 # ────────────────────── basic io ──────────────────────
 def _safe_enqueue(trigger: str, source: str = "tg_cp", details: dict = None):
@@ -2029,6 +2041,137 @@ def _mark_alerts_consumed() -> None:
         pass
 
 
+def _read_jsonl_tail(path: Path, max_lines: int) -> tuple[list[dict], str]:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception:
+        return [], ""
+    raw_tail = lines[-max_lines:] if max_lines > 0 else lines
+    records: list[dict] = []
+    for ln in raw_tail:
+        try:
+            obj = json.loads(ln)
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            records.append(obj)
+    return records, "\n".join(raw_tail)
+
+
+def _alert_shadow_identity(alert: dict) -> tuple[str, str, str]:
+    event_id = str(alert.get("event_id") or "").strip()
+    dedupe_key = str(alert.get("dedupe_key") or "").strip()
+    summary = str(alert.get("summary") or "").strip()
+    identity = event_id or dedupe_key or summary
+    if not dedupe_key:
+        seed = identity or json.dumps(alert, ensure_ascii=False, sort_keys=True)
+        dedupe_key = "shadow:" + hashlib.sha1(seed.encode("utf-8")).hexdigest()[:16]
+    if not identity:
+        identity = dedupe_key
+    cooldown_key = str(alert.get("cooldown_key") or dedupe_key).strip() or dedupe_key
+    return dedupe_key, cooldown_key, identity
+
+
+def _shadow_render_line(alert: dict, *, kind: str) -> str:
+    severity = str(alert.get("severity") or "INFO").upper().strip() or "INFO"
+    alert_type = str(alert.get("alert_type") or "unknown_alert").strip() or "unknown_alert"
+    summary = str(alert.get("summary") or "").strip() or "alert summary unavailable"
+    source = str(alert.get("source") or "unknown_source").strip() or "unknown_source"
+    ts_utc = str(alert.get("ts_utc") or "").strip() or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return f"{kind.upper()} {severity} {alert_type} @{ts_utc} | {summary} | source={source}"
+
+
+def _select_shadow_alerts() -> tuple[list[dict], str, str]:
+    latest_raw = ""
+    latest_alerts: list[dict] = []
+    try:
+        latest_raw = ATOMIC_ALERTS_LATEST.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        latest_raw = ""
+    if latest_raw:
+        try:
+            payload = json.loads(latest_raw)
+        except Exception:
+            payload = {}
+        alerts = payload.get("alerts") if isinstance(payload, dict) else []
+        if isinstance(alerts, list):
+            latest_alerts = [a for a in alerts if isinstance(a, dict)]
+
+    journal_records, journal_raw = _read_jsonl_tail(ATOMIC_ALERTS_JOURNAL, ALERT_INGEST_SHADOW_MAX_JOURNAL_LINES)
+    signature_basis = "\n--LATEST--\n".join([latest_raw, journal_raw])
+    signature = hashlib.sha1(signature_basis.encode("utf-8")).hexdigest() if signature_basis else ""
+    if latest_alerts:
+        return latest_alerts, "latest", signature
+    if journal_records:
+        return journal_records[-1:], "journal_fallback", signature
+    return [], "missing", signature
+
+
+def _shadow_candidate_visible(alert: dict, *, now_ts: float) -> tuple[bool, str]:
+    dedupe_key, cooldown_key, identity = _alert_shadow_identity(alert)
+    recovery_of = str(alert.get("recovery_of") or "").strip() or None
+
+    if _ALERT_INGEST_SEEN_IDENTITIES.get(dedupe_key) == identity:
+        return False, "duplicate_identity"
+
+    _ALERT_INGEST_SEEN_IDENTITIES[dedupe_key] = identity
+
+    if recovery_of:
+        if recovery_of not in _ALERT_INGEST_VISIBLE:
+            return False, "recovery_without_visible_predecessor"
+        _ALERT_INGEST_VISIBLE.pop(recovery_of, None)
+        _ALERT_INGEST_VISIBLE[dedupe_key] = now_ts
+        return True, "recovery"
+
+    cooldown_until = _ALERT_INGEST_COOLDOWN_UNTIL.get(cooldown_key, 0.0)
+    if cooldown_until > now_ts:
+        return False, "cooldown_active"
+
+    _ALERT_INGEST_COOLDOWN_UNTIL[cooldown_key] = now_ts + ALERT_INGEST_SHADOW_COOLDOWN_SEC
+    _ALERT_INGEST_VISIBLE[dedupe_key] = now_ts
+    return True, "alert"
+
+
+def _poll_shadow_alert_ingest() -> None:
+    """Prototype-only read-only ingest for atomic alert artifacts.
+
+    The path is disabled by default and emits only runtime-log shadow summaries.
+    It never rewrites canonical SSOT, never recomputes /status or /daily, and never sends Telegram.
+    """
+    global _ALERT_INGEST_LAST_SIGNATURE
+
+    if not ALERT_INGEST_SHADOW_ENABLED:
+        return
+
+    alerts, mode, signature = _select_shadow_alerts()
+    if not alerts or mode == "missing":
+        return
+    if signature and signature == _ALERT_INGEST_LAST_SIGNATURE:
+        return
+    if signature:
+        _ALERT_INGEST_LAST_SIGNATURE = signature
+
+    now_ts = time.time()
+    emitted = 0
+    for alert in alerts:
+        visible, reason = _shadow_candidate_visible(alert, now_ts=now_ts)
+        if not visible:
+            continue
+        dedupe_key, cooldown_key, _ = _alert_shadow_identity(alert)
+        log_event(
+            "ALERT_INGEST_SHADOW",
+            mode=mode,
+            reason=reason,
+            dedupe_key=dedupe_key,
+            cooldown_key=cooldown_key,
+            shadow=_shadow_render_line(alert, kind=reason),
+        )
+        emitted += 1
+
+    if emitted > 0:
+        log_event("ALERT_INGEST_SHADOW_BATCH", mode=mode, emitted=emitted, count=len(alerts))
+
+
 # ────────────────────── deferred followup queue ──────────────────────
 _FOLLOWUP_RE = re.compile(
     r"^\[\s*FOLLOWUP\s*:\s*(\d+)\s*:\s*([^\]]{1,200})\s*\]",
@@ -2707,6 +2850,12 @@ def main() -> None:
             continue
 
         err_backoff = 0  # reset on success
+
+        # ── (C0) shadow-only atomic alert ingest prototype: read-only, disabled by default ──
+        try:
+            _poll_shadow_alert_ingest()
+        except Exception as exc:
+            log_event("ALERT_INGEST_SHADOW_ERR", err=type(exc).__name__)
 
         # ── (C) alert channel: check for pending alerts from scheduled jobs ──
         try:
