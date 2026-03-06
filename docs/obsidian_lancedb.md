@@ -1,5 +1,8 @@
 # Obsidian + LanceDB Research Notebook
 
+Status: compatibility / implementation note only.
+Canonical governance source: `docs/ops/obsidian_lancedb_sop_appendix_v1.md`
+
 ## Overview
 
 This adds a local, PR-safe research notebook pipeline:
@@ -10,6 +13,12 @@ This adds a local, PR-safe research notebook pipeline:
 4. `scripts/obsidian_lancedb_query.py` retrieves top-K chunks for RAG or manual review.
 
 The local notebook is for operator research context only. It does not change trading, ETL, backtest, or control-plane execution semantics.
+
+Use this file for implementation notes and local commands. Do not use it as the normative source for:
+
+- SSOT ownership
+- `/status` or `/daily` truth boundaries
+- Obsidian / LanceDB sidecar governance rules
 
 ## Storage Model
 

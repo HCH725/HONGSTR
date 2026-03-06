@@ -1,54 +1,50 @@
 # Dispatcher Agent SOP
 
-Phase 2B extends `/dispatch` so an allowlisted issue comment can run a guarded LLM-backed patch flow.
-The default provider is local Ollama, so the runner does not need an OpenAI API key for the standard path.
+Status: archive-only / sandbox-only / deprecated as production governance
+Canonical governance sources:
 
-## Issue Template
+- `docs/architecture/agent_organization_governance_v1.md`
+- `docs/architecture/escalation_taxonomy_v1.md`
+- `docs/architecture/legacy_keep_kill_merge_review_v1.md`
+- `docs/architecture/governance_dedupe_record_v1.md`
 
-Use this issue-body shape when you want the dispatcher to run in agent mode:
+## 0. Why This Doc Was Downgraded
 
-```text
-Allowed paths:
-- docs/dispatcher_smoke.md
-Agent: codex
-Task:
-- Update docs/dispatcher_smoke.md with a short verification note
-```
+This document described a GitHub issue-comment `/dispatch` entrypoint that can trigger agent work outside Telegram.
 
-If `Agent:` is omitted, the dispatcher keeps the existing smoke-stub behavior.
-`Task:` and `Agent plan:` are both accepted as the task section heading.
-The default model is `qwen2.5-coder:7b-instruct` through `OLLAMA_MODEL`.
-If you need a prose-oriented fallback on the runner, override `OLLAMA_MODEL=qwen2.5:7b-instruct`.
+That conflicts with the current governance target:
 
-## Manual E2E Recipe
+- Stage 7 keeps Telegram as the single outward operator entrance
+- Stage 2 keeps top-level status deterministic and SSOT-first
+- Stage 8 allows bounded report-only and repair workflows, but does not make GitHub issue comments a production operator ingress
 
-1. Create an issue using the template above.
-2. Keep the `Allowed paths` list limited to the files you want the runner to touch.
-3. Comment `/dispatch` as an allowlisted owner.
-4. Confirm the workflow posts an acknowledgement comment.
-5. Confirm the workflow opens a draft PR.
-6. Confirm the PR diff is limited to the `Allowed paths` list.
-7. Confirm the issue thread receives a concise PR URL comment.
+## 1. Historical Scope Only
 
-## Common Failures
+The paths below are historical dispatcher assets, not part of the target production governance model:
 
-- Missing `Allowed paths`
-  The issue will be marked blocked and the thread will receive the exact template:
-  `Allowed paths:`
-  `- docs/dispatcher_smoke.md`
+- `docs/dispatcher_agent.md`
+- `docs/dispatcher_smoke.md`
+- `scripts/dispatch/dispatch_issue.sh`
+- `.github/workflows/dispatch.yml`
+- `.github/ISSUE_TEMPLATE/task.yml`
 
-- `allowed_paths_diff_gate` blocked
-  The generated patch or final git diff touched a path outside the allowlist. Tighten the task or widen `Allowed paths` before retrying.
+Use them, if at all, for sandbox inspection only. Do not expand them, operationalize them further, or wire them into `tg_cp`.
 
-- Budget gate blocked
-  The estimated or actual model spend exceeded `MAX_COST_USD` or `MAX_TOKENS`. Reduce task scope or raise the workflow budget.
+## 2. Current Disposition
 
-- Missing `OPENAI_API_KEY`
-  This only applies when you explicitly switch `AGENT_PROVIDER=openai`. The default Ollama path does not require an API key.
+- production status: not canonical
+- governance status: archive-only
+- runtime status in this PR: unchanged
+- next-step status: removal candidate after dependent docs/workflows are reviewed in a later smallest-unit PR
 
-- Draft PR creation blocked
-  The runner finished patch generation but could not open the PR because of permissions or branch policy. Check the issue comment for the Actions run link and fix the GitHub-side restriction.
+## 3. Removal Guidance
 
-## Rollback
+If a later PR retires the dispatcher path, it should:
 
-Use `git revert <commit_sha>` on the merge commit if the feature needs to be backed out.
+1. remove or archive the issue-comment dispatch docs
+2. retire the dispatcher workflow and issue template in the same smallest possible governance/runtime-safe slice
+3. preserve evidence of the old flow in the dedupe record or release notes
+
+## 4. Rollback
+
+This file is docs-only. Rollback remains `git revert <commit_sha>`.

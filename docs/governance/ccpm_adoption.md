@@ -1,5 +1,13 @@
 # CCPM Governance Adoption for HONGSTR
 
+Status: historical governance note. Not canonical for the current single-entry model.
+For current policy, use:
+
+- `docs/architecture/agent_organization_governance_v1.md`
+- `docs/architecture/escalation_taxonomy_v1.md`
+- `docs/architecture/legacy_keep_kill_merge_review_v1.md`
+- `docs/architecture/governance_dedupe_record_v1.md`
+
 ## What is CCPM?
 
 CCPM (Claude Code Project Management) brings **spec-driven development** into an AI-assisted workflow:
@@ -34,7 +42,7 @@ Every PR body must reference the Epic/Task GitHub Issue number: `Closes #<issue>
 | PRD        | GitHub Issue (`prd` label)       | Human authored    |
 | Epic       | GitHub Issue (`epic` label)      | Human or agent, after PRD approval |
 | Task       | GitHub Issue (`task` label)      | Agent, after Epic scoped |
-| PR         | GitHub Pull Request              | Agent via `/dispatch`, referencing Task |
+| PR         | GitHub Pull Request              | Historical `/dispatch`-based workflow only; not the target production ingress |
 
 **No PR may land without at least one Task Issue reference.**
 
@@ -50,18 +58,28 @@ Every PR body must reference the Epic/Task GitHub Issue number: `Closes #<issue>
 
 ---
 
-## Workflow Integration (Existing Dispatch)
+## Historical Workflow Integration (Archive-only)
 
-The existing `.github/workflows/dispatch.yml` picks up `/dispatch` comments.
-A Task Issue body that includes the fields from `.github/ISSUE_TEMPLATE/task.yml` (especially `allowed_paths`)
-will surface those fields during dispatch so the agent can self-bound its changeset.
+The existing `.github/workflows/dispatch.yml` and `.github/ISSUE_TEMPLATE/task.yml` describe a historical issue-comment dispatch flow.
+
+Treat that flow as sandbox/archive-only:
+
+- it is not the canonical governance target
+- it should not be expanded as a second operator ingress
+- any future retirement should happen in a later smallest-unit PR
 
 **Recommended enhancement (safe, no core change):**
 
 - Add a label check: if the issue has `docs-only`, the dispatcher may run with `--docs-only` flag (no core diff allowed).
 - Surface `acceptance_criteria:` from the issue body into the draft PR body automatically.
 
-These are additive and do not modify dispatch semantics. See `docs/governance/acceptance_criteria.md` for the AC format.
+These notes are retained for historical context only. See `docs/governance/acceptance_criteria.md` for the AC format if the remaining docs are still referenced during retirement planning.
+
+## Current Governance Direction
+
+- Telegram remains the single outward operator entrance
+- SSOT refresh and deterministic fallback remain on the Stage 2 path
+- report-only research and bounded repair remain separate from GitHub issue-comment dispatch
 
 ---
 
