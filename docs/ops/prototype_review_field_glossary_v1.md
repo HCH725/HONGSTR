@@ -1,6 +1,6 @@
 # HONGSTR Prototype Review Field Glossary v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / glossary-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review field glossary PR
@@ -268,6 +268,8 @@ Read these rules before using any term below.
   - `docs/templates/prototype_review_request_changes_note_template_v1.md`
   - referenced by `docs/templates/prototype_re_review_resubmission_checklist_v1.md`
 - Required or optional: required when a request-changes note is issued.
+- Governing record:
+  - `docs/ops/prototype_request_changes_reason_alignment_record_v1.md`
 - Allowed values:
   - `insufficient evidence`
   - `incomplete template`
@@ -279,6 +281,9 @@ Read these rules before using any term below.
 - Common misuse:
   - using broad prose only with no fixed category
   - mixing several different blockers without naming them clearly
+  - using prose aliases such as `missing evidence`, `boundary rewrite`, `rollout drift`, `canonical overlap not explained`, or `observation incomplete` instead of the canonical labels
+  - treating reviewer response states such as `request-changes note required` or `return for fixes` as if they were request-changes reasons
+  - treating `needs more evidence` as if it were the request-changes reason instead of the assessment-status label
 - Example value: `boundary unclear`
 
 ### 3.13 `assessment status`

@@ -117,6 +117,8 @@ Decision-outcome rule:
 - do not use assessment-status labels such as `candidate for upgrade-review`, `candidate for retirement-review`, or `needs more evidence` in this field
 - do not use next-action label `continue observation` in this field
 - do not use reviewer response-state labels such as `request-changes note required`, `return for fixes`, `re-review allowed after fixes`, or `ready for decision record` in this field
+- do not use request-changes-reason labels such as `incomplete template`, `boundary unclear`, `rollout mixed into review PR`, `canonical overlap unclear`, or `observation window incomplete` in this field
+- `insufficient evidence` is allowed here only as the canonical decision outcome, not as a request-changes reason label
 
 ## 5. Reasoning Summary
 
