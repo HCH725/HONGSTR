@@ -7,6 +7,12 @@ Checklist item: bounded `/selfheal` disposition PR
 Plane: Governance docs across Control Plane / State Plane / bounded repair support paths
 Expected SSOT/output impact: none
 
+Containment update:
+
+- the GitHub `issue_comment` ingress has been removed from `.github/workflows/self_heal.yml`
+- `workflow_dispatch` remains as the only live manual sandbox-only path
+- support scripts, tests, and tg_cp / SSOT boundaries remain unchanged
+
 ## 0. Scope
 
 This review covers the bounded `/selfheal` chain only:
@@ -37,11 +43,11 @@ Recommended disposition:
 - treat `/selfheal` as `sandbox-only`
 - keep the support guard/test assets
 - keep the live workflow/doc surface frozen and non-expanding
-- treat the `issue_comment` trigger as the primary future retirement/containment target
+- keep the remaining manual `workflow_dispatch` path as a deprecated sandbox-only route until a later retirement decision
 
 Why this is the recommended disposition:
 
-- it still creates a non-Telegram operator ingress through GitHub `issue_comment` and `workflow_dispatch`
+- it still creates a non-Telegram operator ingress through manual GitHub `workflow_dispatch`
 - it mutates repo state by creating branches, commits, pushes, and draft PRs
 - it is materially more bounded than the retired direct `/dispatch` chain because it re-runs `allowed_paths`, runs required checks, requests review, and never auto-merges
 - the current patch builder is narrow and deterministic rather than a free-form agent executor
@@ -50,7 +56,7 @@ Short answer by label:
 
 - `bounded exception`: no, not for production governance
 - `sandbox-only`: yes, this is the current recommended posture
-- `retirement candidate`: yes, specifically for the GitHub `issue_comment` ingress inside the workflow if sandbox-only containment cannot be maintained
+- `retirement candidate`: yes, for the remaining manual `workflow_dispatch` path if sandbox-only containment should not remain long-term
 
 ## 2. Current Chain And Evidence
 
@@ -58,10 +64,10 @@ Short answer by label:
 
 Concrete repo-local findings:
 
-- `.github/workflows/self_heal.yml` accepts both `workflow_dispatch` and GitHub `issue_comment` containing `/selfheal`
+- `.github/workflows/self_heal.yml` accepts only `workflow_dispatch`
 - the workflow validates a JSON repair ticket via `scripts/self_heal/parse_ticket.py`
 - it creates a branch, stages a generated patch, runs `scripts/self_heal/enforce_allowed_paths.py`, runs `bash scripts/self_heal/run_required_checks.sh`, commits, pushes, and opens a draft PR
-- the workflow comments the PR URL or failure back to the issue when triggered from GitHub comments
+- the workflow no longer comments back to GitHub issues because the issue-comment ingress was removed
 
 ### 2.2 Why it is still bounded
 
@@ -78,7 +84,7 @@ Bounded characteristics that are present now:
 
 The chain is not fully aligned with current governance:
 
-- Stage 7 conflict remains because GitHub comments and manual workflow dispatch are still non-Telegram operator ingress
+- Stage 7 conflict remains because manual `workflow_dispatch` is still a non-Telegram operator ingress
 - `docs/self_heal.md` historically described broader sample scopes such as `_local/telegram_cp/`, while the current workflow implementation is much narrower
 - no explicit cooldown/dedupe policy is defined for `/selfheal`
 - pausability exists operationally by disabling the workflow, but that kill switch was not previously captured as the canonical disposition
@@ -102,8 +108,7 @@ Residual risk:
 Current conflict:
 
 - `/selfheal` is still a non-Telegram ingress
-- GitHub issue comments containing `/selfheal` can initiate bounded code-repair flow
-- `workflow_dispatch` is also a manual ingress outside the central steward
+- only manual `workflow_dispatch` remains as the ingress outside the central steward
 
 Disposition implication:
 
@@ -131,8 +136,8 @@ Current gaps:
 
 | Surface | Current role | Classification | Reason | Evidence | Next action | Removal plan |
 |---|---|---|---|---|---|---|
-| `.github/workflows/self_heal.yml` `issue_comment` trigger | live non-Telegram operator ingress via GitHub comments | `Removal candidate` | strongest Stage 7 conflict; issue comments can initiate repo mutation outside Telegram even though the workflow is bounded | workflow `on: issue_comment`; job gate checks `contains(github.event.comment.body, '/selfheal')`; workflow comments PR URL/failure back to the issue | freeze and do not expand | later runtime PR should either remove this trigger or retire the workflow entirely |
-| `.github/workflows/self_heal.yml` `workflow_dispatch` trigger | manual bounded repair ingress | `Deprecated but keep for now` | still outside Telegram, but more containable than issue comments and compatible with a sandbox-only posture | workflow `on: workflow_dispatch`; accepts `ticket_json` and optional `dry_run` | keep manual-only posture in docs; no expansion | later runtime PR should decide whether to keep as sandbox-only or retire with the issue-comment trigger |
+| `.github/workflows/self_heal.yml` `issue_comment` trigger | retired ingress | `Removed now` | direct GitHub comment ingress conflicted most clearly with the Stage 7 single-entry target and has now been contained out of the workflow | runtime-only containment removed `on: issue_comment`, the comment-body gate, and issue comment-back steps | keep removed | do not reintroduce without a separate approved PR |
+| `.github/workflows/self_heal.yml` `workflow_dispatch` trigger | manual bounded repair ingress | `Deprecated but keep for now` | still outside Telegram, but now the only remaining ingress and therefore easier to contain as sandbox-only | workflow `on: workflow_dispatch`; accepts `ticket_json` and optional `dry_run` | keep manual-only posture in docs; no expansion | later runtime PR should decide whether to keep as sandbox-only or retire the remaining manual path |
 
 ### 4.2 Path inventory
 
@@ -198,12 +203,12 @@ Kill switch:
 Operational kill switch for the live workflow, if needed later:
 
 - disable the `L2 Self-Heal` GitHub workflow, or
-- remove the `issue_comment` trigger in a dedicated runtime PR
+- retire the remaining manual `workflow_dispatch` path in a dedicated runtime PR
 
 Removal plan:
 
 1. keep support guards/tests/template while the workflow remains live
 2. decide in a later runtime PR whether to:
-   - drop only the `issue_comment` trigger and keep manual `workflow_dispatch` as sandbox-only, or
+   - keep manual `workflow_dispatch` as a sandbox-only escape hatch, or
    - retire the entire workflow/template/support chain
 3. if the workflow is retired, then archive or remove `docs/self_heal.md` and remove now-orphaned support assets in the same smallest-unit PR
