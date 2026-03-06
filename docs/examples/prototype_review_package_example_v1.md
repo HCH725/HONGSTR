@@ -6,6 +6,10 @@ Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype review package example PR
 Plane: central steward prototype review package example
 Expected SSOT/output impact: none
+Runtime impact: none (docs-only)
+Rollout relation: governance-only; not rollout approval
+Kill switch: HONGSTR_TG_ALERT_INGEST_PROTOTYPE=0
+Canonical truth boundary: does not change canonical SSOT or `/status` `/daily` `/dashboard`; does not write `data/state/*`
 
 ## 0. Purpose
 
