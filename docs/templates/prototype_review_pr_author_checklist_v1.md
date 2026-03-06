@@ -5,7 +5,7 @@ Use this checklist before opening any central steward shadow/prototype review PR
 This checklist is for authors only.
 
 Reviewer-side validation belongs in `docs/templates/prototype_review_reviewer_checklist_v1.md`.
-If this PR is being resubmitted after `request changes`, also use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`.
+If this PR is being resubmitted after a `request-changes note`, also use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`.
 
 It does not replace:
 
@@ -21,8 +21,8 @@ It exists to prevent a review PR from being opened with missing evidence, missin
 ## How To Use
 
 1. choose the review type first:
-   - `upgrade review`
-   - or `retirement review`
+   - `upgrade-review`
+   - or `retirement-review`
 2. complete this checklist before opening the PR
 3. if any required item remains unchecked, do not open the review PR yet
 4. copy the relevant review template into the review PR only after this checklist passes
@@ -53,10 +53,10 @@ It exists to prevent a review PR from being opened with missing evidence, missin
   - shadow summary generation frequency
   - dedupe hit rate
   - cooldown hit rate
-  - `recovery_of` ratio
-  - false positive / noise
-  - decision value
-  - canonical overlap
+  - `recovery_of_ratio`
+  - `false_positive_noise`
+  - `decision_value`
+  - `canonical_overlap`
 - [ ] The evidence comes from approved non-canonical sources only.
 - [ ] I have confirmed the evidence is not being turned into canonical state.
 - [ ] I have confirmed the evidence is not being used to back-fill `/status`, `/daily`, or `/dashboard`.
@@ -64,18 +64,18 @@ It exists to prevent a review PR from being opened with missing evidence, missin
 ## C. Review Type Checklist
 
 - [ ] I have selected the correct review type:
-  - `upgrade review`
-  - or `retirement review`
+  - `upgrade-review`
+  - or `retirement-review`
 - [ ] I have selected the correct review template for that review type.
 - [ ] I can fill the selected template completely.
 
-If this is an `upgrade review`:
+If this is an `upgrade-review`:
 
 - [ ] I am using `docs/templates/prototype_upgrade_review_template_v1.md`.
 - [ ] I have evidence that the proposal is still explicitly non-canonical.
 - [ ] I have evidence that the proposal is still clearly distinct from a formal alert.
 
-If this is a `retirement review`:
+If this is a `retirement-review`:
 
 - [ ] I am using `docs/templates/prototype_retirement_review_template_v1.md`.
 - [ ] I have evidence for low value, high overlap, high noise, boundary erosion, or another retirement trigger.
@@ -102,7 +102,7 @@ If this is a `retirement review`:
   - `keep`
   - `upgrade-review pass`
   - `retirement-review pass`
-  - or `insufficient evidence / continue observation`
+  - or `insufficient evidence`
 - [ ] The related docs are linked:
   - `docs/ops/prototype_review_kickoff_sop_v1.md`
   - `docs/architecture/prototype_evidence_collection_plan_v1.md`
@@ -136,7 +136,7 @@ Do not open the review PR until every required checkbox above is checked.
 
 Author sign-off:
 
-- `review_type`: `<upgrade / retirement>`
+- `review_type`: `<upgrade-review / retirement-review>`
 - `author`: `<name or handle>`
 - `date`: `<YYYY-MM-DD>`
 - `all required boxes checked`: `<yes / no>`

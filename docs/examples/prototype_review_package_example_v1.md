@@ -30,8 +30,8 @@ Use this example package only when:
 
 - the evidence window has completed
 - the author is preparing either:
-  - `upgrade review`
-  - or `retirement review`
+  - `upgrade-review`
+  - or `retirement-review`
 - the author wants one place that shows how evidence, template, checklist, and SOP fit together
 
 Do not use this example package as:
@@ -42,7 +42,7 @@ Do not use this example package as:
 
 If you need the full document map first, start with `docs/ops/prototype_review_package_index_v1.md`.
 If any field label or enum meaning is unclear, use `docs/ops/prototype_review_field_glossary_v1.md`.
-If you need the post-`request changes` flow specifically, use `docs/examples/prototype_resubmission_example_v1.md`.
+If you need the post-`request-changes note` flow specifically, use `docs/examples/prototype_resubmission_example_v1.md`.
 
 For title, attachment, and section-order conventions, see `docs/ops/prototype_review_package_naming_convention_v1.md`.
 
@@ -67,7 +67,7 @@ A complete review package should contain these pieces:
 Use this flow in order.
 
 1. confirm the evidence window is complete
-2. choose `upgrade review` or `retirement review`
+2. choose `upgrade-review` or `retirement-review`
 3. fill the matching review template
 4. complete the author checklist
 5. use the kickoff SOP to decide whether the review PR may be opened
@@ -92,21 +92,22 @@ Author confirms:
 
 If not true:
 
-- outcome = `insufficient evidence / continue observation`
+- outcome = `insufficient evidence`
+- next action = `continue observation`
 - do not open review PR yet
 
 ### 4.2 Step 2: Select review type
 
 Choose exactly one:
 
-- `upgrade review`
-- `retirement review`
+- `upgrade-review`
+- `retirement-review`
 
-If `upgrade review`:
+If `upgrade-review`:
 
 - use `docs/templates/prototype_upgrade_review_template_v1.md`
 
-If `retirement review`:
+If `retirement-review`:
 
 - use `docs/templates/prototype_retirement_review_template_v1.md`
 
@@ -157,9 +158,9 @@ The following is a minimal example structure an author can copy.
 
 ## Review Basics
 - review_id: <prototype-upgrade-review-YYYYMMDD or prototype-retirement-review-YYYYMMDD>
-- review_type: <upgrade or retirement>
-- review_window: <YYYY-MM-DD to YYYY-MM-DD>
-- review_author: <name or handle>
+- review_type: <upgrade-review or retirement-review>
+- review_window: <YYYY-MM-DD..YYYY-MM-DD>
+- author: <name or handle>
 - reviewer: <name or handle>
 - related_docs:
   - docs/templates/prototype_evidence_summary_template_v1.md
@@ -171,10 +172,10 @@ The following is a minimal example structure an author can copy.
 - shadow summary generation frequency: <value>
 - dedupe hit rate: <value>
 - cooldown hit rate: <value>
-- recovery_of ratio: <value>
-- false positive / noise: <value>
-- decision value: <value>
-- canonical overlap: <value>
+- recovery_of_ratio: <value>
+- false_positive_noise: <value>
+- decision_value: <value>
+- canonical_overlap: <value>
 
 ## Boundary Checks
 - internal-only: <pass/fail>

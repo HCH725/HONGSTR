@@ -33,11 +33,11 @@ If the package is not ready for a final outcome, use `docs/templates/prototype_r
 | Field | Value |
 |---|---|
 | `review_id` | `<prototype-upgrade-review-YYYYMMDD or prototype-retirement-review-YYYYMMDD>` |
-| `review_type` | `<upgrade / retirement>` |
+| `review_type` | `<upgrade-review / retirement-review>` |
 | `review_window` | `<YYYY-MM-DD..YYYY-MM-DD>` |
 | `prototype_id` | `central-steward-shadow-prototype` |
 | `reviewer` | `<name or handle>` |
-| `review_author` | `<name or handle>` |
+| `author` | `<name or handle>` |
 | `related_prs` | `<PR links>` |
 | `related_docs` | `docs/templates/prototype_evidence_summary_template_v1.md`, `docs/templates/prototype_upgrade_review_template_v1.md` or `docs/templates/prototype_retirement_review_template_v1.md`, `docs/templates/prototype_review_pr_author_checklist_v1.md`, `docs/templates/prototype_review_reviewer_checklist_v1.md` |
 
@@ -156,6 +156,6 @@ State explicitly:
 
 | Role | Name | Recorded outcome | Date |
 |---|---|---|---|
-| review author | `<name>` | `<outcome>` | `<YYYY-MM-DD>` |
+| author | `<name>` | `<outcome>` | `<YYYY-MM-DD>` |
 | reviewer | `<name>` | `<outcome>` | `<YYYY-MM-DD>` |
-| governance reviewer | `<name>` | `<approve / request changes>` | `<YYYY-MM-DD>` |
+| governance reviewer | `<name>` | `<approve / request-changes note>` | `<YYYY-MM-DD>` |
