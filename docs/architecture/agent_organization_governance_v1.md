@@ -1,7 +1,7 @@
 # HONGSTR Agent Organization Governance Spec v1
 
 Last updated: 2026-03-06 (UTC+8)  
-Scope: docs-only governance skeleton for a three-agent model, aligned with existing HONGSTR baseline and roadmap red lines.
+Scope: umbrella governance overview for the three-agent model. Normative event, escalation, sidecar, and legacy decisions are delegated to canonical docs listed below.
 
 ## 0. Baseline Alignment (Non-Negotiable)
 
@@ -10,7 +10,10 @@ This spec inherits (does not override) these policy SSOTs:
 - `docs/skills/global_red_lines.md`
 - `docs/slimdown_launchd_planes.md`
 - `docs/ops_data_plane.md`
-- `docs/obsidian_lancedb.md`
+- `docs/architecture/agent_event_schema_v1.md`
+- `docs/architecture/escalation_taxonomy_v1.md`
+- `docs/architecture/legacy_keep_kill_merge_review_v1.md`
+- `docs/ops/obsidian_lancedb_sop_appendix_v1.md`
 
 Hard constraints for this spec:
 
@@ -19,6 +22,24 @@ Hard constraints for this spec:
 - Keep Telegram as a single external control/reporting entrance.
 - Keep P0 status paths local-first and SSOT-first (no new external API dependency).
 - Keep Obsidian/LanceDB as sidecar knowledge layers only.
+
+## 0.1 Canonical Governance Map
+
+Use this document as the umbrella overview only. Use the following docs as the canonical source by domain:
+
+| Domain | Canonical doc |
+|---|---|
+| Agent roles, single-entry model, plane map | `docs/architecture/agent_organization_governance_v1.md` |
+| Agent event fields and vocabulary | `docs/architecture/agent_event_schema_v1.md` |
+| Escalation targets, repair classes, cooldown/dedupe | `docs/architecture/escalation_taxonomy_v1.md` |
+| Legacy Keep / Merge / Kill decisions | `docs/architecture/legacy_keep_kill_merge_review_v1.md` |
+| Obsidian / LanceDB sidecar boundary | `docs/ops/obsidian_lancedb_sop_appendix_v1.md` |
+
+Dedupe rule:
+
+- do not copy normative event or escalation rules into overview docs
+- use this file for role/plane framing and repo anchors
+- use `docs/architecture/governance_dedupe_record_v1.md` as the migration ledger for deprecated, sandbox, or archive-only docs
 
 ## 1. Stage Mapping
 
@@ -58,7 +79,7 @@ Boundaries:
 Current repo anchors:
 
 - `_local/telegram_cp/tg_cp_server.py` (single entry command surface: `/status`, `/daily`, `/run`, etc.)
-- `_local/telegram_cp/guardrail.py` (action-request refusal / read-only posture)
+- `_local/telegram_cp/tg_cp_server.py` read-only guard paths (action-request refusal / no arbitrary exec posture)
 - `ops/launchagents/com.hongstr.tg_cp.plist` (single Telegram daemon)
 - `docs/ops/telegram_operator_manual.md` (single-entry `/daily` contract)
 
@@ -147,109 +168,47 @@ flowchart TD
     I --> B
 ```
 
-Dispatch contract:
+Normative references:
 
-- dispatch is advisory/task-ticket based, not free execution delegation
-- every specialist output must include provenance path + timestamp + status
+- event field definitions and event vocabulary: `docs/architecture/agent_event_schema_v1.md`
+- escalation targets, repair classes, cooldown, dedupe: `docs/architecture/escalation_taxonomy_v1.md`
+- legacy dispatcher / multi-entry disposition: `docs/architecture/legacy_keep_kill_merge_review_v1.md`
+- migration and deprecation ledger: `docs/architecture/governance_dedupe_record_v1.md`
 
-Escalation contract:
+Summary only:
 
-- immediate escalate on:
-  - core path touch attempt (`src/hongstr/**`)
-  - second writer risk (`data/state/*`)
-  - unallowlisted repair request
-  - uncertainty about red-line compliance
+- every specialist output must remain provenance-first and reviewable
+- any out-of-scope repair or dual-truth risk escalates immediately
+- legacy GitHub issue-comment dispatch paths are not part of the target production governance model
 
-## 5. Repair Class Policy (A / B / Forbidden)
+## 5. Repair Policy Summary
 
-## 5.1 Repair Class A (safe, narrow, docs+ops hygiene)
+This file no longer defines repair classes normatively.
 
-Allowed examples:
+Use:
 
-- docs/SOP/checklist/template updates
-- launchd template/docs cleanup under `ops/launchagents/` or `docs/ops/`
-- `_local/telegram_cp/` non-execution read-only message/schema/template adjustments
-- CI/preflight guardrail scripting that does not change core semantics
+- `docs/architecture/escalation_taxonomy_v1.md` for `record_only`, `telegram_notify`, `bounded_repair`, `manual_review`, and `forbidden`
+- `docs/architecture/legacy_keep_kill_merge_review_v1.md` for path-level Keep / Merge / Kill decisions
 
-Gate:
+Summary:
 
-- PR review + guardrail checks only
+- bounded repair remains allowlist-only and PR-reviewed
+- any repair requiring `src/hongstr/**`, second-writer behavior, or arbitrary Telegram execution is forbidden
 
-## 5.2 Repair Class B (bounded script/runtime repair)
+## 6. Data Placement Summary
 
-Allowed examples:
+This file no longer defines the Obsidian / LanceDB boundary normatively.
 
-- allowlisted script path hotfix in `scripts/` + matching tests
-- self-heal ticket execution limited by `allowed_paths`
-- bounded launchd orchestration hardening (watchdog/restart wrappers) with non-blocking degrade
+Canonical rule source:
 
-Gate:
+- `docs/ops/obsidian_lancedb_sop_appendix_v1.md`
 
-- must include explicit ticket scope (`allowed_paths`)
-- must pass required checks in ticket (`must_run`)
-- must remain reversible via single commit revert
+Summary:
 
-## 5.3 Forbidden Repair Scope
-
-Forbidden always:
-
-- any core trading semantic change in `src/hongstr/**`
-- any new canonical SSOT writer outside `scripts/state_snapshots.py`
-- any Telegram path that can execute arbitrary commands
-- any repair that introduces mandatory external API dependency into P0 status path
-
-## 6. Data Placement Policy (SSOT vs Obsidian vs LanceDB)
-
-## 6.1 SSOT (`data/state/*`, canonical runtime truth)
-
-Must stay in SSOT:
-
-- `/status` and `/daily` truth payloads (`system_health_latest.json`, `daily_report_latest.json`, etc.)
-- canonical health/status snapshots consumed by tg_cp/dashboard
-- deterministic state snapshots generated by state plane
-
-Owner boundary:
-
-- `scripts/refresh_state.sh` -> `scripts/state_snapshots.py`
-- guarded by `scripts/check_state_writer_boundary.py`
-
-## 6.2 Obsidian (human-readable governance memory)
-
-Suitable:
-
-- incidents, postmortems, runbooks, PM reviews
-- daily/strategy/incident markdown from SSOT export
-- governance summaries and decision logs
-
-Not suitable:
-
-- canonical status truth for `/status` or `/daily`
-- raw data lake replacement
-
-Current anchors:
-
-- `scripts/obsidian_sync.py`
-- `docs/obsidian/VAULT_STRUCTURE.md`
-- `_local/obsidian_vault/HONGSTR/*`
-
-## 6.3 LanceDB (retrieval memory index)
-
-Suitable:
-
-- chunked retrieval index over Obsidian notes
-- similarity recall for incidents/research/SOP context
-
-Not suitable:
-
-- direct status computation source
-- canonical metric store for control-plane health
-
-Current anchors:
-
-- `scripts/obsidian_lancedb_index.py`
-- `scripts/obsidian_lancedb_query.py`
-- `scripts/obsidian_rag_lib.py`
-- `_local/lancedb/hongstr_obsidian.lancedb/chunks.json`
+- SSOT truth remains `data/state/*`, written only by the state plane
+- Obsidian remains a human-readable sidecar
+- LanceDB remains a retrieval sidecar
+- neither sidecar may become `/status`, `/daily`, or `/dashboard` truth
 
 ## 7. iCloud Mirror Folder Plan (Obsidian)
 
@@ -326,7 +285,6 @@ Current anchors:
 ## 10.1 tg_cp / control plane / Telegram
 
 - `_local/telegram_cp/tg_cp_server.py`
-- `_local/telegram_cp/guardrail.py`
 - `_local/telegram_cp/router.py`
 - `docs/ops/telegram_operator_manual.md`
 - `ops/launchagents/com.hongstr.tg_cp.plist`
@@ -353,7 +311,8 @@ Current anchors:
 - `scripts/obsidian_mirror_publish.sh`
 - `scripts/kb_sync_run.sh`
 - `scripts/kb_sync_github_prs.py`
-- `docs/obsidian_lancedb.md`
+- `docs/ops/obsidian_lancedb_sop_appendix_v1.md`
+- `docs/obsidian_lancedb.md` (compatibility note)
 - `docs/obsidian/VAULT_STRUCTURE.md`
 - `docs/kb_sync.md`
 - `docs/ops_obsidian_mirror.md`

@@ -1,1 +1,4 @@
-The Ollama default model is qwen2.5-coder:7b-instruct and no OpenAI API key is required.
+Archive-only smoke artifact for the legacy `/dispatch` flow.
+
+This file is retained only as historical evidence for dispatcher sandbox work.
+It is not part of the current canonical governance model.
