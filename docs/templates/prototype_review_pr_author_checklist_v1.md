@@ -104,11 +104,11 @@ If this is a `retirement-review`:
 
 ## D. Boundary Check Checklist
 
-- [ ] I have re-confirmed the prototype remains `internal-only` at the time of review.
-- [ ] I have re-confirmed the prototype remains `not-canonical`.
+- [ ] I have re-confirmed the prototype is `internal-only` at the time of review.
+- [ ] I have re-confirmed the prototype is `not-canonical`.
 - [ ] I have re-confirmed the prototype does not affect `/status`.
 - [ ] I have re-confirmed the prototype does not affect `/daily`.
-- [ ] I have re-confirmed the prototype does not affect `/dashboard` truth.
+- [ ] I have re-confirmed the prototype does not affect `/dashboard`.
 - [ ] I have re-confirmed the prototype does not write `data/state/*`.
 - [ ] I have re-confirmed the prototype does not create a second state writer.
 - [ ] I have re-confirmed the prototype does not touch bounded repair.

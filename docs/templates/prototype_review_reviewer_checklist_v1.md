@@ -121,16 +121,16 @@ If evidence is thin or contradictory:
 
 ## C. Boundary Checks
 
-- [ ] The prototype still remains `internal-only`.
-- [ ] The prototype still remains `not-canonical`.
-- [ ] The review package does not change `/status`.
-- [ ] The review package does not change `/daily`.
-- [ ] The review package does not change `/dashboard` truth.
+- [ ] The prototype is `internal-only`.
+- [ ] The prototype is `not-canonical`.
+- [ ] The review package does not affect `/status`.
+- [ ] The review package does not affect `/daily`.
+- [ ] The review package does not affect `/dashboard`.
 - [ ] The review package does not write `data/state/*`.
 - [ ] The review package does not create a second state writer.
 - [ ] The review package does not touch bounded repair, self-heal, or arbitrary execution.
-- [ ] The review package does not change `tg_cp` runtime behavior.
-- [ ] The review package is not being used as a disguised rollout PR.
+- [ ] The review package does not change `tg_cp` runtime.
+- [ ] The review package still satisfies `review PR != rollout PR`.
 
 Boundary response rule:
 

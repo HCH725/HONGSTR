@@ -324,8 +324,33 @@ Read these rules before using any term below.
   - `no action`
 - Common misuse:
   - using rollout language inside a review-only artifact without separate approval
-  - skipping the action even when the decision is recorded
+- skipping the action even when the decision is recorded
 - Example value: `continue observation`
+
+### 3.15 `boundary check labels`
+
+- Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
+- When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
+- Governing record:
+  - `docs/ops/prototype_boundary_check_row_alignment_record_v1.md`
+- Canonical labels:
+  - `internal-only`
+  - `not-canonical`
+  - does not affect `/status`
+  - does not affect `/daily`
+  - does not affect `/dashboard`
+  - does not write `data/state/*`
+  - does not create a second state writer
+  - does not change `tg_cp` runtime
+  - does not touch bounded repair
+  - `review PR != rollout PR`
+- Common misuse:
+  - mixing `affects`, `does not change`, and `no impact` for the same boundary
+  - adding `truth` to `/dashboard` in some files but not others
+  - padding the same label with `still`, `remains`, or `at review time` inside structured rows
+  - using `touches tg_cp runtime` instead of the normalized runtime-impact label
+  - using `not a rollout PR` in one checklist and `disguised rollout PR` in another without the shared canonical label
+- Example value: does not affect `/status`
 
 ## 4. Common Drift To Avoid
 

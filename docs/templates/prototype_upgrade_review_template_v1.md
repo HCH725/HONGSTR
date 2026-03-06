@@ -84,13 +84,13 @@ Every row must be completed with evidence, not opinion.
 
 | Boundary check | Pass / Fail | Evidence | Notes |
 |---|---|---|---|
-| still `internal-only` at review time | `<pass/fail>` | `<evidence>` | `<note>` |
-| still `not-canonical` | `<pass/fail>` | `<evidence>` | `<note>` |
-| still does not affect `/status` | `<pass/fail>` | `<evidence>` | `<note>` |
-| still does not affect `/daily` | `<pass/fail>` | `<evidence>` | `<note>` |
-| still does not affect `/dashboard` truth | `<pass/fail>` | `<evidence>` | `<note>` |
-| still does not write `data/state/*` | `<pass/fail>` | `<evidence>` | `<note>` |
-| still does not touch bounded repair | `<pass/fail>` | `<evidence>` | `<note>` |
+| `internal-only` | `<pass/fail>` | `<evidence>` | `<note>` |
+| `not-canonical` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not affect `/status` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not affect `/daily` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not affect `/dashboard` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not write `data/state/*` | `<pass/fail>` | `<evidence>` | `<note>` |
+| does not touch bounded repair | `<pass/fail>` | `<evidence>` | `<note>` |
 | still remains stoppable via feature flag or equivalent kill switch | `<pass/fail>` | `<evidence>` | `<note>` |
 
 Upgrade-specific message check:

@@ -106,16 +106,16 @@ Package consistency note:
 
 ## 4. Boundary Re-Check
 
-- [ ] The prototype still remains `internal-only`.
-- [ ] The prototype still remains `not-canonical`.
-- [ ] The package still does not affect `/status`.
-- [ ] The package still does not affect `/daily`.
-- [ ] The package still does not affect `/dashboard` truth.
-- [ ] The package still does not write `data/state/*`.
-- [ ] The package still does not create a second state writer.
-- [ ] The package still does not touch bounded repair.
-- [ ] The package still does not change `tg_cp` runtime behavior.
-- [ ] The resubmission is still a `review PR`, not a rollout PR.
+- [ ] The prototype is `internal-only`.
+- [ ] The prototype is `not-canonical`.
+- [ ] The package does not affect `/status`.
+- [ ] The package does not affect `/daily`.
+- [ ] The package does not affect `/dashboard`.
+- [ ] The package does not write `data/state/*`.
+- [ ] The package does not create a second state writer.
+- [ ] The package does not touch bounded repair.
+- [ ] The package does not change `tg_cp` runtime.
+- [ ] The resubmission still satisfies `review PR != rollout PR`.
 
 Boundary re-check note:
 

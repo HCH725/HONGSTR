@@ -105,11 +105,13 @@ Re-review conditions:
 - [x] confirmed observation window already complete
 
 ## Boundary Re-Check
-- [x] still internal-only
-- [x] still not-canonical
-- [x] does not affect /status /daily /dashboard
-- [x] does not write data/state/*
-- [x] still not a rollout PR
+- [x] internal-only
+- [x] not-canonical
+- [x] does not affect `/status`
+- [x] does not affect `/daily`
+- [x] does not affect `/dashboard`
+- [x] does not write `data/state/*`
+- [x] review PR != rollout PR
 ```
 
 ### 3.3 Reviewer Re-Check Snippet
@@ -182,10 +184,12 @@ Author must still confirm:
 
 - internal-only
 - not-canonical
-- no impact to `/status`, `/daily`, `/dashboard`
-- no write to `data/state/*`
-- no bounded repair
-- still not a rollout PR
+- does not affect `/status`
+- does not affect `/daily`
+- does not affect `/dashboard`
+- does not write `data/state/*`
+- does not touch bounded repair
+- review PR != rollout PR
 
 ### Step 4: Reviewer Re-Checks
 
@@ -214,10 +218,10 @@ This example only remains valid while all of the following are still true:
 - the prototype remains `not-canonical`
 - the package does not affect `/status`
 - the package does not affect `/daily`
-- the package does not affect `/dashboard` truth
+- the package does not affect `/dashboard`
 - the package does not write `data/state/*`
 - the package does not touch bounded repair
-- the resubmission PR is not a rollout PR
+- the resubmission PR still satisfies `review PR != rollout PR`
 
 ## 6. Failure Cases
 
