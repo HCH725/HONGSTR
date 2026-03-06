@@ -41,7 +41,7 @@ The current docs had recurring drift in these patterns:
 
 - next action enums varied between `open upgrade review`, `open retirement review`, and `open rollout candidate PR`
 - template prose used placeholders such as `next small PR only`, `continue observation window`, `continue observation mode`, `collect more evidence`, and `no runtime change`
-- reviewer-side materials mixed canonical decision outcomes with non-outcome response states such as `request-changes note required` or `ready for decision record`
+- reviewer-side materials mixed canonical decision outcomes with non-outcome response states such as `request-changes note required` or `ready for decision record`; those response-state labels are now governed by `docs/ops/prototype_reviewer_response_state_alignment_record_v1.md`
 - evidence summary used assessment-only labels such as `candidate for upgrade-review` and `candidate for retirement-review`, which are not final decision outcomes and are now governed by `docs/ops/prototype_assessment_status_alignment_record_v1.md`
 
 ## 2. Drift To Canonical Mapping
@@ -57,8 +57,8 @@ The current docs had recurring drift in these patterns:
 | `collect more evidence` | `extend evidence window` | Use the structured observation extension label. |
 | `require longer observation` | `extend evidence window` | Reviewer-side extension wording should use the same canonical label. |
 | `no runtime change` as an action label | `no action` | Runtime posture may still be explained in prose, but the action enum should stay canonical. |
-| `request-changes note required` in an outcome list | reviewer response state, not decision outcome | Keep it outside the canonical decision outcome enum. |
-| `ready for decision record` | reviewer response state, not decision outcome | Example-only review state, not a final outcome label. |
+| `request-changes note required` in an outcome list | reviewer response state, not decision outcome | Keep it outside the canonical decision outcome enum; see `docs/ops/prototype_reviewer_response_state_alignment_record_v1.md`. |
+| `ready for decision record` | reviewer response state, not decision outcome | Example-only review state, not a final outcome label; see `docs/ops/prototype_reviewer_response_state_alignment_record_v1.md`. |
 | `candidate for upgrade-review` | assessment-only label, not decision outcome | Keep only in evidence-summary assessment blocks; see `docs/ops/prototype_assessment_status_alignment_record_v1.md`. |
 | `candidate for retirement-review` | assessment-only label, not decision outcome | Keep only in evidence-summary assessment blocks; see `docs/ops/prototype_assessment_status_alignment_record_v1.md`. |
 

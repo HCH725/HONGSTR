@@ -68,6 +68,7 @@ Field split rule:
 
 - `continue observation` may appear as an assessment status or a next action, but the field label must make the role explicit
 - `insufficient evidence` remains a decision outcome or request-changes reason
+- reviewer-response-state labels are governed separately by `docs/ops/prototype_reviewer_response_state_alignment_record_v1.md`
 - `keep` remains a decision outcome, not an assessment-status label
 
 ## 4. Legacy Aliases No Longer Recommended

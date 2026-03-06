@@ -1,6 +1,6 @@
 # HONGSTR Prototype Resubmission Example v1
 
-Last updated: 2026-03-06 (UTC+8)
+Last updated: 2026-03-07 (UTC+8)
 Status: docs-first / example-first / governance-only
 Stage: Stage 2 / Stage 7 / Stage 8
 Checklist item: prototype resubmission example PR
@@ -123,7 +123,7 @@ Re-review conditions:
 - boundary checks: pass after rewrite
 - rollout mixed in: no
 
-Current reviewer outcome:
+Current reviewer response state:
 - ready for decision record
 ```
 
