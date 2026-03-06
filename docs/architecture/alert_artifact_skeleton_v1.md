@@ -373,6 +373,6 @@ Kill switch:
 Suggested follow-on adoption path:
 
 1. docs/tests-only validation for artifact shape
-2. atomic producer output for `alerts_latest.json` and `alerts_journal.jsonl` outside `data/state/*`
+2. optional manual producer helper may emit `alerts_latest.json` and `alerts_journal.jsonl` only under `reports/state_atomic/*`; it must stay stoppable and outside the P0 path
 3. optional canonical mirror only through `scripts/state_snapshots.py`, if later approved
 4. central steward read-only ingest only after Stage 2 / Stage 7 guardrails remain green
