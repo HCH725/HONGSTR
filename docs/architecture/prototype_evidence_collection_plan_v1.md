@@ -220,6 +220,7 @@ Recommended evidence format:
 - do not commit generated runtime logs or sampled artifacts
 - use `docs/templates/prototype_upgrade_review_template_v1.md` for future upgrade review
 - use `docs/templates/prototype_retirement_review_template_v1.md` for future retirement review
+- follow `docs/ops/prototype_review_kickoff_sop_v1.md` before opening any review PR
 
 Suggested observation ledger format:
 

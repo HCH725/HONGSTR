@@ -2,6 +2,8 @@
 
 Use this template only for a future `retirement review` of the central steward shadow/prototype path.
 
+Before opening a review PR, satisfy `docs/ops/prototype_review_kickoff_sop_v1.md`.
+
 Do not use this template for rollout.
 
 Do not use this template for upgrade review. Use `docs/templates/prototype_upgrade_review_template_v1.md` instead.
