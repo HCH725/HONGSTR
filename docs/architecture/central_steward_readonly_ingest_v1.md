@@ -192,5 +192,6 @@ Suggested follow-on adoption path:
 
 1. producer-side artifact schema validation outside runtime
 2. one small producer PR for atomic `alerts_latest.json` / `alerts_journal.jsonl`
+   Current producer posture: manual-only helper, no schedule, no steward runtime dependency; see `docs/architecture/atomic_alert_producer_invocation_decision_v1.md`.
 3. one small steward PR that reads artifacts only and formats summaries only
 4. only after that, evaluate whether a canonical mirror under `data/state/*` is needed, and if so, route it only through `scripts/state_snapshots.py`
