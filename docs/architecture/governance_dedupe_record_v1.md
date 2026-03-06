@@ -18,6 +18,7 @@ This file is a migration ledger, not a second policy source.
 | Domain | Canonical doc | Why |
 |---|---|---|
 | Agent roles, planes, single Telegram entrance | `docs/architecture/agent_organization_governance_v1.md` | Umbrella overview for Stage 2 / 7 / 8 governance |
+| Direct `/dispatch` retirement record | `docs/architecture/direct_dispatch_retirement_v1.md` | Canonical record of direct dispatcher retirement scope and rollback |
 | Event fields and vocabulary | `docs/architecture/agent_event_schema_v1.md` | Canonical event payload contract |
 | Escalation targets, repair classes, cooldown/dedupe | `docs/architecture/escalation_taxonomy_v1.md` | Canonical routing and suppression policy |
 | Legacy Keep / Merge / Kill decisions | `docs/architecture/legacy_keep_kill_merge_review_v1.md` | Canonical path/module disposition |
@@ -30,7 +31,7 @@ This file is a migration ledger, not a second policy source.
 |---|---|---|
 | `docs/guardrails_dedupe.md` | migration log | keeps enforcement ownership and dedupe evidence, but no longer defines canonical policy text |
 | `docs/obsidian_lancedb.md` | compatibility note | keeps implementation commands, but sidecar policy moved to the appendix |
-| `docs/dispatcher_agent.md` | archive-only / sandbox-only / deprecated | documents a legacy non-Telegram operator ingress |
+| `docs/dispatcher_agent.md` | retired | direct `/dispatch` historical doc removed after the retirement record became canonical |
 | `docs/governance/ccpm_adoption.md` | historical note | `/dispatch` workflow references are no longer the target governance model |
 
 ## 3. Content Merged Into Canonical Docs
@@ -48,11 +49,11 @@ These paths either already form, or document, operator-triggered entrypoints out
 
 | Path | Current status | This PR action | Next step |
 |---|---|---|---|
-| `docs/dispatcher_agent.md` | archive-only | downgraded and linked to canonical docs | remove candidate |
-| `docs/dispatcher_smoke.md` | archive-only artifact | downgraded to historical smoke note | remove candidate |
-| `scripts/dispatch/dispatch_issue.sh` | legacy alternate ingress | recorded only; runtime unchanged | removal candidate in a later smallest-unit PR |
-| `.github/workflows/dispatch.yml` | legacy alternate ingress | recorded only; workflow unchanged | removal candidate in a later smallest-unit PR |
-| `.github/ISSUE_TEMPLATE/task.yml` | historical dispatch template | recorded only; template unchanged | deprecate/remove with dispatcher retirement |
+| `docs/dispatcher_agent.md` | removed now | retired with the direct `/dispatch` chain | historical record kept in retirement/audit docs |
+| `docs/dispatcher_smoke.md` | removed now | retired with the direct `/dispatch` chain | historical record kept in retirement/audit docs |
+| `scripts/dispatch/dispatch_issue.sh` | removed now | direct `/dispatch` executor retired | no follow-up unless rollback is required |
+| `.github/workflows/dispatch.yml` | removed now | direct `/dispatch` workflow retired | no follow-up unless rollback is required |
+| `.github/ISSUE_TEMPLATE/task.yml` | removed now | dispatch-enabling task template retired | no follow-up unless replacement issue template is intentionally designed later |
 | `docs/self_heal.md` | bounded legacy issue-comment repair path | recorded only; out of scope for this PR | later review candidate because it is a non-Telegram ingress even though it is bounded |
 
 ## 5. Stage Alignment
@@ -89,17 +90,15 @@ Kill switch:
 
 Removal plan:
 
-1. keep historical docs and workflows frozen
-2. retire dispatcher-related runtime/assets in a later smallest-unit PR
-3. remove or archive dependent templates and smoke artifacts in the same retirement slice
-4. keep final authority in the canonical docs listed above
+1. keep the direct `/dispatch` chain retired and documented in canonical retirement/audit docs
+2. leave self-heal review to a separate smallest-unit PR
+3. keep final authority in the canonical docs listed above
 
 ## 7. Out Of Scope / Not Changed
 
 - `src/hongstr/**`
 - any canonical `data/state/*` writer or consumer
 - `_local/telegram_cp/tg_cp_server.py`
-- `scripts/dispatch/dispatch_issue.sh`
-- `.github/workflows/dispatch.yml`
-- `.github/ISSUE_TEMPLATE/task.yml`
+- `.github/workflows/self_heal.yml`
+- `scripts/self_heal/**`
 - any Telegram, Obsidian, LanceDB, mirror, or SSOT runtime wiring
