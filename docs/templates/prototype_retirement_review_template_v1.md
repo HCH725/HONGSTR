@@ -4,6 +4,7 @@ Use this template only for a future `retirement review` of the central steward s
 
 Before opening a review PR, satisfy `docs/ops/prototype_review_kickoff_sop_v1.md`.
 Authors should also complete `docs/templates/prototype_review_pr_author_checklist_v1.md` before opening the PR.
+Authors may use `docs/examples/prototype_review_package_example_v1.md` as a package assembly example.
 
 Do not use this template for rollout.
 
