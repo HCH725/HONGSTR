@@ -10,6 +10,7 @@ It does not replace:
 - `docs/templates/prototype_upgrade_review_template_v1.md`
 - `docs/templates/prototype_retirement_review_template_v1.md`
 - `docs/examples/prototype_review_package_example_v1.md`
+- `docs/ops/prototype_review_package_naming_convention_v1.md`
 
 It exists to prevent a review PR from being opened with missing evidence, missing boundary checks, or rollout drift.
 

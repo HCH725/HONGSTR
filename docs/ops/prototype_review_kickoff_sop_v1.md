@@ -30,6 +30,7 @@ Core rule:
 - no rollout PR may start until the kickoff conditions in this SOP are satisfied and the review result is documented separately
 - authors should complete `docs/templates/prototype_review_pr_author_checklist_v1.md` before opening any review PR
 - authors may use `docs/examples/prototype_review_package_example_v1.md` as a package assembly example
+- authors should follow `docs/ops/prototype_review_package_naming_convention_v1.md` for review package titles and attachment names
 
 ## 1. Definitions
 
