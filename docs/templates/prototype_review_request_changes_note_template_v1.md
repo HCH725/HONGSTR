@@ -117,6 +117,15 @@ Blocker-reference applicability hint rule:
   - `if present`
   - `only when closure proof exists`
 
+Blocker-reference field-caption formatting rule:
+
+- when the doc displays blocker-proof field captions as standalone caption lines, use:
+  - `Review note reference:`
+  - `Closure evidence reference:`
+  - `Fix evidence reference:`
+  - `Supporting evidence reference:`
+- keep sentence case, keep the trailing colon, and do not abbreviate the caption
+
 ## 1. Basic Information
 
 | Field | Value |

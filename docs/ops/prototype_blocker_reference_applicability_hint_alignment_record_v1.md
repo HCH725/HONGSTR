@@ -66,6 +66,7 @@ Use these canonical blocker-reference applicability hint labels:
 Field split rule:
 
 - blocker-reference applicability hint labels are not blocker-evidence-reference labels
+- blocker-reference applicability hint labels are not blocker-reference field-caption formatting; that formatting is governed by `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md`
 - blocker-reference applicability hint labels are not blocker-reference-target hint labels
 - blocker-reference applicability hint labels are not blocker-reference multiplicity hint labels
 - blocker-reference applicability hint labels are not blocker-reference ordering hint labels

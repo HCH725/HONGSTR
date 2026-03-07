@@ -35,6 +35,7 @@ For canonical blocker-reference multiplicity hint wording in that resubmission f
 For canonical blocker-reference ordering hint wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_ordering_hint_alignment_record_v1.md`.
 For canonical blocker-reference applicability hint wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_applicability_hint_alignment_record_v1.md`.
 For canonical blocker-reference placeholder shape wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_placeholder_shape_alignment_record_v1.md`.
+For canonical blocker-reference field-caption formatting in that resubmission flow, use `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md`.
 
 It does not replace:
 
@@ -132,6 +133,7 @@ If this is a `retirement-review`:
 - [ ] If this is a resubmission, those evidence references keep canonical ordering hints such as `review note first`, `closure evidence next`, `fix evidence next`, and `supporting evidence last` when multiple blocker-proof fields appear together.
 - [ ] If this is a resubmission, those evidence references keep canonical applicability hints such as `if applicable`, `when requested`, `if present`, and `only when closure proof exists`.
 - [ ] If this is a resubmission, those evidence references keep the canonical placeholder shape: `Applicability hint: ...`, `Ordering hint: ...`, then `<single link: ...>` / `<multiple links: ...>` / `<one-or-more links: ...>`.
+- [ ] If this is a resubmission, those evidence references keep the canonical field captions: `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
 - [ ] The observation window is stated clearly.
 - [ ] The current recommendation is stated clearly:
   - `keep`
