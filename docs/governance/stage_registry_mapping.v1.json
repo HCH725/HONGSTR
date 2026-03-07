@@ -1,0 +1,92 @@
+{
+  "artifact_id": "stage_registry_mapping.v1",
+  "artifact_type": "checklist_mapping_rule_baseline",
+  "depends_on_registry": "docs/governance/stage_registry.v1.json",
+  "depends_on_registry_artifact_id": "stage_registry.v1",
+  "scope_status": "BASELINE_ONLY",
+  "scope_note": "This v1 artifact fixes checklist-to-registry mapping only. HONG-23 rollup policy is out of scope.",
+  "mapping_required_fields": [
+    "checklist_item_id",
+    "registry_id",
+    "item_id",
+    "item_title",
+    "stage_id",
+    "layer",
+    "owner_plane",
+    "parent_id",
+    "next_action_ref",
+    "blocked_by_ref"
+  ],
+  "mapping_rule_dictionary": {
+    "checklist_item_id": "Stable checklist identifier from the governance card.",
+    "registry_id": "Stable registry identifier governed by stage_registry.v1.json.",
+    "item_id": "Stable item identifier used by downstream governance consumers.",
+    "item_title": "Canonical governance item title.",
+    "stage_id": "Stage prefix that must align with checklist_item_id, registry_id, item_id, and parent_id when present.",
+    "layer": "Layer value inherited from stage_registry.v1.json vocabulary.",
+    "owner_plane": "Owner plane inherited from stage_registry.v1.json vocabulary.",
+    "parent_id": "Single structural parent item_id; null when the item is a parent/root.",
+    "next_action_ref": "Single next action reference; may point to a downstream item_id or be null.",
+    "blocked_by_ref": "List of blocking item_ids within the same mapping baseline."
+  },
+  "top_action_semantics": "Top1 and Top2 priority are not encoded as parent-child hierarchy and are intentionally excluded from this mapping artifact.",
+  "entries": [
+    {
+      "checklist_item_id": "P0-GAP-01",
+      "registry_id": "P0-GAP-01",
+      "item_id": "P0-GAP-01",
+      "item_title": "Stage Registry",
+      "stage_id": "P0",
+      "layer": "Layer2",
+      "owner_plane": "GOVERNANCE",
+      "parent_id": null,
+      "next_action_ref": "P0-SREG-01",
+      "blocked_by_ref": [
+        "P0-SREG-01",
+        "P0-SREG-02",
+        "P0-SREG-03"
+      ]
+    },
+    {
+      "checklist_item_id": "P0-SREG-01",
+      "registry_id": "P0-SREG-01",
+      "item_id": "P0-SREG-01",
+      "item_title": "Stage Registry Spec",
+      "stage_id": "P0",
+      "layer": "Layer2",
+      "owner_plane": "GOVERNANCE",
+      "parent_id": "P0-GAP-01",
+      "next_action_ref": "P0-SREG-02",
+      "blocked_by_ref": []
+    },
+    {
+      "checklist_item_id": "P0-SREG-02",
+      "registry_id": "P0-SREG-02",
+      "item_id": "P0-SREG-02",
+      "item_title": "Checklist Mapping Rule",
+      "stage_id": "P0",
+      "layer": "Layer2",
+      "owner_plane": "GOVERNANCE",
+      "parent_id": "P0-GAP-01",
+      "next_action_ref": "P0-SREG-03",
+      "blocked_by_ref": [
+        "P0-SREG-01"
+      ]
+    },
+    {
+      "checklist_item_id": "P0-SREG-03",
+      "registry_id": "P0-SREG-03",
+      "item_id": "P0-SREG-03",
+      "item_title": "Rollup Policy",
+      "stage_id": "P0",
+      "layer": "Layer2",
+      "owner_plane": "GOVERNANCE",
+      "parent_id": "P0-GAP-01",
+      "next_action_ref": null,
+      "blocked_by_ref": [
+        "P0-SREG-01",
+        "P0-SREG-02"
+      ]
+    }
+  ]
+}
