@@ -42,6 +42,13 @@ FRESHNESS_THRESHOLDS = {
     "realtime": {"ok_h": 0.1, "warn_h": 0.25, "fail_h": 1.0},
     "backtest": {"ok_h": 26.0, "warn_h": 50.0, "fail_h": 72.0},
 }
+DATA_PLANE_SSOT_CONTRACT_VERSION = "data_plane_health.v1"
+DATA_PLANE_CONSUMER_ALLOWLIST = [
+    "data/state/system_health_latest.json",
+    "data/state/daily_report_latest.json",
+    "data/state/freshness_table.json",
+    "data/state/coverage_matrix_latest.json",
+]
 FRESHNESS_ROW_KEYS = (
     "symbol",
     "tf",
@@ -50,6 +57,7 @@ FRESHNESS_ROW_KEYS = (
     "status",
     "source",
     "reason",
+    "evidence",
     "is_usable",
     "unusable_reason",
 )
@@ -118,6 +126,64 @@ def _normalize_simple_status(status_raw):
     return "UNKNOWN"
 
 
+def _contract_evidence(
+    *,
+    evidence_type: str,
+    ref: str,
+    observed_ts_utc: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "type": evidence_type,
+        "ref": str(ref).strip(),
+        "observed_ts_utc": str(observed_ts_utc).strip() if isinstance(observed_ts_utc, str) and str(observed_ts_utc).strip() else None,
+    }
+
+
+def _publication_contract(
+    *,
+    canonical_path: str,
+    status_field: str,
+    reason_field: str,
+    source_field: str,
+    evidence_field: str,
+) -> dict[str, Any]:
+    return {
+        "version": DATA_PLANE_SSOT_CONTRACT_VERSION,
+        "canonical_path": canonical_path,
+        "consumer_mode": "read_only",
+        "status_field": status_field,
+        "reason_field": reason_field,
+        "source_field": source_field,
+        "evidence_field": evidence_field,
+        "allowlist_paths": list(DATA_PLANE_CONSUMER_ALLOWLIST),
+        "forbid": [
+            "logs",
+            "ad_hoc_fields",
+            "secondary_recompute_when_canonical_present",
+        ],
+    }
+
+
+def _system_health_contract() -> dict[str, Any]:
+    return {
+        "version": DATA_PLANE_SSOT_CONTRACT_VERSION,
+        "preferred_consumer_path": "data/state/system_health_latest.json",
+        "consumer_mode": "read_only",
+        "allowlist_paths": list(DATA_PLANE_CONSUMER_ALLOWLIST),
+        "readiness_status_field": "ssot_status",
+        "readiness_reason_field": "ssot_reason",
+        "readiness_source_field": "ssot_source",
+        "readiness_evidence_field": "ssot_evidence",
+        "freshness_component_field": "components.freshness",
+        "coverage_component_field": "components.coverage_matrix",
+        "forbid": [
+            "logs",
+            "ad_hoc_fields",
+            "secondary_recompute_when_system_health_present",
+        ],
+    }
+
+
 def _freshness_gate_fields(status_raw: Any, reason_raw: Any) -> tuple[bool, str]:
     status = _normalize_simple_status(status_raw)
     reason = str(reason_raw or "").strip()
@@ -171,6 +237,7 @@ def _canonicalize_freshness_row(
     status: object,
     source: Optional[str],
     reason: Optional[str],
+    evidence: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
     Enforce deterministic row schema for ops-grade freshness output.
@@ -201,6 +268,11 @@ def _canonicalize_freshness_row(
     reason_norm = "" if reason is None else str(reason).strip()
 
     is_usable, unusable_reason = _freshness_gate_fields(status_norm, reason_norm)
+    evidence_obj = evidence if isinstance(evidence, dict) else _contract_evidence(
+        evidence_type="path_mtime",
+        ref=source_norm,
+        observed_ts_utc=None,
+    )
 
     return {
         "symbol": symbol_norm,
@@ -210,6 +282,7 @@ def _canonicalize_freshness_row(
         "status": status_norm,
         "source": source_norm,
         "reason": reason_norm,
+        "evidence": evidence_obj,
         "is_usable": is_usable,
         "unusable_reason": unusable_reason,
     }
@@ -229,6 +302,13 @@ def _build_freshness_table(now_utc: str, rows: list[dict]) -> dict:
         "generated_utc": now_utc,
         "ts_utc": now_utc,
         "default_profile": DEFAULT_FRESHNESS_PROFILE,
+        "contract": _publication_contract(
+            canonical_path="data/state/freshness_table.json",
+            status_field="rows[].status",
+            reason_field="rows[].reason",
+            source_field="rows[].source",
+            evidence_field="rows[].evidence",
+        ),
         "thresholds": {k: dict(v) for k, v in FRESHNESS_THRESHOLDS.items()},
         "quality_gate": {
             "rule": "non_ok_or_missing_row => is_usable=false",
@@ -268,6 +348,13 @@ def _coverage_gate_fields(status_raw: Any) -> tuple[str, bool, str]:
     if normalized == "FAIL":
         return normalized, False, "coverage_blocked"
     return normalized, False, "coverage_unknown"
+
+
+def _coverage_reason(status_raw: Any, unusable_reason: str) -> str:
+    normalized = _normalize_coverage_status(status_raw)
+    if normalized == "PASS":
+        return ""
+    return unusable_reason or "coverage_unknown"
 
 
 def _collapse_system_status(statuses):
@@ -857,6 +944,40 @@ def _build_data_quality_gate_component(
     }
 
 
+def _component_reason(label: str, status: str, *, blocked: int = 0, total: int = 0, max_age_h: float | None = None) -> str:
+    normalized = _normalize_simple_status(status)
+    if label == "freshness":
+        if normalized == "OK":
+            return "freshness_ok"
+        if normalized == "FAIL":
+            return f"freshness_blocked:non_ok_rows={blocked}"
+        if normalized == "WARN":
+            if max_age_h is not None:
+                return f"freshness_stale:max_age_h={round(max_age_h, 1)}"
+            return f"freshness_stale:non_ok_rows={blocked}"
+        return "freshness_unknown"
+
+    if normalized == "OK":
+        return "coverage_ok"
+    if normalized == "FAIL":
+        return f"coverage_blocked:blocking_rows={blocked}"
+    if normalized == "WARN":
+        return f"coverage_degraded:rows_total={total}"
+    return "coverage_unknown"
+
+
+def _system_health_reason(component_statuses: dict[str, str]) -> str:
+    failed = sorted(name for name, status in component_statuses.items() if status == "FAIL")
+    degraded = sorted(
+        name for name, status in component_statuses.items() if status in {"WARN", "UNKNOWN"}
+    )
+    if failed:
+        return "component_fail:" + ",".join(failed)
+    if degraded:
+        return "component_warn_or_unknown:" + ",".join(degraded)
+    return "all_components_ok"
+
+
 def _strategy_pool_top_entries(pool_data: dict[str, Any], top_n: int = 5) -> list[dict[str, Any]]:
     rows = pool_data.get("candidates", []) if isinstance(pool_data, dict) else []
     out: list[dict[str, Any]] = []
@@ -1420,6 +1541,7 @@ def _build_daily_report_payload(
         "sources": {
             "system_health_latest": _source_meta(STATE_DIR / "system_health_latest.json", now_ts),
             "freshness_table": _source_meta(STATE_DIR / "freshness_table.json", now_ts),
+            "coverage_matrix_latest": _source_meta(STATE_DIR / "coverage_matrix_latest.json", now_ts),
             "cmc_market_intel_coverage_latest.json": _source_meta(STATE_DIR / "cmc_market_intel_coverage_latest.json", now_ts),
             "strategy_pool_summary": _source_meta(STATE_DIR / "strategy_pool_summary.json", now_ts),
             "strategy_pool": _source_meta(STATE_DIR / "strategy_pool.json", now_ts),
@@ -1591,6 +1713,11 @@ def main():
                     status=status,
                     source=source,
                     reason=reason,
+                    evidence=_contract_evidence(
+                        evidence_type="path_mtime",
+                        ref=source,
+                        observed_ts_utc=_path_mtime_utc(p) if p.exists() else None,
+                    ),
                 )
             )
 
@@ -1675,6 +1802,8 @@ def main():
     for (sym, tf), r in latest_per_key.items():
         status_raw = r.get("status", "").upper()
         status_map, is_usable, unusable_reason = _coverage_gate_fields(status_raw)
+        coverage_key = r.get("coverage_key", {}) if isinstance(r.get("coverage_key"), dict) else {}
+        regime = str(coverage_key.get("regime") or "UNKNOWN")
         
         # Best effort for earliest/latest from results or fallback to record timestamps
         res = r.get("results", {})
@@ -1711,6 +1840,13 @@ def main():
             "latest": latest,
             "lag_hours": lag_h,
             "status": status_map,
+            "reason": _coverage_reason(status_raw, unusable_reason),
+            "source": "data/state/coverage_table.jsonl",
+            "evidence": _contract_evidence(
+                evidence_type="coverage_table_row",
+                ref=f"data/state/coverage_table.jsonl#{sym}:{tf}:{regime}",
+                observed_ts_utc=str(r.get("updated_utc") or r.get("created_utc") or now_utc),
+            ),
             "is_usable": is_usable,
             "unusable_reason": unusable_reason,
         })
@@ -1719,6 +1855,13 @@ def main():
     data_quality_gate = _build_data_quality_gate_component(freshness_matrix, matrix_rows)
     matrix_snapshot = {
         "ts_utc": now_utc,
+        "contract": _publication_contract(
+            canonical_path="data/state/coverage_matrix_latest.json",
+            status_field="rows[].status",
+            reason_field="rows[].reason",
+            source_field="rows[].source",
+            evidence_field="rows[].evidence",
+        ),
         "rows": sorted(matrix_rows, key=lambda x: (x["symbol"], x["tf"])),
         "totals": totals,
         "quality_gate": {
@@ -1994,11 +2137,28 @@ def main():
     ssot_status = _collapse_system_status(
         [freshness_status, coverage_as_health, brake_status, regime_monitor_status, cost_status]
     )
+    system_health_component_statuses = {
+        "freshness": freshness_status,
+        "coverage_matrix": coverage_as_health,
+        "brake": brake_status,
+        "regime_monitor": regime_monitor_status,
+        "cost_sensitivity": cost_status,
+    }
+    ssot_reason = _system_health_reason(system_health_component_statuses)
 
     system_health = {
         "generated_utc": now_utc,
+        "contract": _system_health_contract(),
         "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
         "ssot_status": ssot_status,
+        "ssot_reason": ssot_reason,
+        "ssot_source": "data/state/system_health_latest.json",
+        "ssot_evidence": _contract_evidence(
+            evidence_type="state_snapshot",
+            ref="data/state/system_health_latest.json#components",
+            observed_ts_utc=now_utc,
+        ),
+        "ssot_evidence_ref": "data/state/system_health_latest.json#components",
         "refresh_hint": "bash scripts/refresh_state.sh",
         "components": {
             "freshness": {
@@ -2006,6 +2166,19 @@ def main():
                 "max_age_h": round(freshness_max_age, 1) if freshness_max_age is not None else None,
                 "non_ok_rows": freshness_non_ok,
                 "rows_total": len(fresh_rows) if isinstance(fresh_rows, list) else 0,
+                "reason": _component_reason(
+                    "freshness",
+                    freshness_status,
+                    blocked=freshness_non_ok,
+                    total=len(fresh_rows) if isinstance(fresh_rows, list) else 0,
+                    max_age_h=freshness_max_age,
+                ),
+                "source": "data/state/freshness_table.json",
+                "evidence": _contract_evidence(
+                    evidence_type="state_snapshot",
+                    ref="data/state/freshness_table.json#quality_gate",
+                    observed_ts_utc=str(freshness_table.get("ts_utc") or now_utc),
+                ),
             },
             "coverage_matrix": {
                 "status": coverage_status,
@@ -2014,6 +2187,19 @@ def main():
                 "blocked": cov_blocked,
                 "rebase": cov_rebase,
                 "max_lag_h": round(coverage_max_lag, 1) if coverage_max_lag is not None else None,
+                "reason": _component_reason(
+                    "coverage_matrix",
+                    coverage_status,
+                    blocked=cov_blocked + cov_rebase,
+                    total=cov_total,
+                    max_age_h=coverage_max_lag,
+                ),
+                "source": "data/state/coverage_matrix_latest.json",
+                "evidence": _contract_evidence(
+                    evidence_type="state_snapshot",
+                    ref="data/state/coverage_matrix_latest.json#quality_gate",
+                    observed_ts_utc=str(matrix_snapshot.get("ts_utc") or now_utc),
+                ),
             },
             "data_quality_gate": data_quality_gate,
             "brake": {

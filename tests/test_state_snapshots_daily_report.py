@@ -40,8 +40,18 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
             "ssot_status": "OK",
             "refresh_hint": "bash scripts/refresh_state.sh",
             "components": {
-                "freshness": {"status": "OK"},
-                "coverage_matrix": {"status": "PASS"},
+                "freshness": {
+                    "status": "OK",
+                    "reason": "all_rows_ok",
+                    "source": "data/state/freshness_table.json",
+                    "evidence": {"type": "state_snapshot", "ref": "data/state/freshness_table.json#quality_gate", "observed_ts_utc": "2026-02-27T00:00:00Z"},
+                },
+                "coverage_matrix": {
+                    "status": "PASS",
+                    "reason": "all_rows_pass",
+                    "source": "data/state/coverage_matrix_latest.json",
+                    "evidence": {"type": "state_snapshot", "ref": "data/state/coverage_matrix_latest.json#quality_gate", "observed_ts_utc": "2026-02-27T00:00:00Z"},
+                },
                 "data_quality_gate": {"status": "FAIL", "is_usable": False, "blocking_rows": []},
                 "brake": {"status": "OK"},
                 "watchdog": {
@@ -145,6 +155,8 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["ssot_components"]["data_quality_gate"]["is_usable"] is False
     assert payload["ssot_components"]["watchdog"]["last_check_age_sec"] == 120
     assert payload["ssot_components"]["data_catalog_changes"]["status"] == "WARN"
+    assert payload["ssot_components"]["freshness"]["source"] == "data/state/freshness_table.json"
+    assert payload["ssot_components"]["coverage_matrix"]["source"] == "data/state/coverage_matrix_latest.json"
     assert payload["ssot_components"]["data_catalog_changes"]["summary"] == "Dataset changes: +1, ~0, -0 | manifest warnings=1"
     assert payload["ssot_components"]["regime_signal"]["threshold_value"] == -0.0353
     assert payload["ssot_components"]["regime_signal"]["threshold_source_path"] == "reports/strategy_research/phase3/phase3_results.json"
@@ -162,6 +174,7 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert direction_cov["short_coverage"]["candidates"] == 0
     assert direction_cov["short_coverage"]["best_entry"] is None
     assert direction_cov["short_coverage"]["best_entry_reason"] == "no_short_candidates"
+    assert "coverage_matrix_latest" in payload["sources"]
 
 
 def test_daily_report_short_coverage_marks_missing_metrics_unknown(tmp_path: Path):
