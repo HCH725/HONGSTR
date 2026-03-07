@@ -22,6 +22,29 @@ The first four steps are non-blocking. If one fetcher fails, the runner prints `
 
 Each fetcher step is also bounded by a soft timeout (`DATA_PLANE_STEP_TIMEOUT_SEC`, default `45`) so a stuck upstream request does not hold the whole schedule indefinitely.
 
+## Stage 1 Raw / Backfill Orchestration
+
+`scripts/data_plane_run.sh` is not the Stage 1 raw market-data backfill job. Stage 1 raw/backfill closure continues to use the dedicated orchestration entrypoints below:
+
+```bash
+bash scripts/daily_etl.sh
+bash scripts/backfill_1m_from_2020.sh
+```
+
+- `daily_etl.sh`
+  - Default role: incremental 1m refresh for the recent window (`START_DATE` defaults to the last 3 UTC days, `END_DATE=now`).
+  - Per symbol it runs `scripts/ingest_historical.py --tf 1m`, then `scripts/aggregate_data.py`, then `scripts/check_data_coverage.sh`.
+- `backfill_1m_from_2020.sh`
+  - Default role: long-range 1m backfill from `2020-01-01` through `now`.
+  - Per symbol it runs the same canonical sequence: `ingest_historical.py --tf 1m` -> `aggregate_data.py` -> `check_data_coverage.sh`.
+
+This separation is intentional:
+
+- `daily_etl.sh` / `backfill_1m_from_2020.sh` are the Stage 1 raw/backfill orchestration paths for Binance futures-derived klines.
+- `scripts/data_plane_run.sh` is the unified research/public fetch + state refresh job described in this document.
+
+These Stage 1 orchestration scripts do not define the `is_usable=false` quality gate or the broader `coverage / freshness / readiness` publication contract. Those remain separate closure tracks.
+
 ## Writer Boundary
 
 - Fetchers write only to `data/derived/**` and `reports/state_atomic/**`.
