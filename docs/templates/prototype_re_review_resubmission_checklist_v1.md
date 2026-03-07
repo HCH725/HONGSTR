@@ -147,11 +147,13 @@ Blocker-reference applicability hint rule:
 Review note reference:
 
 - Applicability hint: `if present`
+- Ordering hint: `review note first`
 - `<single link: PR comment link>`
 
 Closure evidence reference:
 
 - Applicability hint: `only when closure proof exists`
+- Ordering hint: `closure evidence next`
 - `<one-or-more links: supporting doc link>`
 
 ## 2. Evidence Refresh
@@ -173,6 +175,7 @@ Closure evidence reference:
 Fix evidence reference:
 
 - Applicability hint: `when requested`
+- Ordering hint: `fix evidence next`
 - `<one-or-more links: evidence summary section link / template diff link>`
 
 ## 3. Package Consistency
@@ -190,6 +193,7 @@ Fix evidence reference:
 Supporting evidence reference:
 
 - Applicability hint: `if applicable`
+- Ordering hint: `supporting evidence last`
 - `<multiple links: supporting doc link>`
 
 ## 4. Boundary Re-Check

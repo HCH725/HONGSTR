@@ -358,6 +358,7 @@ Read these rules before using any term below.
   - using raw target-hint prose such as `request-changes note / PR comment / review thread` or `updated evidence summary / review template / diff` instead of the canonical blocker-reference-target hint labels
   - using blocker-reference ordering hint labels as if they were blocker-evidence-reference labels themselves
   - using blocker-reference applicability hint labels as if they were blocker-evidence-reference labels themselves
+  - using blocker-reference placeholder shapes as if they were blocker-evidence-reference labels themselves
   - using blocker-closure-status labels or required-fix labels as if they were evidence-reference labels
 - Example value: `fix evidence reference = docs/reviews/prototype-central-steward-shadow/evidence-summary.md#canonical-overlap`
 
@@ -385,6 +386,7 @@ Read these rules before using any term below.
   - using raw singular/plural `link` or `links` where the doc should also declare the canonical blocker-reference multiplicity hint
   - using target-hint labels as if they were blocker-reference ordering hint labels
   - using target-hint labels as if they were blocker-reference applicability hint labels
+  - using target-hint labels as if they were blocker-reference placeholder shapes
   - using target-hint labels as if they were blocker-evidence-reference labels themselves
 - Example value: `review note reference = PR comment link`
 
@@ -410,6 +412,7 @@ Read these rules before using any term below.
   - using prose such as `plus any needed` instead of the normalized `one-or-more links`
   - using multiplicity hints as if they were blocker-reference ordering hint labels
   - using multiplicity hints as if they were blocker-reference applicability hint labels
+  - using multiplicity hints as if they were blocker-reference placeholder shapes
   - using multiplicity hints as if they were blocker-evidence-reference labels or blocker-reference-target hint labels
 - Example value: `fix evidence reference = one-or-more links + evidence summary section link / template diff link`
 
@@ -435,6 +438,7 @@ Read these rules before using any term below.
   - leaving the grouped blocker-proof order implicit when multiple blocker-evidence-reference fields are shown together
   - putting `supporting evidence reference` ahead of the governing `review note reference` or ahead of closure/fix proof in a grouped list
   - using ordering hints as if they were blocker-reference applicability hint labels
+  - using ordering hints as if they were blocker-reference placeholder shapes
   - using ordering hints as if they were blocker-evidence-reference labels, blocker-reference-target hint labels, or blocker-reference multiplicity hint labels
 - Example value: `blocker evidence references = review note first + closure evidence next + fix evidence next + supporting evidence last`
 
@@ -459,10 +463,36 @@ Read these rules before using any term below.
 - Common misuse:
   - leaving blocker-proof applicability implicit when a field may be omitted in one flow and required in another
   - using broad prose such as `applicable`, `as applicable`, or `if available` instead of the canonical applicability hint labels
+  - using applicability hints as if they were blocker-reference placeholder shapes
   - using applicability hints as if they were blocker-evidence-reference labels, blocker-reference-target hint labels, blocker-reference multiplicity hint labels, or blocker-reference ordering hint labels
 - Example value: `closure evidence reference = only when closure proof exists`
 
-### 3.20 `assessment status`
+### 3.20 `blocker reference placeholder shape`
+
+- Definition: the normalized display shape used to render a blocker-evidence-reference field together with its applicability hint, ordering hint, and angle-bracket placeholder.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+- Required or optional: required where the docs provide a concrete blocker-proof placeholder block rather than prose only.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_placeholder_shape_alignment_record_v1.md`
+- Canonical placeholder-shape parts:
+  - `Applicability hint: ...`
+  - `Ordering hint: ...`
+  - `<single link: ...>`
+  - `<multiple links: ...>`
+  - `<one-or-more links: ...>`
+- Common misuse:
+  - using inline `field: <...>` placeholder shapes where the canonical stacked field block should be used
+  - omitting `Applicability hint:` or `Ordering hint:` from a field block while still relying on those semantics
+  - treating placeholder shape parts as if they were blocker-evidence-reference labels or hint-label enums
+- Example value: `Review note reference:` + `Applicability hint: if present` + `Ordering hint: review note first` + `<single link: PR comment link>`
+
+### 3.21 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -484,7 +514,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.21 `reviewer response state`
+### 3.22 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -508,7 +538,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.22 `decision outcome`
+### 3.23 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -534,7 +564,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.23 `next action`
+### 3.24 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -559,7 +589,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.24 `boundary check labels`
+### 3.25 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -595,6 +625,7 @@ Do not let any of these drift patterns enter the package:
 - using ad hoc singular/plural link prose instead of the canonical blocker-reference multiplicity hint labels
 - using ad hoc blocker-proof ordering prose instead of the canonical blocker-reference ordering hint labels
 - using ad hoc blocker-proof applicability prose instead of the canonical blocker-reference applicability hint labels
+- using ad hoc blocker-reference placeholder formatting instead of the canonical placeholder shape
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category
