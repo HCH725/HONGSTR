@@ -11,13 +11,15 @@ Executing minor fixes or documentation updates that strictly reside within the "
 
 - ONLY files documented in `.agent/rules/03-safe-edit-allowlist.md`.
 - Read and write access to `docs/**`, `AGENTS.md`, and `.agent/**`.
+- GitHub branch, commit, push, and PR creation (see `05-governance-actions-allowed.md`).
 
 **Workflow Steps:**
 
 1. Confirm the target file is in the safe allowlist.
 2. If NOT, ABORT and output `hongstr-handoff-to-codex.md`.
 3. If YES, implement the small fix or formatting change.
-4. Always open a PR containing the PR Output Contract (`02-pr-output-contract.md`).
+4. Execute the bounded delivery: `git checkout -b`, `git commit`, `git push`.
+5. Always open a PR containing the PR Output Contract (`02-pr-output-contract.md`) via Google/GitHub tooling.
 
 **Output Format:**
 

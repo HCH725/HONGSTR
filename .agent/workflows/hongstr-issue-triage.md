@@ -12,6 +12,7 @@ Evaluating a new Linear issue, aligning it with the Master Overview (HONG-15), a
 - Reading Linear issues
 - Querying GitHub status
 - Categorizing issue text and mapping to Stage Registry keys.
+- **NEW**: Creating or updating Linear tracking issues to assign sandbox/provisional status (see `05-governance-actions-allowed.md`).
 - NO core code modifications.
 
 **Workflow Steps:**
@@ -20,6 +21,7 @@ Evaluating a new Linear issue, aligning it with the Master Overview (HONG-15), a
 2. Determine if the issue falls under P0-P9 boundaries.
 3. Check `01-task-routing.md` to determine if it is "Mainline" or "Sandbox".
 4. Determine if it attempts to break the SSOT boundaries, Core Engine, or Control Plane restrictions.
+5. Create or update the Linear tracking item with the triage result.
 
 **Output Format:**
 A short Triage Report containing:

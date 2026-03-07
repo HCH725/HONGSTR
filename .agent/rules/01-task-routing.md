@@ -29,5 +29,6 @@ You are only authorized to proceed if the task is routed as:
 - Governance / Process alignment
 - Sandbox `.agent` rules/workflows updates
 - Read-only code review or audit support
+- **External Governance Actions**: Creating/updating Linear items or managing GitHub PRs for bounded delivery (see `05-governance-actions-allowed.md`).
 
 If the task falls outside these allowed routes, utilize the `hongstr-handoff-to-codex` workflow.
