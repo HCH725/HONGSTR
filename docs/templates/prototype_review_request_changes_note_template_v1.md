@@ -78,6 +78,14 @@ Blocker-closure-status rule:
   - `not applicable`
   - `unresolved`
 
+Blocker-evidence-reference rule:
+
+- when blocker proof is cited in this note or the later resubmission flow, use:
+  - `closure evidence reference`
+  - `fix evidence reference`
+  - `review note reference`
+  - `supporting evidence reference`
+
 ## 1. Basic Information
 
 | Field | Value |
@@ -87,6 +95,8 @@ Blocker-closure-status rule:
 | `reviewer` | `<name or handle>` |
 | `author` | `<name or handle>` |
 | `related_prs` | `<PR links>` |
+| `review note reference` | `<link to this request-changes note / PR comment / review thread>` |
+| `supporting evidence reference` | `<related evidence summary / docs / diff links>` |
 | `related_docs` | `docs/templates/prototype_review_reviewer_checklist_v1.md`, `docs/templates/prototype_review_decision_record_template_v1.md`, `docs/ops/prototype_review_kickoff_sop_v1.md` |
 
 ## 2. Request-Changes Reason
@@ -149,6 +159,10 @@ If `yes`, split guidance:
 
 - `<what must move to a separate PR>`
 
+Fix evidence reference:
+
+- `<where the updated evidence summary / template / diff should be linked during resubmission>`
+
 ## 4. Re-Review Conditions
 
 Re-review may start only after all required conditions below are true.
@@ -170,9 +184,9 @@ Evidence summary needs to be resubmitted:
 
 - `<yes / no>`
 
-Re-review note:
+Closure evidence reference:
 
-- `<what specifically must be true before re-review>`
+- `<where the resubmission should point once each blocker is marked completed or not applicable>`
 
 ## 5. Kill Switch / Stop Condition
 

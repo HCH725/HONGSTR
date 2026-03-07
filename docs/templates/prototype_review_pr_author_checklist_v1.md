@@ -29,6 +29,7 @@ Reviewer-side validation belongs in `docs/templates/prototype_review_reviewer_ch
 If this PR is being resubmitted after a `request-changes note`, also use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`.
 For canonical blocker-closure wording in that resubmission flow, use `docs/ops/prototype_required_fix_alignment_record_v1.md`.
 For canonical blocker-closure status wording in that resubmission flow, use `docs/ops/prototype_blocker_closure_status_alignment_record_v1.md`.
+For canonical blocker-evidence-reference wording in that resubmission flow, use `docs/ops/prototype_blocker_evidence_reference_alignment_record_v1.md`.
 
 It does not replace:
 
@@ -120,6 +121,7 @@ If this is a `retirement-review`:
 
 - [ ] The correct review template is attached or copied into the PR.
 - [ ] The evidence summary is attached or linked.
+- [ ] If this is a resubmission, the package includes the `review note reference` plus any needed `closure evidence reference`, `fix evidence reference`, and `supporting evidence reference`.
 - [ ] The observation window is stated clearly.
 - [ ] The current recommendation is stated clearly:
   - `keep`

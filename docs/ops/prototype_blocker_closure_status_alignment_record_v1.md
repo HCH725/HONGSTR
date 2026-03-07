@@ -68,6 +68,7 @@ Use these canonical blocker-closure-status labels:
 Field split rule:
 
 - blocker-closure status is not a required-fix label
+- blocker-closure status is not a blocker-evidence-reference label; those labels are governed by `docs/ops/prototype_blocker_evidence_reference_alignment_record_v1.md`
 - blocker-closure status is not a request-changes reason
 - blocker-closure status is not a reviewer response-state enum
 - resubmission should generally proceed only when blocker items are `completed` or `not applicable`
