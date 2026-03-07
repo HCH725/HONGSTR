@@ -36,7 +36,7 @@
 
 ## Evidence
 
-*(Note: Automated Reviewer outputs are advisory / non-blocking. Final evidence sufficiency is judged by Human/Chief Steward)*
+> Note: Automated Reviewer outputs are advisory / non-blocking. Final evidence sufficiency is judged by Human/Chief Steward
 
 -
 
