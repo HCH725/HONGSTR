@@ -42,7 +42,17 @@ FRESHNESS_THRESHOLDS = {
     "realtime": {"ok_h": 0.1, "warn_h": 0.25, "fail_h": 1.0},
     "backtest": {"ok_h": 26.0, "warn_h": 50.0, "fail_h": 72.0},
 }
-FRESHNESS_ROW_KEYS = ("symbol", "tf", "profile", "age_h", "status", "source", "reason")
+FRESHNESS_ROW_KEYS = (
+    "symbol",
+    "tf",
+    "profile",
+    "age_h",
+    "status",
+    "source",
+    "reason",
+    "is_usable",
+    "unusable_reason",
+)
 DAILY_REPORT_SCHEMA_VERSION = "daily_report.v1"
 DAILY_REPORT_TOP_LEVEL_ORDER = [
     "schema",
@@ -80,6 +90,7 @@ DAILY_REPORT_FIELD_LABELS_ZH_EN = {
     "sources.worker_inbox": {"zh": "Worker 收件匣來源", "en": "sources.worker_inbox"},
     "latest_backtest_head.source": {"zh": "最新回測來源", "en": "latest_backtest_head.source"},
     "ssot_components.cost_sensitivity": {"zh": "成本敏感度摘要", "en": "ssot_components.cost_sensitivity"},
+    "ssot_components.data_quality_gate": {"zh": "資料品質Gate摘要", "en": "ssot_components.data_quality_gate"},
     "ssot_components.watchdog": {"zh": "Watchdog摘要", "en": "ssot_components.watchdog"},
     "ssot_components.data_catalog_changes": {"zh": "資料目錄變更摘要", "en": "ssot_components.data_catalog_changes"},
     "ssot_components.regime_signal.threshold_value": {"zh": "RegimeSignal門檻值", "en": "ssot_components.regime_signal.threshold_value"},
@@ -105,6 +116,20 @@ def _normalize_simple_status(status_raw):
     if status in {"OK", "PASS", "WARN", "FAIL", "UNKNOWN"}:
         return status
     return "UNKNOWN"
+
+
+def _freshness_gate_fields(status_raw: Any, reason_raw: Any) -> tuple[bool, str]:
+    status = _normalize_simple_status(status_raw)
+    reason = str(reason_raw or "").strip()
+    if status == "OK":
+        return True, ""
+    if reason:
+        return False, reason
+    if status == "WARN":
+        return False, "stale"
+    if status == "FAIL":
+        return False, "missing_or_unreadable_source"
+    return False, "unknown_gate_state"
 
 
 def _freshness_profile_from_source(source: Optional[str], default_profile: str = DEFAULT_FRESHNESS_PROFILE) -> str:
@@ -175,6 +200,8 @@ def _canonicalize_freshness_row(
 
     reason_norm = "" if reason is None else str(reason).strip()
 
+    is_usable, unusable_reason = _freshness_gate_fields(status_norm, reason_norm)
+
     return {
         "symbol": symbol_norm,
         "tf": tf_norm,
@@ -183,15 +210,32 @@ def _canonicalize_freshness_row(
         "status": status_norm,
         "source": source_norm,
         "reason": reason_norm,
+        "is_usable": is_usable,
+        "unusable_reason": unusable_reason,
     }
 
 
 def _build_freshness_table(now_utc: str, rows: list[dict]) -> dict:
+    usable_rows = 0
+    unusable_rows = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if bool(row.get("is_usable")):
+            usable_rows += 1
+        else:
+            unusable_rows += 1
     return {
         "generated_utc": now_utc,
         "ts_utc": now_utc,
         "default_profile": DEFAULT_FRESHNESS_PROFILE,
         "thresholds": {k: dict(v) for k, v in FRESHNESS_THRESHOLDS.items()},
+        "quality_gate": {
+            "rule": "non_ok_or_missing_row => is_usable=false",
+            "is_usable": unusable_rows == 0 and usable_rows > 0,
+            "usable_rows": usable_rows,
+            "unusable_rows": unusable_rows,
+        },
         "rows": rows,
     }
 
@@ -207,6 +251,23 @@ def _normalize_coverage_status(status_raw):
     if status == "NEEDS_REBASE":
         return "NEEDS_REBASE"
     return "UNKNOWN"
+
+
+def _coverage_gate_fields(status_raw: Any) -> tuple[str, bool, str]:
+    normalized = _normalize_coverage_status(status_raw)
+    if normalized == "PASS":
+        return normalized, True, ""
+
+    raw = str(status_raw or "").upper().strip()
+    if raw == "BLOCKED_DATA_QUALITY":
+        return normalized, False, "blocked_data_quality"
+    if raw == "IN_PROGRESS" or normalized == "WARN":
+        return normalized, False, "coverage_in_progress"
+    if normalized == "NEEDS_REBASE":
+        return normalized, False, "needs_rebase"
+    if normalized == "FAIL":
+        return normalized, False, "coverage_blocked"
+    return normalized, False, "coverage_unknown"
 
 
 def _collapse_system_status(statuses):
@@ -725,8 +786,74 @@ def _freshness_summary(freshness_table: dict[str, Any]) -> dict[str, Any]:
         "counts": counts,
         "profile_totals": profile_totals,
         "total_rows": sum(counts.values()),
+        "usable_rows": counts["OK"],
+        "unusable_rows": counts["WARN"] + counts["FAIL"] + counts["UNKNOWN"],
         "max_age_h": round(max_age_h, 1) if max_age_h is not None else None,
         "top_offenders": offenders_sorted[:5],
+    }
+
+
+def _build_data_quality_gate_component(
+    freshness_rows: list[dict[str, Any]] | Any,
+    coverage_rows: list[dict[str, Any]] | Any,
+) -> dict[str, Any]:
+    blockers: list[dict[str, Any]] = []
+    freshness_total = 0
+    coverage_total = 0
+
+    if isinstance(freshness_rows, list):
+        for row in freshness_rows:
+            if not isinstance(row, dict):
+                continue
+            freshness_total += 1
+            if bool(row.get("is_usable")):
+                continue
+            blockers.append(
+                {
+                    "kind": "freshness",
+                    "symbol": str(row.get("symbol") or "UNKNOWN"),
+                    "tf": str(row.get("tf") or "UNKNOWN"),
+                    "status": _normalize_simple_status(row.get("status")),
+                    "is_usable": False,
+                    "reason": str(row.get("unusable_reason") or row.get("reason") or "unknown_gate_state"),
+                }
+            )
+
+    if isinstance(coverage_rows, list):
+        for row in coverage_rows:
+            if not isinstance(row, dict):
+                continue
+            coverage_total += 1
+            if bool(row.get("is_usable")):
+                continue
+            blockers.append(
+                {
+                    "kind": "coverage_matrix",
+                    "symbol": str(row.get("symbol") or "UNKNOWN"),
+                    "tf": str(row.get("tf") or "UNKNOWN"),
+                    "status": _normalize_coverage_status(row.get("status")),
+                    "is_usable": False,
+                    "reason": str(row.get("unusable_reason") or "coverage_unknown"),
+                }
+            )
+
+    if freshness_total <= 0 and coverage_total <= 0:
+        status = "UNKNOWN"
+        is_usable = False
+    elif blockers:
+        status = "FAIL"
+        is_usable = False
+    else:
+        status = "PASS"
+        is_usable = True
+
+    return {
+        "status": status,
+        "is_usable": is_usable,
+        "rule": "gap_or_stale_or_missing_or_unknown => is_usable=false",
+        "freshness_rows_total": freshness_total,
+        "coverage_rows_total": coverage_total,
+        "blocking_rows": blockers[:10],
     }
 
 
@@ -1547,10 +1674,7 @@ def main():
 
     for (sym, tf), r in latest_per_key.items():
         status_raw = r.get("status", "").upper()
-        status_map = "FAIL"
-        if status_raw == "DONE": status_map = "PASS"
-        elif status_raw == "IN_PROGRESS": status_map = "WARN"
-        elif status_raw == "NEEDS_REBASE": status_map = "NEEDS_REBASE"
+        status_map, is_usable, unusable_reason = _coverage_gate_fields(status_raw)
         
         # Best effort for earliest/latest from results or fallback to record timestamps
         res = r.get("results", {})
@@ -1586,13 +1710,22 @@ def main():
             "earliest": earliest,
             "latest": latest,
             "lag_hours": lag_h,
-            "status": status_map
+            "status": status_map,
+            "is_usable": is_usable,
+            "unusable_reason": unusable_reason,
         })
 
+    coverage_quality_gate = _build_data_quality_gate_component([], matrix_rows)
+    data_quality_gate = _build_data_quality_gate_component(freshness_matrix, matrix_rows)
     matrix_snapshot = {
         "ts_utc": now_utc,
         "rows": sorted(matrix_rows, key=lambda x: (x["symbol"], x["tf"])),
-        "totals": totals
+        "totals": totals,
+        "quality_gate": {
+            "rule": "non_pass_coverage_row => is_usable=false",
+            "is_usable": bool(coverage_quality_gate.get("is_usable")),
+            "blocking_rows": coverage_quality_gate.get("blocking_rows", [])[:10],
+        },
     }
     write_json(STATE_DIR / "coverage_matrix_latest.json", matrix_snapshot)
 
@@ -1882,6 +2015,7 @@ def main():
                 "rebase": cov_rebase,
                 "max_lag_h": round(coverage_max_lag, 1) if coverage_max_lag is not None else None,
             },
+            "data_quality_gate": data_quality_gate,
             "brake": {
                 "status": brake_status,
             },

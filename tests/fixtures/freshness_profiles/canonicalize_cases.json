@@ -15,7 +15,9 @@
       "age_h": 20.0,
       "status": "WARN",
       "source": "data/derived/BTCUSDT/1m/klines.jsonl",
-      "reason": ""
+      "reason": "",
+      "is_usable": false,
+      "unusable_reason": "stale"
     }
   },
   {
@@ -34,7 +36,9 @@
       "age_h": null,
       "status": "UNKNOWN",
       "source": "data/derived/UNKNOWN/UNKNOWN/klines.jsonl",
-      "reason": "stale"
+      "reason": "stale",
+      "is_usable": false,
+      "unusable_reason": "stale"
     }
   }
 ]
