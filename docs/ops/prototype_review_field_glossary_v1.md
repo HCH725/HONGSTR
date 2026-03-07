@@ -626,11 +626,18 @@ Read these rules before using any term below.
   - use `outside the live field block` when the sentence must explicitly exclude a bare placeholder snippet from the stacked live field block
   - use `in non-live context` when the sentence must explicitly name the explanatory-inline scope
   - keep these contrast sentences distinct from `live blocker-evidence-reference field`, `live fill-in field`, `live field block`, `explanatory prose`, `compact table cell`, and `inline placeholder-only fragment`
+- Example punctuation/style rule:
+  - keep sentence case
+  - keep the terminal period
+  - do not join multiple canonical short examples with `/`
+  - do not add parenthetical supplements inside the short example text
+  - do not use semicolons or dashes inside the short example text
 - Common misuse:
   - using `not as a live fill-in field` instead of the canonical direct contrast sentence
   - using `in that non-live context` or `compressed non-live reminder context` instead of `in non-live context`
   - leaving `outside the live field block` implicit when the sentence is specifically excluding bare placeholder snippets from the live field block
   - treating contrast-sentence combination rules as if they were the contrast sentences themselves
+  - treating contrast-sentence punctuation/style rules as if they were the contrast sentences themselves
   - treating contrast sentences as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
 - Example value: `In non-live context, this is not a live fill-in field.`
 
@@ -658,11 +665,15 @@ Read these rules before using any term below.
   - keep `outside the live field block` separate when the local point is the bare placeholder location
   - split once a third contrast point would create a long compound sentence
   - keep only the minimum necessary contrast sentence in the local reminder instead of inventorying all three every time
+- Example display rule:
+  - if multiple short examples are shown together, place them on separate labeled lines
+  - use `Scope plus exclusion short example:`, `Placeholder location short example:`, and `Live versus non-live short example:`
 - Common misuse:
   - combining all three contrast sentences into one long reminder line
   - splitting `in non-live context` and `not a live fill-in field` into separate lines when one short sentence would be clearer
   - repeating all three contrast sentences in checklist reminders without saying which one is locally needed
   - treating contrast-sentence example values as if they were the combination rules themselves
+  - treating contrast-sentence punctuation/style rules as if they were the combination rules themselves
   - treating combination rules as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, placeholder shapes, or the contrast sentences themselves
 - Example value: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
 

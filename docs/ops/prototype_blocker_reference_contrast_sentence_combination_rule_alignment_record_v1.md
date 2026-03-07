@@ -78,6 +78,7 @@ Field split rule:
 - contrast-sentence combination rules are not blocker-reference explanatory-inline cue phrases
 - contrast-sentence combination rules are not blocker-reference live-vs-non-live contrast sentences; those sentences are governed by `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
 - contrast-sentence combination rules are not blocker-reference contrast-sentence example values; those examples are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`
+- contrast-sentence combination rules are not blocker-reference contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
 - contrast-sentence combination rules are not blocker-reference-target hint labels
 - contrast-sentence combination rules are not blocker-reference multiplicity hint labels
 - contrast-sentence combination rules are not blocker-reference ordering hint labels
