@@ -72,6 +72,7 @@ Use these canonical blocker-reference-target hint labels:
 Field split rule:
 
 - blocker-reference-target hint labels are not blocker-evidence-reference labels
+- blocker-reference-target hint labels are not blocker-reference multiplicity hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md`
 - blocker-reference-target hint labels are not required-fix labels
 - blocker-reference-target hint labels are not blocker-closure-status labels
 - blocker-reference-target hint labels are not reviewer response-state enums

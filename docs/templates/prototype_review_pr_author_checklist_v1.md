@@ -31,6 +31,7 @@ For canonical blocker-closure wording in that resubmission flow, use `docs/ops/p
 For canonical blocker-closure status wording in that resubmission flow, use `docs/ops/prototype_blocker_closure_status_alignment_record_v1.md`.
 For canonical blocker-evidence-reference wording in that resubmission flow, use `docs/ops/prototype_blocker_evidence_reference_alignment_record_v1.md`.
 For canonical blocker-reference-target hint wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_target_hint_alignment_record_v1.md`.
+For canonical blocker-reference multiplicity hint wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md`.
 
 It does not replace:
 
@@ -122,8 +123,9 @@ If this is a `retirement-review`:
 
 - [ ] The correct review template is attached or copied into the PR.
 - [ ] The evidence summary is attached or linked.
-- [ ] If this is a resubmission, the package includes the `review note reference` plus any needed `closure evidence reference`, `fix evidence reference`, and `supporting evidence reference`.
+- [ ] If this is a resubmission, the package includes the `review note reference` and the applicable `closure evidence reference`, `fix evidence reference`, and `supporting evidence reference` fields.
 - [ ] If this is a resubmission, those evidence references use canonical target hints such as `PR comment link`, `evidence summary section link`, `template diff link`, or `supporting doc link`.
+- [ ] If this is a resubmission, those evidence references also use canonical multiplicity hints such as `single link`, `multiple links`, or `one-or-more links`.
 - [ ] The observation window is stated clearly.
 - [ ] The current recommendation is stated clearly:
   - `keep`

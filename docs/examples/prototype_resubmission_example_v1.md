@@ -86,9 +86,9 @@ Required fixes:
 - rollout wording removed: remove rollout-oriented wording from next action
 
 Re-review conditions:
-- review note reference: <PR comment link>
-- fix evidence reference: <evidence summary section link / template diff link>
-- supporting evidence reference: <supporting doc link>
+- review note reference: <single link: PR comment link>
+- fix evidence reference: <one-or-more links: evidence summary section link / template diff link>
+- supporting evidence reference: <multiple links: supporting doc link>
 - boundary wording clarified
 - request-changes items marked `completed`, `not completed`, `not applicable`, or `unresolved` as applicable
 ```
@@ -96,7 +96,7 @@ Re-review conditions:
 Use only canonical request-changes-reason labels in the structured reason field.
 Use canonical required-fix labels in the fix section.
 Use canonical blocker-closure-status labels when marking each request-changes item.
-Use canonical blocker-evidence-reference labels and canonical target hints when pointing to the note, evidence summary, template diff, or supporting docs for each blocker.
+Use canonical blocker-evidence-reference labels, canonical target hints, and canonical multiplicity hints when pointing to the note, evidence summary, template diff, or supporting docs for each blocker.
 Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
@@ -105,10 +105,10 @@ Keep prose such as `add missing canonical_overlap explanation` as supporting det
 ## Request-Changes Closure
 - [x] responded to every requested item
 - [x] marked each item `completed`, `not completed`, `not applicable`, or `unresolved`
-- review note reference: <PR comment link>
-- closure evidence reference: <supporting doc link>
-- fix evidence reference: <evidence summary section link / template diff link>
-- supporting evidence reference: <supporting doc link>
+- review note reference: <single link: PR comment link>
+- closure evidence reference: <one-or-more links: supporting doc link>
+- fix evidence reference: <one-or-more links: evidence summary section link / template diff link>
+- supporting evidence reference: <multiple links: supporting doc link>
 - [x] added requested docs clarifications
 
 ## Evidence Refresh
