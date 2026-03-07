@@ -174,12 +174,16 @@ def _system_health_contract() -> dict[str, Any]:
         "readiness_reason_field": "ssot_reason",
         "readiness_source_field": "ssot_source",
         "readiness_evidence_field": "ssot_evidence",
+        "refresh_hint_field": "refresh_hint",
         "freshness_component_field": "components.freshness",
         "coverage_component_field": "components.coverage_matrix",
+        "unknown_on_missing_or_unreadable": True,
+        "excluded_companion_components": ["regime_signal"],
         "forbid": [
             "logs",
             "ad_hoc_fields",
             "secondary_recompute_when_system_health_present",
+            "secondary_recompute_when_system_health_missing",
         ],
     }
 
@@ -1494,11 +1498,16 @@ def _build_daily_report_payload(
     loop_state: dict[str, Any],
     policy_payload: dict[str, Any],
     cmc_coverage: Optional[dict[str, Any]] = None,
+    regime_signal_summary: Optional[dict[str, Any]] = None,
     repo_root: Path,
 ) -> dict[str, Any]:
     components = system_health.get("components", {}) if isinstance(system_health, dict) else {}
     if not isinstance(components, dict):
         components = {}
+    else:
+        components = dict(components)
+    if isinstance(regime_signal_summary, dict) and regime_signal_summary:
+        components["regime_signal"] = dict(regime_signal_summary)
     pool_counts = strategy_pool_summary.get("counts", {}) if isinstance(strategy_pool_summary, dict) else {}
     if not isinstance(pool_counts, dict):
         pool_counts = {}
@@ -2149,7 +2158,7 @@ def main():
     system_health = {
         "generated_utc": now_utc,
         "contract": _system_health_contract(),
-        "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
+        "ssot_semantics": "SystemHealth only",
         "ssot_status": ssot_status,
         "ssot_reason": ssot_reason,
         "ssot_source": "data/state/system_health_latest.json",
@@ -2225,16 +2234,13 @@ def main():
                 "status": regime_monitor_status,
                 "age_h": round(regime_age_h, 1) if regime_age_h is not None else None,
                 "ok_within_h": regime_ok_h,
-            },
-            "regime_signal": {
-                "status": regime_signal,
-                "top_reason": regime_top_reason,
-                "threshold_value": regime_threshold_value,
-                "threshold_source_path": regime_threshold_source_path,
-                "threshold_policy_sha": regime_threshold_policy_sha,
-                "threshold_rationale": regime_threshold_rationale,
-                "calibration_status": regime_calibration_status,
-                "last_calibrated_utc": regime_last_calibrated_utc,
+                "reason": regime_top_reason or ("regime_monitor_fresh" if regime_monitor_status == "OK" else "regime_monitor_stale_or_unknown"),
+                "source": "data/state/regime_monitor_latest.json",
+                "evidence": _contract_evidence(
+                    evidence_type="state_snapshot",
+                    ref="data/state/regime_monitor_latest.json#overall",
+                    observed_ts_utc=str(regime_data.get("ts_utc") or now_utc),
+                ),
             },
         },
         "sources": {
@@ -2265,6 +2271,16 @@ def main():
         loop_state=loop_state if isinstance(loop_state, dict) else {},
         policy_payload=overfit_policy if isinstance(overfit_policy, dict) else {},
         cmc_coverage=cmc_cov_payload,
+        regime_signal_summary={
+            "status": regime_signal,
+            "top_reason": regime_top_reason,
+            "threshold_value": regime_threshold_value,
+            "threshold_source_path": regime_threshold_source_path,
+            "threshold_policy_sha": regime_threshold_policy_sha,
+            "threshold_rationale": regime_threshold_rationale,
+            "calibration_status": regime_calibration_status,
+            "last_calibrated_utc": regime_last_calibrated_utc,
+        },
         repo_root=Path(".").resolve(),
     )
     write_json(STATE_DIR / "daily_report_latest.json", daily_report_payload)

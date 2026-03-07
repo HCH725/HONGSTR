@@ -70,16 +70,6 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
                     "warning_count": 1,
                 },
                 "regime_monitor": {"status": "OK"},
-                "regime_signal": {
-                    "status": "WARN",
-                    "top_reason": "MDD risk elevated",
-                    "threshold_value": -0.0353,
-                    "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
-                    "threshold_policy_sha": "abc123def456",
-                    "threshold_rationale": "Max drawdown crossed warning baseline.",
-                    "calibration_status": "STALE",
-                    "last_calibrated_utc": "2026-02-20T00:00:00Z",
-                },
             },
         },
         freshness_table={
@@ -130,6 +120,16 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
         },
         loop_state={"actions": []},
         policy_payload={"name": "aggressive_yield_first_v1"},
+        regime_signal_summary={
+            "status": "WARN",
+            "top_reason": "MDD risk elevated",
+            "threshold_value": -0.0353,
+            "threshold_source_path": "reports/strategy_research/phase3/phase3_results.json",
+            "threshold_policy_sha": "abc123def456",
+            "threshold_rationale": "Max drawdown crossed warning baseline.",
+            "calibration_status": "STALE",
+            "last_calibrated_utc": "2026-02-20T00:00:00Z",
+        },
         repo_root=tmp_path,
     )
 
