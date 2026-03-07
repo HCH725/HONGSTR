@@ -41,6 +41,9 @@ ENDPOINT_MACRO = "/v1/content/latest"  # Placeholder for macro/news events
 
 MAX_RETRIES = 3
 TIMEOUT_SEC = 15
+COMPONENT_NARRATIVES = "narratives"
+COMPONENT_MACRO_EVENTS = "macro_events"
+HTTP_403_TIER_GATED = "http_403_tier_gated"
 
 
 def _get_git_commit() -> str:
@@ -81,23 +84,86 @@ def _fetch_api_with_retry(endpoint: str, api_key: str, params: Optional[dict] = 
                 data = json.loads(resp.read().decode("utf-8"))
                 return data, None
         except urllib.error.HTTPError as e:
-            if e.code in (401, 403):
-                return None, f"HTTP {e.code} (Tier Gated or Unauthorized)"
+            if e.code == 403:
+                return None, HTTP_403_TIER_GATED
+            if e.code == 401:
+                return None, "http_401"
             if e.code == 429:
                 log.warning("Rate limit hit, retrying if possible...")
             else:
                 log.warning("HTTP %d error on attempt %d for %s", e.code, attempt, endpoint)
-            
+
             if attempt == MAX_RETRIES:
-                return None, f"HTTP {e.code}"
+                return None, f"http_{e.code}"
+        except urllib.error.URLError as e:
+            reason = getattr(e, "reason", None)
+            reason_type = type(reason).__name__ if reason is not None else type(e).__name__
+            reason_token = reason_type.strip().lower() or "urlerror"
+            log.warning("Network error on attempt %d: %s", attempt, reason_type)
+            if attempt == MAX_RETRIES:
+                return None, f"network_error:{reason_token}"
+        except json.JSONDecodeError:
+            log.warning("JSON decode error on attempt %d for %s", attempt, endpoint)
+            if attempt == MAX_RETRIES:
+                return None, "decode_error"
         except Exception as e:
             log.warning("Network error on attempt %d: %s", attempt, type(e).__name__)
             if attempt == MAX_RETRIES:
-                return None, f"Network Error: {type(e).__name__}"
-                
+                return None, f"unexpected_error:{type(e).__name__.lower()}"
+
         time.sleep(2 ** attempt)
 
-    return None, "Max retries exceeded"
+    return None, "max_retries_exceeded"
+
+
+def _component_count(payload: Any) -> int:
+    if isinstance(payload, dict):
+        return len(payload)
+    if isinstance(payload, list):
+        return len(payload)
+    return 0
+
+
+def _format_failure_reason(component: str, error_reason: str) -> str:
+    if error_reason.startswith("network_error:"):
+        _, detail = error_reason.split(":", 1)
+        return f"network_error:{component}:{detail}"
+    if error_reason.startswith("unexpected_error:"):
+        _, detail = error_reason.split(":", 1)
+        return f"unexpected_error:{component}:{detail}"
+    return f"{error_reason}:{component}"
+
+
+def _summarize_coverage_status(component_results: dict[str, dict[str, Any]]) -> Tuple[str, str]:
+    tier_gated_components: list[str] = []
+    failure_tokens: list[str] = []
+    warning_tokens: list[str] = []
+
+    for component in (COMPONENT_NARRATIVES, COMPONENT_MACRO_EVENTS):
+        result = component_results.get(component, {})
+        error_reason = str(result.get("error") or "").strip()
+        count = int(result.get("count") or 0)
+
+        if error_reason == HTTP_403_TIER_GATED:
+            tier_gated_components.append(component)
+            continue
+        if error_reason:
+            failure_tokens.append(_format_failure_reason(component, error_reason))
+            continue
+        if count == 0:
+            warning_tokens.append(f"empty:{component}")
+
+    reason_tokens: list[str] = []
+    if tier_gated_components:
+        reason_tokens.append("tier_gated:" + ",".join(sorted(tier_gated_components)))
+    reason_tokens.extend(failure_tokens)
+    reason_tokens.extend(warning_tokens)
+
+    if failure_tokens:
+        return "FAIL", "|".join(reason_tokens)
+    if reason_tokens:
+        return "WARN", "|".join(reason_tokens)
+    return "OK", "OK"
 
 
 def _safe_write_json(path: Path, data: Any) -> None:
@@ -164,49 +230,27 @@ def main() -> int:
     # --- Fetch Narratives ---
     narratives_data, n_err = _fetch_api_with_retry(ENDPOINT_NARRATIVES, api_key)
     narratives_payload = narratives_data.get("data", []) if narratives_data else []
-    
+
     # --- Fetch Macro Events ---
     macro_data, m_err = _fetch_api_with_retry(ENDPOINT_MACRO, api_key, {"news_type": "macro"})
-    # Assuming standard empty data structure or failure due to tier
     macro_payload = macro_data.get("data", []) if macro_data else []
 
     # Calculate item counts
-    if isinstance(narratives_payload, dict):
-        coverage["items"]["narratives_count"] = len(narratives_payload)
-    else:
-        coverage["items"]["narratives_count"] = len(narratives_payload) if isinstance(narratives_payload, list) else 0
-        
-    if isinstance(macro_payload, dict):
-        coverage["items"]["macro_events_count"] = len(macro_payload)
-    else:
-        coverage["items"]["macro_events_count"] = len(macro_payload) if isinstance(macro_payload, list) else 0
+    coverage["items"]["narratives_count"] = _component_count(narratives_payload)
+    coverage["items"]["macro_events_count"] = _component_count(macro_payload)
 
-    # Determine aggregated status
-    reasons = []
-    has_fail = False
-    
-    if n_err:
-        reasons.append(f"Narratives Failed: {n_err}")
-        has_fail = True
-    elif coverage["items"]["narratives_count"] == 0:
-        reasons.append("Narratives Empty (Endpoint stubbed or no data)")
-
-    if m_err:
-        reasons.append(f"Macro Failed: {m_err}")
-        # Not a complete fail if it's just tier gated, but counts as error. We'll set WARN if tier gated, FAIL otherwise.
-        if "Tier Gated" in m_err or "Unauthorized" in m_err:
-            reasons.append("(Macro tier gated)")
-        else:
-            has_fail = True
-    elif coverage["items"]["macro_events_count"] == 0:
-        reasons.append("Macro Events Empty (Not exposed or Tier Gated)")
-
-    if has_fail:
-        coverage["status"] = "FAIL"
-        coverage["reason"] = " | ".join(reasons)
-    elif reasons:
-        coverage["status"] = "WARN"
-        coverage["reason"] = " | ".join(reasons)
+    coverage["status"], coverage["reason"] = _summarize_coverage_status(
+        {
+            COMPONENT_NARRATIVES: {
+                "count": coverage["items"]["narratives_count"],
+                "error": n_err,
+            },
+            COMPONENT_MACRO_EVENTS: {
+                "count": coverage["items"]["macro_events_count"],
+                "error": m_err,
+            },
+        }
+    )
 
     # Write derived files
     n_path = DERIVED_ROOT_NARRATIVES / f"{ts_utc}.json"
