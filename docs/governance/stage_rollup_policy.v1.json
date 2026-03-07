@@ -1,0 +1,132 @@
+{
+  "artifact_id": "stage_rollup_policy.v1",
+  "artifact_type": "stage_rollup_policy_baseline",
+  "depends_on_registry": "docs/governance/stage_registry.v1.json",
+  "depends_on_registry_artifact_id": "stage_registry.v1",
+  "depends_on_mapping": "docs/governance/stage_registry_mapping.v1.json",
+  "depends_on_mapping_artifact_id": "stage_registry_mapping.v1",
+  "scope_status": "BASELINE_ONLY",
+  "scope_note": "This v1 artifact fixes rollup policy only. HONG-21 schema and HONG-22 mapping remain the single upstream sources.",
+  "rollup_policy_baseline": {
+    "inclusion_rule": {
+      "eligible_layers": [
+        "Layer1",
+        "Layer2"
+      ],
+      "requires_mapping_entry": true,
+      "requires_registry_entry": true
+    },
+    "exclusion_rule": {
+      "excluded_layers": [
+        "Layer3"
+      ],
+      "context_only_layers": [
+        "Layer4"
+      ],
+      "exclude_unmapped_items": true
+    },
+    "done_count_rule": {
+      "count_statuses": [
+        "DONE"
+      ],
+      "evidence_gate": "EVIDENCE_REQUIRED"
+    },
+    "todo_count_rule": {
+      "count_statuses": [
+        "TODO",
+        "IN_PROGRESS"
+      ]
+    },
+    "blocked_count_rule": {
+      "count_statuses": [
+        "BLOCKED"
+      ],
+      "exclude_general_backlog": true,
+      "context_layers": [
+        "Layer4"
+      ]
+    },
+    "stage_rollup_rule": {
+      "group_by": "stage_id",
+      "count_fields": [
+        "done",
+        "todo",
+        "blocked"
+      ],
+      "current_mainline_layers": [
+        "Layer1",
+        "Layer2"
+      ],
+      "context_layers": [
+        "Layer4"
+      ]
+    },
+    "aggregate_rollup_rule": {
+      "source": "stage_rollup",
+      "sum_fields": [
+        "done",
+        "todo",
+        "blocked"
+      ],
+      "exclude_context_only_from_done_todo": true
+    },
+    "blocker_selection_rule": {
+      "eligible_statuses": [
+        "BLOCKED"
+      ],
+      "exclude_layers": [
+        "Layer3"
+      ],
+      "include_layer4_as_context_only": true,
+      "max_blockers": 3
+    },
+    "top_next_action_rule": {
+      "source_fields": [
+        "next_action_ref",
+        "status_semantics",
+        "layer"
+      ],
+      "eligible_statuses": [
+        "TODO",
+        "IN_PROGRESS",
+        "BLOCKED"
+      ],
+      "max_items": 2,
+      "not_parent_child_hierarchy": true,
+      "forbidden_source_fields": [
+        "parent_id"
+      ]
+    },
+    "evidence_gate_rule": {
+      "done_requires_evidence": true,
+      "allowed_evidence_types": [
+        "merged_pr",
+        "commit_sha",
+        "files_changed",
+        "repo_path",
+        "ssot_path_key"
+      ],
+      "downgrade_target_without_evidence": "TODO"
+    },
+    "recompute_trigger_rule": {
+      "triggers": [
+        "registry_change",
+        "mapping_change",
+        "rollup_policy_change",
+        "status_change",
+        "evidence_change",
+        "blocker_change"
+      ],
+      "target_cards": [
+        "HONG-15",
+        "HONG-24"
+      ],
+      "requires_full_recompute": true
+    }
+  },
+  "worked_examples": {
+    "candidate_backlog_excluded_from_mainline": "Layer3 items never enter done or todo counts for current mainline rollup.",
+    "top_action_not_hierarchy": "Top1 and Top2 use next_action_ref plus status/layer and must not be derived from parent_id.",
+    "evidence_gate": "Items without accepted evidence types cannot be counted as DONE."
+  }
+}
