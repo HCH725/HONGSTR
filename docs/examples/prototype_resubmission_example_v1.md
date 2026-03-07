@@ -115,7 +115,8 @@ Use canonical applicability hints when a blocker evidence reference may be omitt
 Keep the placeholder shape stable: `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder.
 Keep the displayed field captions fixed as `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
 Use compact inline forms only in explanatory prose; keep each `live blocker-evidence-reference field` as a `live fill-in field` rendered as a `live field block`.
-Use `compact table cell` only in non-live context, and use `inline placeholder-only fragment` only for the bare angle-bracket placeholder outside the live field block; it is `not a live fill-in field`.
+Use `compact table cell` only in non-live context; it is `not a live fill-in field`.
+Use `inline placeholder-only fragment` only for the bare angle-bracket placeholder outside the live field block.
 Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
@@ -221,7 +222,7 @@ Author action:
 - keep the placeholder shape stacked as `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder
 - keep the displayed field captions fixed as `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`
 - keep compact inline forms only in explanatory prose or a `compact table cell`; keep each `live blocker-evidence-reference field` as a `live fill-in field` rendered as a `live field block`
-- use `inline placeholder-only fragment` only in non-live context and outside the live field block; it is `not a live fill-in field`
+- combine `in non-live context` with `not a live fill-in field` only when one short sentence needs both points; keep `outside the live field block` as a separate short sentence when the bare placeholder is the local point
 - stop if any blocking item is still `unresolved`
 
 ### Step 3: Author Updates Package Materials

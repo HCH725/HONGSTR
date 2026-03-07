@@ -143,7 +143,8 @@ Blocker-reference rendering rule:
 - treat that `live blocker-evidence-reference field` as a `live fill-in field`
 - render that `live fill-in field` as a `live field block`
 - in non-live context, treat non-live blocker-reference wording here as `explanatory prose` or a `compact table cell`; it is `not a live fill-in field`
-- use `inline placeholder-only fragment` only when citing the bare angle-bracket placeholder in non-live context and `outside the live field block`
+- use `inline placeholder-only fragment` only when citing the bare angle-bracket placeholder `outside the live field block`
+- keep the contrast-sentence combination minimal: combine `in non-live context` with `not a live fill-in field` only when one short line needs both; keep `outside the live field block` separate when the bare placeholder location is the local point
 - compact inline form is allowed only in `explanatory prose` or a `compact table cell`, never in a `live fill-in field`
 - bare angle-bracket placeholders such as `<single link: ...>` may appear inline only when the doc is describing the placeholder shape
 - if a field caption line or any `Applicability hint:` / `Ordering hint:` line is shown, keep the `live field block` expanded as a stacked multi-line block

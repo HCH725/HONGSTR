@@ -76,6 +76,7 @@ Field split rule:
 - live-field cue phrases are not blocker-reference rendering rules
 - live-field cue phrases are not blocker-reference explanatory-inline cue phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`
 - live-field cue phrases are not blocker-reference live-vs-non-live contrast sentences; those sentences are governed by `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
+- live-field cue phrases are not blocker-reference contrast-sentence combination rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`
 - live-field cue phrases are not blocker-reference-target hint labels
 - live-field cue phrases are not blocker-reference multiplicity hint labels
 - live-field cue phrases are not blocker-reference ordering hint labels
