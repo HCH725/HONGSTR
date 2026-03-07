@@ -32,7 +32,7 @@ The Stage Registry foundation package is already merged:
 
 ## HONG-5 Audit Verdict
 
-`HONG-5` remains open.
+`HONG-5` can move to `Done` after the final closure contract package merges.
 
 Its old checklist body must not remain a truth source. The active closure verdict is the combination of:
 
@@ -55,25 +55,16 @@ These old checklist narratives must no longer be treated as active truth:
 - `核心交易與治理紅線已在主規格中定義`
   - commit `886ff08f4dc3cf775590c565292c4c7f4d12aa17` provides core trading non-negotiables, but not a full red-lines owner acceptance package on its own
 
-### True remaining blockers
+### Previously open blockers
 
-- seed issue / registry sync contract is still missing
-  - no merged PR
-  - no canonical sync contract path
-  - no discrepancy audit artifact
-- red-line drift audit cadence is still missing
-  - no merged PR
-  - no cadence policy path
-  - no scheduled review artifact
+- seed issue / registry sync contract
+  - closed by [`docs/governance/seed_registry_sync_contract.md`](/Users/hong/Projects/HONGSTR/docs/governance/seed_registry_sync_contract.md)
+- red-line drift audit cadence
+  - closed by [`docs/governance/red_line_drift_audit_cadence.md`](/Users/hong/Projects/HONGSTR/docs/governance/red_line_drift_audit_cadence.md)
 
 ### Closure rule
 
-`HONG-5` may move to `Done` only after those two blockers are either:
-
-- closed by merged repo-backed evidence, or
-- explicitly removed by a separately merged governance decision
-
-Neither condition exists in the current repo state.
+`HONG-5` may move to `Done` because both blockers are now covered by repo-backed canonical governance docs and validator/test evidence.
 
 ## HONG-35 Audit Verdict
 
@@ -101,10 +92,10 @@ Repo-backed acceptance package:
 
 ## HONG-50 Closure Verdict
 
-`HONG-50` remains open.
+`HONG-50` can move to `Done` after the final closure contract package merges.
 
-After PR `#304` merged, the remaining blocker narrowed to:
+After PR `#305` merged, the remaining blocker narrowed to:
 
-- `HONG-5` evidence downgrade and residual open items
+- `HONG-5` final closure package
 
-This means `HONG-50` stays `In Progress` with a single blocker and no further foundation gap.
+This means `HONG-50` may close once `HONG-5` closes, with no remaining foundation gap.
