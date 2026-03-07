@@ -48,7 +48,17 @@ def test_profile_default_is_explicit():
 def test_canonicalize_row_enforces_deterministic_schema_and_defaults():
     mod = _load_state_snapshots_module()
     cases = json.loads(CANONICAL_FIXTURE.read_text(encoding="utf-8"))
-    expected_keys = ["symbol", "tf", "profile", "age_h", "status", "source", "reason"]
+    expected_keys = [
+        "symbol",
+        "tf",
+        "profile",
+        "age_h",
+        "status",
+        "source",
+        "reason",
+        "is_usable",
+        "unusable_reason",
+    ]
 
     for case in cases:
         row = mod._canonicalize_freshness_row(
@@ -84,8 +94,13 @@ def test_build_freshness_table_includes_required_top_level_keys():
     assert "generated_utc" in table
     assert "ts_utc" in table
     assert "thresholds" in table
+    assert "quality_gate" in table
     assert "rows" in table
     assert table["generated_utc"] == "2026-02-26T00:00:00Z"
     assert table["ts_utc"] == "2026-02-26T00:00:00Z"
     assert isinstance(table["thresholds"], dict)
+    assert table["quality_gate"]["rule"] == "non_ok_or_missing_row => is_usable=false"
+    assert table["quality_gate"]["is_usable"] is False
+    assert table["quality_gate"]["usable_rows"] == 0
+    assert table["quality_gate"]["unusable_rows"] == 1
     assert isinstance(table["rows"], list)

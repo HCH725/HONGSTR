@@ -42,6 +42,7 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
             "components": {
                 "freshness": {"status": "OK"},
                 "coverage_matrix": {"status": "PASS"},
+                "data_quality_gate": {"status": "FAIL", "is_usable": False, "blocking_rows": []},
                 "brake": {"status": "OK"},
                 "watchdog": {
                     "status": "OK",
@@ -140,6 +141,8 @@ def test_daily_report_schema_keys_and_types(tmp_path: Path):
     assert payload["latest_backtest_head"]["metrics"]["is_sharpe"] == 1.4
     assert payload["latest_backtest_head"]["metrics"]["trades_count"] == 37
     assert payload["ssot_components"]["watchdog"]["status"] == "OK"
+    assert payload["ssot_components"]["data_quality_gate"]["status"] == "FAIL"
+    assert payload["ssot_components"]["data_quality_gate"]["is_usable"] is False
     assert payload["ssot_components"]["watchdog"]["last_check_age_sec"] == 120
     assert payload["ssot_components"]["data_catalog_changes"]["status"] == "WARN"
     assert payload["ssot_components"]["data_catalog_changes"]["summary"] == "Dataset changes: +1, ~0, -0 | manifest warnings=1"
