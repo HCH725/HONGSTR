@@ -52,7 +52,7 @@ To ensure safety and reversibility, the following constraints are non-negotiable
 
 ## 6. Trial Workflow Guidance
 
-*(This section defines the human-in-the-loop workflow; it does not mandate automated GitHub Actions at this stage.)*
+> *(This section defines the human-in-the-loop workflow; it does not mandate automated GitHub Actions at this stage. See [HONGSTR Manual Shadow Review Runbook v1](./hongstr_manual_shadow_review_runbook_v1.md) for step-by-step execution.)*
 
 1. **Trigger**: A PR matching the authorized task categories (e.g., a documentation or governance update) is opened.
 2. **Input Generation**: A human or a lightweight prep-script aggregates the PR description, code diff, and attached evidence logs.
@@ -109,7 +109,7 @@ While not an executable script, any trial runs should be manually or semi-automa
 
 Following the establishment of this advisory trial plan, the immediate next steps are:
 
-- Compiling a **Reviewer Case Set / Shadow Review Sample Pack** (e.g., running the target model against a set of historical closed/merged PRs to test judgment).
+- Compiling a **Reviewer Case Set / Shadow Review Sample Pack** (e.g., running the target model against a set of historical closed/merged PRs to test judgment). *See [HONGSTR Reviewer Sample-Case Pack v1](./hongstr_reviewer_sample_case_pack_v1.md)*.
 - Integrating the request for these advisory memos into the **Reviewer-Author PR Checklists**.
 
 > *(Optional Parallel Track): Drafting the Safety Gatekeeper Advisory Trial Plan.*
@@ -118,7 +118,7 @@ Following the establishment of this advisory trial plan, the immediate next step
 
 ### Appendix: Sample Advisory Output Format
 
-*(Docs-Only Example. Not a runtime executable template.)*
+> *(Docs-Only Example. Not a runtime executable template.)*
 
 \`\`\`markdown
 **[Supplementary Reviewer Memo: Advisory Only]**
