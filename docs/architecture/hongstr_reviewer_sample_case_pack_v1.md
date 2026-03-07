@@ -124,7 +124,7 @@ When testing models against this pack, evaluate them using the following criteri
 
 Actionable next steps following the creation of this pack:
 
-- Developing a **manual shadow review runbook** (step-by-step human guide to running these prompts).
+- Developing a **manual shadow review runbook** (step-by-step human guide to running these prompts). *See [HONGSTR Manual Shadow Review Runbook v1](./hongstr_manual_shadow_review_runbook_v1.md)*.
 - Integrating the case execution into **Reviewer-Author checklist integration**.
 - Conducting the **Safety Advisory Trial plan**.
 *(Do not expand backward into wording churn on blocker-reference documents).*

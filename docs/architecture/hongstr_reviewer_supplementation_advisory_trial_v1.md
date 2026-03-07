@@ -52,7 +52,7 @@ To ensure safety and reversibility, the following constraints are non-negotiable
 
 ## 6. Trial Workflow Guidance
 
-> *(This section defines the human-in-the-loop workflow; it does not mandate automated GitHub Actions at this stage.)*
+> *(This section defines the human-in-the-loop workflow; it does not mandate automated GitHub Actions at this stage. See [HONGSTR Manual Shadow Review Runbook v1](./hongstr_manual_shadow_review_runbook_v1.md) for step-by-step execution.)*
 
 1. **Trigger**: A PR matching the authorized task categories (e.g., a documentation or governance update) is opened.
 2. **Input Generation**: A human or a lightweight prep-script aggregates the PR description, code diff, and attached evidence logs.
