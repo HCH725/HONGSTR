@@ -65,6 +65,15 @@ resolve_source_vault() {
   return 1
 }
 
+warn_legacy_daily_snapshot() {
+  local source_vault="$1"
+  local legacy_daily_dir="${source_vault}/KB/SSOT/Daily"
+
+  if [[ -d "${legacy_daily_dir}" ]]; then
+    log_warn "legacy_daily_snapshot_present path=${legacy_daily_dir} current_contract=Daily/YYYY/MM authoritative=0"
+  fi
+}
+
 sync_dir() {
   local source_vault="$1"
   local target_vault="$2"
@@ -136,11 +145,12 @@ main() {
     log_warn "primary_vault_not_found OBSIDIAN_PRIMARY_ROOT=${primary_root}"
     return 0
   fi
+  warn_legacy_daily_snapshot "${source_vault}"
 
   icloud_root="${ICLOUD_OBSIDIAN_ROOT:-${DEFAULT_ICLOUD_OBSIDIAN_ROOT}}"
   vault_name="${ICLOUD_VAULT_NAME:-${DEFAULT_ICLOUD_VAULT_NAME}}"
   target_vault="${icloud_root}/${vault_name}"
-  include_dirs=(KB Dashboards)
+  include_dirs=(KB Dashboards Daily)
 
   if ! mkdir -p "${target_vault}"; then
     log_warn "target_vault_not_accessible target=${target_vault}"
