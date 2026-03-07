@@ -71,6 +71,7 @@ Example-value rule:
 
 Field split rule:
 
+- contrast-sentence example values are not blocker-reference short-example block-intro phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_short_example_block_intro_alignment_record_v1.md`
 - contrast-sentence example values are not blocker-reference live-field cue phrases
 - contrast-sentence example values are not blocker-reference explanatory-inline cue phrases
 - contrast-sentence example values are not blocker-reference live-vs-non-live contrast sentences; those sentences are governed by `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
@@ -117,6 +118,7 @@ Very-thin grammatical variation is allowed only when needed by the local structu
 Even with those thin variations:
 
 - the canonical short example itself should stay recognizable
+- block-intro wording is governed separately by `docs/ops/prototype_blocker_reference_short_example_block_intro_alignment_record_v1.md`
 - example values must not replace contrast sentences, combination rules, live-field cue phrases, explanatory-inline cue phrases, rendering rules, field captions, evidence-reference labels, hint labels, or placeholder-shape parts
 - example values must not be used as rollout or canonical-state language
 

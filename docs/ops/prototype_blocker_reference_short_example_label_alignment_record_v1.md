@@ -77,6 +77,7 @@ Label wording rule:
 
 Field split rule:
 
+- short-example labels are not short-example block-intro phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_short_example_block_intro_alignment_record_v1.md`
 - short-example labels are not the short-example values themselves; those values are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`
 - short-example labels are not short-example placement rules; those rules are governed by `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`
 - short-example labels are not contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
@@ -127,7 +128,7 @@ Very-thin grammatical variation is allowed only when needed by the local structu
 Even with those thin variations:
 
 - the canonical label wording itself should stay recognizable
-- label wording must not replace the example value, placement rule, punctuation/style rule, combination rule, live-field cue wording, or explanatory-inline cue wording
+- label wording must not replace the block-intro phrase, example value, placement rule, punctuation/style rule, combination rule, live-field cue wording, or explanatory-inline cue wording
 - label wording must not be used as rollout or canonical-state language
 
 ## 7. Why This Alignment Helps

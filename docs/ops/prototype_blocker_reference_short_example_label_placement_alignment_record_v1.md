@@ -78,6 +78,7 @@ Placement rule:
 
 Field split rule:
 
+- short-example placement rules are not short-example block-intro phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_short_example_block_intro_alignment_record_v1.md`
 - short-example placement rules are not short-example label wording; that wording is governed by `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`
 - short-example placement rules are not short-example values; those values are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`
 - short-example placement rules are not contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
@@ -127,7 +128,7 @@ Very-thin grammatical variation is allowed only when needed by the local structu
 Even with those thin variations:
 
 - each rendered short example must keep `label + example value` on the same line
-- placement must not replace label wording rules, example-value rules, punctuation/style rules, or contrast rules
+- placement must not replace block-intro wording rules, label wording rules, example-value rules, punctuation/style rules, or contrast rules
 - placement must not be used as rollout or canonical-state language
 
 ## 7. Why This Alignment Helps

@@ -115,6 +115,7 @@ Use canonical applicability hints when a blocker evidence reference may be omitt
 Keep the placeholder shape stable: `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder.
 Keep the displayed field captions fixed as `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
 Use compact inline forms only in explanatory prose; keep each `live blocker-evidence-reference field` as a `live fill-in field` rendered as a `live field block`.
+Example block:
 Scope plus exclusion short example: `In non-live context, this is not a live fill-in field.`
 Placeholder location short example: `Keep the bare placeholder outside the live field block.`
 Live versus non-live short example: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
@@ -223,7 +224,7 @@ Author action:
 - keep the placeholder shape stacked as `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder
 - keep the displayed field captions fixed as `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`
 - keep compact inline forms only in explanatory prose or a `compact table cell`; keep each `live blocker-evidence-reference field` as a `live fill-in field` rendered as a `live field block`
-- keep the canonical short examples stable:
+- Keep the canonical short examples stable:
   Scope plus exclusion short example: `In non-live context, this is not a live fill-in field.`
   Placeholder location short example: `Keep the bare placeholder outside the live field block.`
   Live versus non-live short example: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`

@@ -683,6 +683,13 @@ Read these rules before using any term below.
   - use a bullet line when the short example is itself a sibling item in a bullet-driven template list
   - use an example block when all three canonical short examples are shown together
   - compact table cells may reference the canonical short-example set, but should not render the full trio in-cell
+- Short-example block-intro rule:
+  - short-example block-intro wording is governed by `docs/ops/prototype_blocker_reference_short_example_block_intro_alignment_record_v1.md`
+  - use imperative phrasing with a trailing colon
+  - use `Use these canonical short examples:` for normative glossary/record sections
+  - use `Keep the canonical short examples stable:` for reminder prose that preserves the fixed set
+  - use `Example block:` only when opening a standalone demonstration block
+  - if no standalone intro line is needed, let the governing bullet serve as the local intro instead of inventing a synonym phrase
 - Common misuse:
   - combining all three contrast sentences into one long reminder line
   - splitting `in non-live context` and `not a live fill-in field` into separate lines when one short sentence would be clearer
@@ -692,6 +699,7 @@ Read these rules before using any term below.
   - using `scope + exclusion` or `live vs non-live` in active short-example labels
   - splitting a short-example label and value across separate physical lines
   - packing the full three labeled short examples into a compact table cell
+  - using a lower-case or ad hoc short-example intro phrase
   - treating combination rules as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, placeholder shapes, or the contrast sentences themselves
 - Example value: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
 
