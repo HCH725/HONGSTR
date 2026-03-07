@@ -36,6 +36,8 @@ It complements, but does not replace:
 
 This checklist is a review aid only.
 
+For blocker-reference read-only adoption guidance and reopen gate after Phase A closure, use `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`.
+
 It is not:
 
 - rollout approval

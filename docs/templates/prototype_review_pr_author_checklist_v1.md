@@ -46,6 +46,7 @@ For canonical blocker-reference contrast-sentence short-example block-intro word
 For canonical blocker-reference contrast-sentence short-example label wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`.
 For canonical blocker-reference contrast-sentence short-example label placement in that resubmission flow, use `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`.
 For canonical blocker-reference contrast-sentence short-example values in that resubmission flow, use `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`.
+For blocker-reference read-only adoption guidance and reopen gate after Phase A closure, use `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`.
 
 It does not replace:
 
