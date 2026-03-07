@@ -41,6 +41,7 @@ For canonical blocker-reference live-field cue wording in that resubmission flow
 For canonical blocker-reference explanatory-inline cue wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`.
 For canonical blocker-reference live-vs-non-live contrast wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`.
 For canonical blocker-reference contrast-sentence combination rules in that resubmission flow, use `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`.
+For canonical blocker-reference contrast-sentence short-example block-intro wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_short_example_block_intro_alignment_record_v1.md`.
 For canonical blocker-reference contrast-sentence short-example label wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`.
 For canonical blocker-reference contrast-sentence short-example label placement in that resubmission flow, use `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`.
 For canonical blocker-reference contrast-sentence short-example values in that resubmission flow, use `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`.
