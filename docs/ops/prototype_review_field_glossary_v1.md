@@ -632,7 +632,7 @@ Read these rules before using any term below.
   - leaving `outside the live field block` implicit when the sentence is specifically excluding bare placeholder snippets from the live field block
   - treating contrast-sentence combination rules as if they were the contrast sentences themselves
   - treating contrast sentences as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
-- Example value: `in non-live context, this is not a live fill-in field`
+- Example value: `In non-live context, this is not a live fill-in field.`
 
 ### 3.26 `blocker reference contrast sentence combination rule`
 
@@ -662,8 +662,9 @@ Read these rules before using any term below.
   - combining all three contrast sentences into one long reminder line
   - splitting `in non-live context` and `not a live fill-in field` into separate lines when one short sentence would be clearer
   - repeating all three contrast sentences in checklist reminders without saying which one is locally needed
+  - treating contrast-sentence example values as if they were the combination rules themselves
   - treating combination rules as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, placeholder shapes, or the contrast sentences themselves
-- Example value: `in non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
+- Example value: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
 
 ### 3.27 `assessment status`
 
