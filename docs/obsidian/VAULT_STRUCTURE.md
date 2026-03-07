@@ -13,6 +13,32 @@ The local Obsidian vault (`_local/obsidian_vault/HONGSTR/`) is the **operator kn
 The vault is **never committed to git** (it lives under `_local/`, which is gitignored).  
 Templates live in [`docs/obsidian/templates/`](./templates/) and **are** version-controlled.
 
+## Mirror-facing Publish Subset
+
+The iCloud mirror is a curated publish subset, not a full copy of the local vault.
+
+Active mirror contract:
+
+- `Daily/**`
+- `Dashboards/**`
+- `KB/_meta/**`
+- `KB/PR/**`
+- `KB/Runbooks/**`
+- `KB/Incidents/**`
+- `KB/Research-Summaries/**`
+
+Legacy / non-current:
+
+- `KB/SSOT/**` is frozen legacy content and is not part of the active mirror refresh contract.
+- Existing `KB/SSOT/**` content on the iCloud target may remain until manually removed because mirror delete mode is disabled.
+
+Optional future surface:
+
+- `State-Refs/**` or `Snapshots/**` may exist only as pointer/readable-summary notes to canonical `data/state/*.json`.
+- They must never become a second SSOT or a dependency for `/status`, `/daily`, or `/dashboard`.
+
+This means local folders such as `Incidents/`, `Runbooks/`, or `Research/` can still exist for operator use without automatically becoming part of the mirror contract.
+
 ---
 
 ## Folder Layout
