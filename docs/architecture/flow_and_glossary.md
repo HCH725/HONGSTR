@@ -42,3 +42,4 @@ flowchart TD
 - **Gates (G0-G6)**: Progressive compliance hurdles for strategy promotion.
 - **SSOT (Single Source of Truth)**: The canonical state stored in files (like system_health_latest.json) that all tools must read.
 
+*For operating model details and multi-agent roles, see [HONGSTR Agent Roster / Role Contracts v1](./hongstr_agent_roster_role_contracts_v1.md).*
