@@ -92,4 +92,4 @@ To progress the multi-agent system further within these safe boundaries, the nex
 
 - Lightweight enforcement guidance (e.g., scripting the Reviewer's PR checklist automation).
 - Reviewer / Author adoption integration: *See [HONGSTR Reviewer Role Deployment Integration v1](./hongstr_reviewer_role_deployment_integration_v1.md)*.
-- Model supplementation trial plans (using an external API to trial a Safety Gatekeeper role in shadow mode).
+- Model supplementation trial plans: *See [HONGSTR Model Supplementation Trial Plan v1](./hongstr_model_supplementation_trial_plan_v1.md)*.

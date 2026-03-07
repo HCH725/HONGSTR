@@ -155,5 +155,5 @@ The following roles represent the most severe risks under the current 7B model l
 With the Agent Roster and this Fit Matrix established, the next logical step must be:
 
 - **Adoption-facing role deployment guidance**: Creating a lightweight, non-blocking rollout for specific low-risk roles. *See [HONGSTR Adoption-Facing Role Deployment Guidance v1](./hongstr_adoption_facing_role_deployment_guidance_v1.md)*.
-- **Targeted Model Supplementation Trial Plan**: A controlled proposal evaluating a specific model upgrade for the defined bottleneck roles (e.g., Reviewer).
+- **Targeted Model Supplementation Trial Plan**: A controlled proposal evaluating a specific model upgrade for defined bottleneck roles. *See [HONGSTR Model Supplementation Trial Plan v1](./hongstr_model_supplementation_trial_plan_v1.md)*.
 *(Do not expand backward into wording churn on old blockers).*
