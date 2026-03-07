@@ -14,37 +14,37 @@
 
 ## Final Verdict
 
-- Verdict: `BLOCKED`
-- Reason: `HONG-51`, `HONG-52`, and `HONG-27` each have open GitHub PRs and no merge commits yet, so the Stage 1 closure chain is not complete on `origin/main`.
+- Verdict: `DONE`
+- Reason: `HONG-51`, `HONG-52`, and `HONG-27` are all merged into `origin/main`, their canonical paths are present on mainline, and the post-merge syntax / test checks pass without relying on Linear body text.
 
 ## Closure Card Status
 
 | Card | Role | Linear status | GitHub status | Evidence | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| `HONG-51` | Card A: raw/backfill orchestration cleanup | `In Review` | PR [#307](https://github.com/HCH725/HONGSTR/pull/307) `OPEN` | commit `0a02b53ccbb5905217f028912b3eab4e452255d3`; files changed: `docs/ops_data_plane.md`, `scripts/daily_etl.sh`, `scripts/backfill_1m_from_2020.sh`; checks `build PASS`, `guardrails PASS` | `NOT_MERGED` |
-| `HONG-52` | Card B: Data Quality Gate | `In Review` | PR [#308](https://github.com/HCH725/HONGSTR/pull/308) `OPEN` | commit `eb7bb14e8d8d8f27cfa4b70febea0e1637c71906`; files changed: `scripts/state_snapshots.py`, `docs/ops_state_refresh.md`, freshness/data-quality tests; checks `build PASS`, `guardrails PASS` | `NOT_MERGED` |
-| `HONG-27` | Card C: coverage/freshness SSOT contract | `In Review` | PR [#309](https://github.com/HCH725/HONGSTR/pull/309) `OPEN` | commit `5c3db1054717d72f4cdc7ff659152b4201581aec`; files changed: `scripts/state_snapshots.py`, `docs/ops_state_refresh.md`, SSOT contract tests; check `guardrails PASS`; base branch is `codex/hong-52-data-quality-gate-is-usable-false-20260308` | `NOT_MERGED` |
+| `HONG-51` | Card A: raw/backfill orchestration cleanup | `In Review` at audit start | PR [#307](https://github.com/HCH725/HONGSTR/pull/307) `MERGED` | merge commit `169643b95cfba38e6c3014a28a1383a34319d9c8`; files changed: `docs/ops_data_plane.md`, `scripts/daily_etl.sh`, `scripts/backfill_1m_from_2020.sh`; PR checks `build PASS`, `guardrails PASS` | `MERGED` |
+| `HONG-52` | Card B: Data Quality Gate | `In Review` at audit start | PR [#308](https://github.com/HCH725/HONGSTR/pull/308) `MERGED` | merge commit `302033930bbc8d8ef6f68fcffac75a6ce5ae6433`; files changed: `scripts/state_snapshots.py`, `docs/ops_state_refresh.md`, freshness/data-quality tests; PR checks `build PASS`, `guardrails PASS` | `MERGED` |
+| `HONG-27` | Card C: coverage/freshness SSOT contract | `In Review` at audit start | PR [#309](https://github.com/HCH725/HONGSTR/pull/309) `MERGED` | merge commit `d1b7a86bccb521992e5f0cf0dceb88a00122d704`; files changed: `scripts/state_snapshots.py`, `docs/ops_state_refresh.md`, SSOT contract tests; PR checks `build PASS`, `guardrails PASS` after restack to `main` | `MERGED` |
 
 ## Checklist Mapping
 
 | Checklist item | Closure card | Repo / GitHub evidence | Mainline truth on `origin/main` | Verdict |
 | --- | --- | --- | --- | --- |
-| `1m raw pipeline` | `HONG-51` | Existing mainline evidence: commit `51cbb1b` on `scripts/ingest_historical.py` and `scripts/aggregate_data.py`; PR [#307](https://github.com/HCH725/HONGSTR/pull/307) cleans orchestration mainline | `origin/main:scripts/daily_etl.sh` still contains conflict markers | `BLOCKED` |
-| `2020-01-01 -> now` backfill / orchestration closure | `HONG-51` | PR [#307](https://github.com/HCH725/HONGSTR/pull/307) updates `scripts/backfill_1m_from_2020.sh`; `scripts/backfill_1m_from_2020.sh` already declares `START_DATE=2020-01-01` | `origin/main:scripts/backfill_1m_from_2020.sh` still contains conflict markers | `BLOCKED` |
+| `1m raw pipeline` | `HONG-51` | commit `51cbb1b` on `scripts/ingest_historical.py` and `scripts/aggregate_data.py`; PR [#307](https://github.com/HCH725/HONGSTR/pull/307) -> merge commit `169643b95cfba38e6c3014a28a1383a34319d9c8` | `origin/main:scripts/daily_etl.sh` is syntax-clean and no longer contains conflict markers | `DONE` |
+| `2020-01-01 -> now` backfill / orchestration closure | `HONG-51` | PR [#307](https://github.com/HCH725/HONGSTR/pull/307) -> merge commit `169643b95cfba38e6c3014a28a1383a34319d9c8`; `scripts/backfill_1m_from_2020.sh` fixes mainline orchestration path and keeps `START_DATE=2020-01-01` | `origin/main:scripts/backfill_1m_from_2020.sh` is syntax-clean and no longer contains conflict markers | `DONE` |
 | `5m / 15m / 1h / 4h` from `1m` | `HONG-51` evidence-only | commit `51cbb1b`; `scripts/aggregate_data.py`; `docs/spec/MASTER_SPEC.md` requires derived frames from `1m` | Present on `origin/main` | `DONE` |
-| `gap => is_usable=false` | `HONG-52` | PR [#308](https://github.com/HCH725/HONGSTR/pull/308) adds machine-checkable gate semantics and tests | `origin/main:scripts/state_snapshots.py` does not yet publish `is_usable` / `unusable_reason` contract | `BLOCKED` |
-| `coverage / freshness SSOT readable with reason / evidence` | `HONG-27` | PR [#309](https://github.com/HCH725/HONGSTR/pull/309) adds producer-side contract metadata and SSOT tests | `origin/main:docs/ops_state_refresh.md` and `origin/main:scripts/state_snapshots.py` still lack unified `reason / source / evidence` contract | `BLOCKED` |
+| `gap => is_usable=false` | `HONG-52` | PR [#308](https://github.com/HCH725/HONGSTR/pull/308) -> merge commit `302033930bbc8d8ef6f68fcffac75a6ce5ae6433`; post-merge tests: `tests/test_state_snapshots_data_quality_gate.py` | `origin/main:scripts/state_snapshots.py` publishes `is_usable` / `unusable_reason` for freshness and coverage, plus `system_health_latest.json.components.data_quality_gate` | `DONE` |
+| `coverage / freshness SSOT readable with reason / evidence` | `HONG-27` | PR [#309](https://github.com/HCH725/HONGSTR/pull/309) -> merge commit `d1b7a86bccb521992e5f0cf0dceb88a00122d704`; post-merge tests: `tests/test_state_snapshots_ssot_contract.py` | `origin/main:docs/ops_state_refresh.md` and `origin/main:scripts/state_snapshots.py` now publish unified `reason / source / evidence` contract | `DONE` |
 
 ## GitHub / Linear / Repo Consistency
 
-- `Linear -> GitHub`: consistent
-  - `HONG-51`, `HONG-52`, and `HONG-27` are all `In Review` and each points to an open PR.
-  - No Stage 1 card is marked `Done` while its corresponding GitHub PR is still open.
 - `GitHub -> repo`: consistent
-  - PR [#307](https://github.com/HCH725/HONGSTR/pull/307), PR [#308](https://github.com/HCH725/HONGSTR/pull/308), and PR [#309](https://github.com/HCH725/HONGSTR/pull/309) are not merged into `origin/main`.
-  - `origin/main` still reflects the pre-closure state for raw/backfill orchestration, data quality gate, and SSOT contract.
-- Drift risk:
-  - PR [#309](https://github.com/HCH725/HONGSTR/pull/309) is stacked on PR [#308](https://github.com/HCH725/HONGSTR/pull/308). Until `#308` merges (or `#309` is rebased after merge), Card C cannot be counted as mainline evidence.
+  - PR [#307](https://github.com/HCH725/HONGSTR/pull/307), PR [#308](https://github.com/HCH725/HONGSTR/pull/308), and PR [#309](https://github.com/HCH725/HONGSTR/pull/309) are merged into `origin/main`.
+  - `origin/main` now reflects the Stage 1 closure state for raw/backfill orchestration, data quality gate, and SSOT contract.
+- `Linear -> GitHub`: pending closure-state sync at audit rerun time
+  - During this rerun, `HONG-51`, `HONG-52`, and `HONG-27` may still display `In Review` until their merge evidence is written back to Linear.
+  - That does not block the final technical verdict because the GitHub merge commits and mainline file paths are already present.
+- Drift risk: cleared
+  - PR [#309](https://github.com/HCH725/HONGSTR/pull/309) was restacked onto `main`, rechecked, and then merged.
 
 ## Evidence References
 
@@ -66,13 +66,13 @@
   - `scripts/futures_metrics_lib.py`
   - `tests/test_coverage_reason_sanitize.py`
 
-### Open closure PR chain
+### Closure merge chain
 
-- PR [#307](https://github.com/HCH725/HONGSTR/pull/307) -> commit `0a02b53ccbb5905217f028912b3eab4e452255d3`
-- PR [#308](https://github.com/HCH725/HONGSTR/pull/308) -> commit `eb7bb14e8d8d8f27cfa4b70febea0e1637c71906`
-- PR [#309](https://github.com/HCH725/HONGSTR/pull/309) -> commit `5c3db1054717d72f4cdc7ff659152b4201581aec`
+- PR [#307](https://github.com/HCH725/HONGSTR/pull/307) -> author commit `0a02b53ccbb5905217f028912b3eab4e452255d3` -> merge commit `169643b95cfba38e6c3014a28a1383a34319d9c8`
+- PR [#308](https://github.com/HCH725/HONGSTR/pull/308) -> author commit `eb7bb14e8d8d8f27cfa4b70febea0e1637c71906` -> merge commit `302033930bbc8d8ef6f68fcffac75a6ce5ae6433`
+- PR [#309](https://github.com/HCH725/HONGSTR/pull/309) -> rebased author commit `dd305e8b79345fa50241adc31d8f6a5fe9e2fd2b` -> merge commit `d1b7a86bccb521992e5f0cf0dceb88a00122d704`
 
-### Canonical paths expected after A/B/C merge
+### Canonical paths verified on `origin/main`
 
 - `docs/ops_data_plane.md`
 - `docs/ops_state_refresh.md`
@@ -86,22 +86,26 @@
 - `data/state/system_health_latest.json`
 - `data/state/daily_report_latest.json`
 
+## Post-Merge Checks
+
+- `bash -n scripts/daily_etl.sh` -> `PASS`
+- `bash -n scripts/backfill_1m_from_2020.sh` -> `PASS`
+- `rg -n "^(<<<<<<<|=======|>>>>>>>)" scripts/daily_etl.sh scripts/backfill_1m_from_2020.sh` -> no matches
+- `python3 -m pytest -q tests/test_state_snapshots_freshness_profiles.py tests/test_state_snapshots_daily_report.py tests/test_state_snapshots_data_quality_gate.py tests/test_state_snapshots_ssot_contract.py tests/test_state_snapshots_changes_latest.py` -> `15 passed`
+
 ## Blockers
 
-1. PR [#307](https://github.com/HCH725/HONGSTR/pull/307) is open, so Card A is not mainline evidence yet.
-2. PR [#308](https://github.com/HCH725/HONGSTR/pull/308) is open, so Card B is not mainline evidence yet.
-3. PR [#309](https://github.com/HCH725/HONGSTR/pull/309) is open and stacked on `#308`, so Card C is not mainline evidence yet.
-4. `origin/main` still contains unresolved conflict markers in:
-   - `scripts/daily_etl.sh`
-   - `scripts/backfill_1m_from_2020.sh`
+- None on the technical closure chain.
+- Remaining work is governance-only status sync in Linear.
 
 ## Degrade
 
 - This audit PR does not change functionality and does not reopen implementation scope.
-- If PR [#307](https://github.com/HCH725/HONGSTR/pull/307), PR [#308](https://github.com/HCH725/HONGSTR/pull/308), or PR [#309](https://github.com/HCH725/HONGSTR/pull/309) changes before merge, this audit must be refreshed before `HONG-53` can be closed.
+- The only remaining non-code work is writing the merged evidence back to Linear and merging this final audit PR.
 
 ## Kill Switch
 
 - Do not mark Stage 1 `DONE` from Linear body text alone.
 - Do not count open PRs as merged evidence.
 - Do not count SSOT paths proposed in open branches as mainline truth until they exist on `origin/main`.
+- This file may only stay `DONE` while the cited merge commits remain on `main` and the post-merge checks still pass.
