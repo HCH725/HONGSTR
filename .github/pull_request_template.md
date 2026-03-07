@@ -1,26 +1,68 @@
-## What
+> If this PR cannot be mapped to a checklist item, write `NOT IN CHECKLIST -> SANDBOX FIRST` and explain why.
+>
+> Smallest possible PR only. No opportunistic refactor. No while-here edits.
+
+## Stage
 
 -
 
-## Why
+## Checklist item
 
 -
 
-## Risk
+## Plane
 
-- (Low/Med/High) + why
+-
 
-## Safety statement
+## DoD improved
 
-- Confirm: core diff=0 for src/hongstr/**
-- Confirm: no parquet/pkl artifacts tracked
-- Confirm: no trading/execution semantics changed
-- Confirm: Telegram notify remains non-blocking (WARN only)
+-
 
-## Rollback
+## Summary of change
 
-- git revert <commit_sha>
+-
 
-## How to verify
+## Files changed
 
-- (commands / steps)
+-
+
+## Allowed paths
+
+-
+
+## Forbidden paths
+
+-
+
+## Evidence
+
+> Note: Automated Reviewer outputs are advisory / non-blocking. Final evidence sufficiency is judged by Human/Chief Steward
+
+-
+
+## Tests run
+
+- Guardrail check:
+- Schema validation:
+- Local smoke test:
+
+## Expected SSOT/output impact
+
+-
+
+## Degrade
+
+-
+
+## Kill switch / rollback
+
+- `git revert <commit_sha>`
+
+## Legacy Impact (Keep / Merge / Kill / Removal plan)
+
+- Decision:
+- Removal plan:
+
+## Out of scope / not changed
+
+-
