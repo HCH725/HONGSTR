@@ -690,6 +690,7 @@ Read these rules before using any term below.
   - use `Keep the canonical short examples stable:` for reminder prose that preserves the fixed set
   - use `Example block:` only when opening a standalone demonstration block
   - if no standalone intro line is needed, let the governing bullet serve as the local intro instead of inventing a synonym phrase
+  - for blocker-reference closure status, canonical-layer inventory, and reopen gate, see `docs/ops/prototype_blocker_reference_governance_landing_v1.md`
 - Common misuse:
   - combining all three contrast sentences into one long reminder line
   - splitting `in non-live context` and `not a live fill-in field` into separate lines when one short sentence would be clearer

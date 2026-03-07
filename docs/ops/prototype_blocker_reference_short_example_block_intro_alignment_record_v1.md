@@ -25,6 +25,8 @@ Boundary reminder:
 
 This record defines the canonical intro phrases used before blocker-reference short-example blocks in the current prototype review/package docs.
 
+For blocker-reference line closure, canonical-layer inventory, source-role split, and reopen gate, see `docs/ops/prototype_blocker_reference_governance_landing_v1.md`.
+
 This alignment is governance-only.
 
 It does not:
