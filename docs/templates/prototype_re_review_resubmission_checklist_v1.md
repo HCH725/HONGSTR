@@ -112,6 +112,14 @@ Blocker-reference multiplicity hint rule:
   - `multiple links`
   - `one-or-more links`
 
+Blocker-reference ordering hint rule:
+
+- when multiple blocker-evidence-reference fields are listed together in one local sequence, use:
+  - `review note first`
+  - `closure evidence next`
+  - `fix evidence next`
+  - `supporting evidence last`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.
@@ -126,6 +134,7 @@ Blocker-reference multiplicity hint rule:
 - [ ] I have added the evidence, explanation, or docs updates the reviewer explicitly requested.
 - [ ] I am not resubmitting with `unresolved` blocking items hidden in prose.
 - [ ] I can map each blocker item to the canonical required-fix labels above.
+- [ ] If multiple blocker-evidence-reference fields are listed together, I have kept the canonical order: `review note first`, `closure evidence next`, `fix evidence next`, `supporting evidence last`.
 
 Review note reference:
 

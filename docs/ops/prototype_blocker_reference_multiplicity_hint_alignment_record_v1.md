@@ -66,6 +66,7 @@ Field split rule:
 
 - blocker-reference multiplicity hint labels are not blocker-evidence-reference labels
 - blocker-reference multiplicity hint labels are not blocker-reference-target hint labels
+- blocker-reference multiplicity hint labels are not blocker-reference ordering hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_ordering_hint_alignment_record_v1.md`
 - blocker-reference multiplicity hint labels are not blocker-closure-status labels
 - blocker-reference multiplicity hint labels are not reviewer response-state enums
 

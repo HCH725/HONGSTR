@@ -101,6 +101,14 @@ Blocker-reference multiplicity hint rule:
   - `multiple links`
   - `one-or-more links`
 
+Blocker-reference ordering hint rule:
+
+- when multiple blocker-evidence-reference fields are listed together in one local sequence, use:
+  - `review note first`
+  - `closure evidence next`
+  - `fix evidence next`
+  - `supporting evidence last`
+
 ## 1. Basic Information
 
 | Field | Value |

@@ -69,6 +69,7 @@ Field split rule:
 - blocker-evidence-reference labels are not required-fix labels
 - blocker-evidence-reference labels are not blocker-reference-target hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_target_hint_alignment_record_v1.md`
 - blocker-evidence-reference labels are not blocker-reference multiplicity hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md`
+- blocker-evidence-reference labels are not blocker-reference ordering hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_ordering_hint_alignment_record_v1.md`
 - blocker-evidence-reference labels are not blocker-closure-status labels
 - blocker-evidence-reference labels are not request-changes reasons
 - blocker-evidence-reference labels are not reviewer response-state enums
