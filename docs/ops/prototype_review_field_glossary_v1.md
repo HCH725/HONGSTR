@@ -334,7 +334,31 @@ Read these rules before using any term below.
   - using required-fix labels or request-changes reasons as if they were blocker-closure-status labels
 - Example value: `completed`
 
-### 3.15 `assessment status`
+### 3.15 `blocker evidence reference`
+
+- Definition: the normalized label for a field that points to the note, artifact, section, or link proving a blocker item, required fix, or re-review gate has supporting evidence.
+- When used: request-changes note, re-review resubmission checklist, reviewer guidance for re-review, author reminders for resubmission, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+- Required or optional: required where blocker proof is being captured with explicit links or references instead of prose only.
+- Governing record:
+  - `docs/ops/prototype_blocker_evidence_reference_alignment_record_v1.md`
+- Allowed values:
+  - `closure evidence reference`
+  - `fix evidence reference`
+  - `review note reference`
+  - `supporting evidence reference`
+- Common misuse:
+  - using labels such as `request-changes closure note`, `evidence refresh note`, `re-review note`, or `updated evidence summary attached` as if they were interchangeable evidence-reference fields
+  - using generic `attached or linked` prose where the blocker-specific evidence reference should be named explicitly
+  - using blocker-closure-status labels or required-fix labels as if they were evidence-reference labels
+- Example value: `fix evidence reference = docs/reviews/prototype-central-steward-shadow/evidence-summary.md#canonical-overlap`
+
+### 3.16 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -356,7 +380,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.16 `reviewer response state`
+### 3.17 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -380,7 +404,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.17 `decision outcome`
+### 3.18 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -406,7 +430,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.18 `next action`
+### 3.19 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -431,7 +455,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.19 `boundary check labels`
+### 3.20 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -462,6 +486,7 @@ Do not let any of these drift patterns enter the package:
 
 - using `reviewer`, `author`, and `review_author` inconsistently without context
 - changing enum labels between templates
+- using ad hoc blocker-proof labels instead of the canonical blocker-evidence-reference labels
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category

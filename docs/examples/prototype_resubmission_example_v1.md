@@ -86,7 +86,9 @@ Required fixes:
 - rollout wording removed: remove rollout-oriented wording from next action
 
 Re-review conditions:
-- updated evidence summary attached
+- review note reference: <request-changes note comment link>
+- fix evidence reference: <updated evidence summary / diff link>
+- supporting evidence reference: <extra blocker-supporting docs or comments>
 - boundary wording clarified
 - request-changes items marked `completed`, `not completed`, `not applicable`, or `unresolved` as applicable
 ```
@@ -94,6 +96,7 @@ Re-review conditions:
 Use only canonical request-changes-reason labels in the structured reason field.
 Use canonical required-fix labels in the fix section.
 Use canonical blocker-closure-status labels when marking each request-changes item.
+Use canonical blocker-evidence-reference labels when pointing to the note, diff, or supporting docs for each blocker.
 Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
@@ -102,6 +105,10 @@ Keep prose such as `add missing canonical_overlap explanation` as supporting det
 ## Request-Changes Closure
 - [x] responded to every requested item
 - [x] marked each item `completed`, `not completed`, `not applicable`, or `unresolved`
+- review note reference: <request-changes note comment link>
+- closure evidence reference: <links to blocker-by-blocker closure proof>
+- fix evidence reference: <links to updated evidence summary / template diff>
+- supporting evidence reference: <links to extra supporting docs>
 - [x] added requested docs clarifications
 
 ## Evidence Refresh
@@ -174,6 +181,7 @@ Author action:
 - use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`
 - close each request explicitly
 - mark every item `completed`, `not completed`, `not applicable`, or `unresolved`
+- keep the `review note reference` and update the blocker evidence references
 - stop if any blocking item is still `unresolved`
 
 ### Step 3: Author Updates Package Materials
@@ -201,6 +209,7 @@ Author must still confirm:
 Reviewer action:
 
 - re-run `docs/templates/prototype_review_reviewer_checklist_v1.md`
+- verify the `review note reference` plus blocker evidence references match the claimed fixes
 - verify the blocking items are actually `completed` or `not applicable`
 - stop again if the package still has missing evidence or mixed rollout scope
 

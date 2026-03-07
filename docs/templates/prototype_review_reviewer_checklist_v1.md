@@ -82,6 +82,7 @@ Use `docs/templates/prototype_review_request_changes_note_template_v1.md` when t
 - [ ] The PR uses the correct review template for that type.
 - [ ] An evidence summary is attached or linked.
 - [ ] The author checklist is attached, linked, or clearly completed.
+- [ ] If this is a resubmission, the package includes a `review note reference` back to the governing request-changes note.
 - [ ] The review package cites the governing docs:
   - `docs/architecture/prototype_evidence_collection_plan_v1.md`
   - `docs/architecture/prototype_retirement_criteria_v1.md`
@@ -227,6 +228,15 @@ Blocker-closure-status rule:
   - `not applicable`
   - `unresolved`
 - resubmission should normally advance only when blocker items are `completed` or `not applicable`
+
+Blocker-evidence-reference rule:
+
+- when reviewer-side re-check inspects blocker proof, use:
+  - `closure evidence reference`
+  - `fix evidence reference`
+  - `review note reference`
+  - `supporting evidence reference`
+- if blocker closure is claimed, the package should cite the matching blocker evidence references instead of prose-only placeholders
 
 Reviewer rationale:
 

@@ -89,6 +89,14 @@ Blocker-closure-status rule:
   - `not applicable`
   - `unresolved`
 
+Blocker-evidence-reference rule:
+
+- when blocker proof is linked during resubmission, use:
+  - `closure evidence reference`
+  - `fix evidence reference`
+  - `review note reference`
+  - `supporting evidence reference`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.
@@ -98,14 +106,19 @@ Blocker-closure-status rule:
   - `not completed`
   - `not applicable`
   - or `unresolved`
+- [ ] I have kept the `review note reference` back to the governing request-changes note.
 - [ ] Every item marked `not completed`, `not applicable`, or `unresolved` includes a written reason.
 - [ ] I have added the evidence, explanation, or docs updates the reviewer explicitly requested.
 - [ ] I am not resubmitting with `unresolved` blocking items hidden in prose.
 - [ ] I can map each blocker item to the canonical required-fix labels above.
 
-Request-changes closure note:
+Review note reference:
 
-- `<summary of each blocker closure status>`
+- `<link to the governing request-changes note / review comment>`
+
+Closure evidence reference:
+
+- `<links showing each blocker item and its current closure status>`
 
 ## 2. Evidence Refresh
 
@@ -123,9 +136,9 @@ Request-changes closure note:
 - [ ] I have completed any missing manual observation session requirement.
 - [ ] If evidence is still partial, I have said so explicitly instead of pretending the gap is closed.
 
-Evidence refresh note:
+Fix evidence reference:
 
-- `<what evidence changed>`
+- `<links to the updated evidence summary / review template / diff>`
 
 ## 3. Package Consistency
 
@@ -139,9 +152,9 @@ Evidence refresh note:
 - [ ] I have kept the package structure aligned with `docs/examples/prototype_review_package_example_v1.md`.
 - [ ] I have not left stale evidence, stale recommendations, or stale next actions in the package.
 
-Package consistency note:
+Supporting evidence reference:
 
-- `<what package sections changed>`
+- `<additional docs / PR / section links supporting the resubmission>`
 
 ## 4. Boundary Re-Check
 
