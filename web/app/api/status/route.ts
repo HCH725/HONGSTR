@@ -130,7 +130,6 @@ interface SystemHealthComponents {
   coverage_matrix?: Record<string, unknown>;
   brake?: Record<string, unknown>;
   regime_monitor?: Record<string, unknown>;
-  regime_signal?: Record<string, unknown>;
 }
 
 interface SystemHealthPack {
@@ -142,7 +141,7 @@ interface SystemHealthPack {
 }
 
 interface DashboardSsotContext {
-  mode: 'health-pack' | 'fallback' | 'unknown';
+  mode: 'health-pack' | 'unknown';
   refreshHint: string;
   missing: string[];
   unreadable: string[];
@@ -154,7 +153,7 @@ interface DashboardSsotContext {
 }
 
 const SSOT_REFRESH_HINT = 'bash scripts/refresh_state.sh';
-const SSOT_FALLBACK_FILES = [
+const SSOT_COMPONENT_FILES = [
   'data/state/freshness_table.json',
   'data/state/coverage_matrix_latest.json',
   'data/state/brake_health_latest.json',
@@ -231,16 +230,6 @@ function toFreshnessTable(value: unknown): FreshnessTable | null {
   return obj as unknown as FreshnessTable;
 }
 
-function extractRegimeReason(regimeLatest: Record<string, unknown> | null): string | null {
-  if (!regimeLatest) return null;
-  const reasonValue = regimeLatest.reason;
-  if (Array.isArray(reasonValue) && reasonValue.length > 0 && typeof reasonValue[0] === 'string') {
-    const reason = reasonValue[0].trim();
-    return reason || null;
-  }
-  return null;
-}
-
 async function loadDashboardSsotContext(): Promise<DashboardSsotContext> {
   const healthPackResult = await readStateJsonWithError<SystemHealthPack>('data/state/system_health_latest.json');
   const healthPack = healthPackResult.data && asRecord(healthPackResult.data.components)
@@ -251,35 +240,38 @@ async function loadDashboardSsotContext(): Promise<DashboardSsotContext> {
       ? healthPack.refresh_hint.trim()
       : SSOT_REFRESH_HINT;
 
+  if (!healthPack) {
+    const missing =
+      healthPackResult.error === 'missing' ? ['system_health_latest.json'] : [];
+    const unreadable =
+      healthPackResult.error === 'unreadable' || healthPackResult.error === null
+        ? ['system_health_latest.json']
+        : [];
+    return {
+      mode: 'unknown',
+      refreshHint,
+      missing,
+      unreadable,
+      healthPack: null,
+      freshnessTable: null,
+      coverageMatrixSnapshot: null,
+      brakeHealth: null,
+      regimeMonitorLatest: null,
+    };
+  }
+
   const [freshnessResult, coverageResult, brakeResult, regimeResult] = await Promise.all([
-    readStateJsonWithError<FreshnessTable>(SSOT_FALLBACK_FILES[0]),
-    readStateJsonWithError<Record<string, unknown>>(SSOT_FALLBACK_FILES[1]),
-    readStateJsonWithError<Record<string, unknown>>(SSOT_FALLBACK_FILES[2]),
-    readStateJsonWithError<Record<string, unknown>>(SSOT_FALLBACK_FILES[3]),
+    readStateJsonWithError<FreshnessTable>(SSOT_COMPONENT_FILES[0]),
+    readStateJsonWithError<Record<string, unknown>>(SSOT_COMPONENT_FILES[1]),
+    readStateJsonWithError<Record<string, unknown>>(SSOT_COMPONENT_FILES[2]),
+    readStateJsonWithError<Record<string, unknown>>(SSOT_COMPONENT_FILES[3]),
   ]);
 
-  const missing: string[] = [];
-  const unreadable: string[] = [];
-  const appendError = (relativePath: string, error: JsonReadError | null) => {
-    if (error === 'missing') missing.push(path.basename(relativePath));
-    if (error === 'unreadable') unreadable.push(path.basename(relativePath));
-  };
-  appendError(SSOT_FALLBACK_FILES[0], freshnessResult.error);
-  appendError(SSOT_FALLBACK_FILES[1], coverageResult.error);
-  appendError(SSOT_FALLBACK_FILES[2], brakeResult.error);
-  appendError(SSOT_FALLBACK_FILES[3], regimeResult.error);
-
-  const mode: DashboardSsotContext['mode'] = healthPack
-    ? 'health-pack'
-    : missing.length === 0 && unreadable.length === 0
-      ? 'fallback'
-      : 'unknown';
-
   return {
-    mode,
+    mode: 'health-pack',
     refreshHint,
-    missing,
-    unreadable,
+    missing: [],
+    unreadable: [],
     healthPack,
     freshnessTable: toFreshnessTable(freshnessResult.data),
     coverageMatrixSnapshot: asRecord(coverageResult.data),
@@ -422,9 +414,7 @@ async function buildStatus(envConfig: Record<string, string>, ssotContext: Dashb
   const fallbackDetail =
     ssotContext.mode === 'unknown'
       ? `UNKNOWN (Run: ${ssotContext.refreshHint})`
-      : ssotContext.mode === 'health-pack'
-        ? `SSOT=${normalizeHealthStatus(ssotContext.healthPack?.ssot_status)}`
-        : 'N/A';
+      : `SSOT=${normalizeHealthStatus(ssotContext.healthPack?.ssot_status)}`;
 
   return {
     executionMode: envConfig.EXECUTION_MODE || modeFromArtifact || 'LOCAL',
@@ -496,24 +486,6 @@ async function buildCoverageSummary(ssotContext: DashboardSsotContext): Promise<
     };
   }
 
-  if (ssotContext.mode === 'fallback' && ssotContext.coverageMatrixSnapshot) {
-    const totals = asRecord(ssotContext.coverageMatrixSnapshot.totals);
-    const done = asNumber(totals?.done);
-    const inProgress = asNumber(totals?.inProgress);
-    const blocked = asNumber(totals?.blocked);
-    const hasAny = done !== null || inProgress !== null || blocked !== null;
-    return {
-      windowsTotal: hasAny ? (done ?? 0) + (inProgress ?? 0) + (blocked ?? 0) : null,
-      windowsCompleted: done,
-      windowsFailed: blocked,
-      latestBacktestTs:
-        (typeof ssotContext.coverageMatrixSnapshot.ts_utc === 'string'
-          ? ssotContext.coverageMatrixSnapshot.ts_utc
-          : null),
-      source: 'data/state/coverage_matrix_latest.json',
-    };
-  }
-
   return {
     windowsTotal: null,
     windowsCompleted: null,
@@ -570,38 +542,24 @@ async function buildCoverageMatrix(ssotContext: DashboardSsotContext): Promise<C
       inProgress,
       blocked,
       rebase: asNumber(coverage.rebase) ?? 0,
+      rows: Array.isArray(ssotContext.coverageMatrixSnapshot?.rows)
+        ? ssotContext.coverageMatrixSnapshot?.rows
+        : undefined,
       ts_utc:
         extractHealthSourceTs(ssotContext.healthPack, 'coverage_matrix_latest.json')
         || ssotContext.healthPack.generated_utc,
     };
   }
-
-  if (!ssotContext.coverageMatrixSnapshot) return null;
-  const totals = asRecord(ssotContext.coverageMatrixSnapshot.totals);
-  if (!totals) return null;
-  return {
-    done: asNumber(totals.done) ?? 0,
-    inProgress: asNumber(totals.inProgress) ?? 0,
-    blocked: asNumber(totals.blocked) ?? 0,
-    rebase: asNumber(totals.rebase) ?? 0,
-    rows: Array.isArray(ssotContext.coverageMatrixSnapshot.rows)
-      ? ssotContext.coverageMatrixSnapshot.rows
-      : undefined,
-    ts_utc:
-      typeof ssotContext.coverageMatrixSnapshot.ts_utc === 'string'
-        ? ssotContext.coverageMatrixSnapshot.ts_utc
-        : undefined,
-  };
+  return null;
 }
 
 async function buildRegimeMonitor(ssotContext: DashboardSsotContext): Promise<RegimeMonitorSummary | null> {
   if (ssotContext.mode === 'health-pack' && ssotContext.healthPack) {
     const regimeMonitor = asRecord(ssotContext.healthPack.components?.regime_monitor);
-    const regimeSignal = asRecord(ssotContext.healthPack.components?.regime_signal);
     const topReason =
-      typeof regimeSignal?.top_reason === 'string' && regimeSignal.top_reason.trim()
-        ? regimeSignal.top_reason
-        : extractRegimeReason(ssotContext.regimeMonitorLatest);
+      typeof regimeMonitor?.reason === 'string' && regimeMonitor.reason.trim()
+        ? regimeMonitor.reason
+        : null;
     return {
       status: normalizeHealthStatus(regimeMonitor?.status),
       updatedAtUtc:
@@ -609,17 +567,6 @@ async function buildRegimeMonitor(ssotContext: DashboardSsotContext): Promise<Re
         || ssotContext.healthPack.generated_utc
         || null,
       topReason,
-    };
-  }
-
-  if (ssotContext.mode === 'fallback' && ssotContext.regimeMonitorLatest) {
-    return {
-      status: normalizeHealthStatus(ssotContext.regimeMonitorLatest.overall),
-      updatedAtUtc:
-        typeof ssotContext.regimeMonitorLatest.ts_utc === 'string'
-          ? ssotContext.regimeMonitorLatest.ts_utc
-          : null,
-      topReason: extractRegimeReason(ssotContext.regimeMonitorLatest),
     };
   }
 
@@ -631,7 +578,7 @@ async function buildRegimeMonitor(ssotContext: DashboardSsotContext): Promise<Re
 }
 
 async function buildFreshnessTable(ssotContext: DashboardSsotContext): Promise<FreshnessTable | null> {
-  if (ssotContext.mode === 'unknown') return null;
+  if (ssotContext.mode !== 'health-pack') return null;
   return ssotContext.freshnessTable;
 }
 

@@ -395,8 +395,7 @@ def _status_health_pack_path() -> Path:
 
 
 def _status_ssot_sources_line() -> str:
-    names = [name for name, _ in _status_ssot_sources()]
-    return "Sources: " + ", ".join(names)
+    return "Sources: system_health_latest.json"
 
 
 def _status_refresh_hint() -> str:
@@ -409,13 +408,12 @@ def _status_unknown_report(missing: list[str], unreadable: list[str]) -> str:
     return "\n".join(
         [
             "SSOT_STATUS: UNKNOWN",
-            "SSOT_SEMANTICS: SystemHealth only (RegimeSignal is separate trade-risk alert)",
+            "SSOT_SEMANTICS: SystemHealth only",
             f"Issues: missing=[{miss}] unreadable=[{bad}]",
             "Freshness: UNKNOWN",
             "CoverageMatrix: UNKNOWN",
             "Brake: UNKNOWN",
             "RegimeMonitor: UNKNOWN",
-            "RegimeSignal: UNKNOWN",
             f"RefreshHint: Run: `{_status_refresh_hint()}`",
             _status_ssot_sources_line(),
         ]
@@ -1218,7 +1216,7 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
 
     semantics = str(
         health_pack.get("ssot_semantics")
-        or "SystemHealth only (RegimeSignal is separate trade-risk alert)"
+        or "SystemHealth only"
     )
     overall = str(health_pack.get("ssot_status", "UNKNOWN")).upper()
     if overall not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
@@ -1228,7 +1226,6 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
     cov = components.get("coverage_matrix", {})
     brake = components.get("brake", {})
     regime_monitor = components.get("regime_monitor", {})
-    regime_signal = components.get("regime_signal", {})
     if not isinstance(fresh, dict):
         fresh = {}
     if not isinstance(cov, dict):
@@ -1237,8 +1234,6 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
         brake = {}
     if not isinstance(regime_monitor, dict):
         regime_monitor = {}
-    if not isinstance(regime_signal, dict):
-        regime_signal = {}
 
     fresh_status = str(fresh.get("status", "UNKNOWN")).upper()
     if fresh_status not in {"OK", "WARN", "FAIL", "UNKNOWN"}:
@@ -1264,21 +1259,20 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
         regime_monitor_status = "UNKNOWN"
     regime_monitor_age = regime_monitor.get("age_h")
     regime_ok_h = regime_monitor.get("ok_within_h")
-
-    regime_signal_status = _normalize_regime_signal_status(regime_signal.get("status"))
-    regime_top_reason = regime_signal.get("top_reason")
-    if not isinstance(regime_top_reason, str) or not regime_top_reason.strip():
-        regime_top_reason = None
-    if regime_top_reason and len(regime_top_reason) > 120:
-        regime_top_reason = regime_top_reason[:117] + "..."
-    regime_signal_line = f"RegimeSignal: {regime_signal_status}"
-    if regime_top_reason:
-        regime_signal_line += f" ({regime_top_reason})"
+    regime_reason = regime_monitor.get("reason")
+    if not isinstance(regime_reason, str) or not regime_reason.strip():
+        regime_reason = None
+    if regime_reason and len(regime_reason) > 120:
+        regime_reason = regime_reason[:117] + "..."
+    regime_monitor_line = (
+        f"RegimeMonitor: {regime_monitor_status} age_h={_fmt_num(regime_monitor_age)}"
+        f" (<= {float(regime_ok_h or REGIME_MONITOR_FRESH_OK_H):.0f}h OK)"
+    )
+    if regime_reason:
+        regime_monitor_line += f" [{regime_reason}]"
 
     refresh_hint = str(health_pack.get("refresh_hint") or _status_refresh_hint())
-    sources_line = "Sources: system_health_latest.json (preferred), " + ", ".join(
-        name for name, _ in _status_ssot_sources()
-    )
+    sources_line = _status_ssot_sources_line()
 
     return "\n".join(
         [
@@ -1287,8 +1281,7 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
             f"Freshness: {fresh_status} max_age_h={_fmt_num(max_age)}",
             f"CoverageMatrix: {cov_status} {done_count}/{total_count} done | max_lag_h={_fmt_num(max_lag)} | rebase={matrix_rebase}",
             f"Brake: {brake_status}",
-            f"RegimeMonitor: {regime_monitor_status} age_h={_fmt_num(regime_monitor_age)} (<= {float(regime_ok_h or REGIME_MONITOR_FRESH_OK_H):.0f}h OK)",
-            regime_signal_line,
+            regime_monitor_line,
             f"Action: run `{refresh_hint}` if snapshots look stale",
             sources_line,
         ]
@@ -1297,152 +1290,18 @@ def _status_short_report_from_health_pack(health_pack: dict) -> str | None:
 
 def _status_short_report() -> str:
     health_pack_path = _status_health_pack_path()
-    if health_pack_path.exists():
-        health_pack = _load_json(health_pack_path, {})
-        rendered = _status_short_report_from_health_pack(health_pack if isinstance(health_pack, dict) else {})
-        if rendered:
-            return rendered
+    if not health_pack_path.exists():
+        return _status_unknown_report(["system_health_latest.json"], [])
 
-    parsed: dict[str, object] = {}
-    missing: list[str] = []
-    unreadable: list[str] = []
+    try:
+        health_pack = json.loads(health_pack_path.read_text(encoding="utf-8"))
+    except Exception:
+        return _status_unknown_report([], ["system_health_latest.json"])
 
-    source_map = {name: path for name, path in _status_ssot_sources()}
-    for name, path in source_map.items():
-        if name.endswith(".jsonl"):
-            continue
-        if not path.exists():
-            missing.append(name)
-            continue
-        try:
-            data = _load_json(path, {})
-            if not isinstance(data, dict) or not data:
-                unreadable.append(name)
-                continue
-            parsed[name] = data
-        except Exception:
-            unreadable.append(name)
-
-    rebase_count = 0
-
-    freshness_rows = (parsed.get("freshness_table.json") or {}).get("rows", []) if isinstance(parsed.get("freshness_table.json"), dict) else []
-    cov_rows = (parsed.get("coverage_matrix_latest.json") or {}).get("rows", []) if isinstance(parsed.get("coverage_matrix_latest.json"), dict) else []
-    cov_totals = (parsed.get("coverage_matrix_latest.json") or {}).get("totals", {}) if isinstance(parsed.get("coverage_matrix_latest.json"), dict) else {}
-    brake_results = (parsed.get("brake_health_latest.json") or {}).get("results", []) if isinstance(parsed.get("brake_health_latest.json"), dict) else []
-    regime = parsed.get("regime_monitor_latest.json") if isinstance(parsed.get("regime_monitor_latest.json"), dict) else {}
-
-    if not isinstance(freshness_rows, list):
-        unreadable.append("freshness_table.json")
-        freshness_rows = []
-    if not isinstance(cov_rows, list):
-        unreadable.append("coverage_matrix_latest.json")
-        cov_rows = []
-    if not isinstance(cov_totals, dict):
-        cov_totals = {}
-    if not isinstance(brake_results, list):
-        unreadable.append("brake_health_latest.json")
-        brake_results = []
-    if not isinstance(regime, dict):
-        unreadable.append("regime_monitor_latest.json")
-        regime = {}
-
-    if missing or unreadable:
-        return _status_unknown_report(missing, unreadable)
-
-    fresh_statuses = [str(r.get("status", "UNKNOWN")).upper() for r in freshness_rows if isinstance(r, dict)]
-    fresh_status = "OK"
-    if fresh_statuses:
-        fresh_status = _status_max(*fresh_statuses)
-    max_age = None
-    for r in freshness_rows:
-        if not isinstance(r, dict):
-            continue
-        age = r.get("age_h")
-        try:
-            age_v = float(age)
-        except Exception:
-            continue
-        max_age = age_v if max_age is None else max(max_age, age_v)
-
-    matrix_rebase = int(cov_totals.get("rebase", 0) or 0)
-    max_lag = None
-    cov_status_raw = [_normalize_coverage_status(r.get("status")) for r in cov_rows if isinstance(r, dict)]
-    done_count = cov_totals.get("done")
-    blocked_count = cov_totals.get("blocked", 0)
-    total_count = 0
-    if "done" in cov_totals and "inProgress" in cov_totals and "blocked" in cov_totals:
-        done_count = int(cov_totals.get("done", 0) or 0)
-        blocked_count = int(cov_totals.get("blocked", 0) or 0)
-        total_count = (
-            int(cov_totals.get("done", 0) or 0)
-            + int(cov_totals.get("inProgress", 0) or 0)
-            + int(cov_totals.get("blocked", 0) or 0)
-        )
-    else:
-        total_count = len(cov_rows)
-        done_count = sum(1 for s in cov_status_raw if s == "PASS")
-        blocked_count = sum(1 for s in cov_status_raw if s == "FAIL")
-
-    for r in cov_rows:
-        if not isinstance(r, dict):
-            continue
-        lag = r.get("lag_hours")
-        try:
-            lag_v = float(lag)
-        except Exception:
-            continue
-        max_lag = lag_v if max_lag is None else max(max_lag, lag_v)
-
-    cov_status = _coverage_health_status(
-        cov_status_raw,
-        blocked_count=int(blocked_count or 0),
-        rebase_count=matrix_rebase,
-        total_count=total_count,
-    )
-
-    brake_overall_fail = bool((parsed.get("brake_health_latest.json") or {}).get("overall_fail")) if isinstance(parsed.get("brake_health_latest.json"), dict) else False
-    brake_status = "FAIL" if brake_overall_fail else "OK"
-    for r in brake_results:
-        if not isinstance(r, dict):
-            continue
-        brake_status = _status_max(brake_status, str(r.get("status", "UNKNOWN")))
-
-    regime_signal_status = _normalize_regime_signal_status(regime.get("overall"))
-    regime_reasons = regime.get("reason")
-    regime_top_reason = None
-    if isinstance(regime_reasons, list) and regime_reasons:
-        top = regime_reasons[0]
-        if isinstance(top, str) and top.strip():
-            regime_top_reason = top.strip()
-    if regime_top_reason and len(regime_top_reason) > 120:
-        regime_top_reason = regime_top_reason[:117] + "..."
-
-    regime_monitor_age = _file_age_hours(source_map["regime_monitor_latest.json"])
-    if regime_monitor_age is None:
-        regime_monitor_status = "UNKNOWN"
-    elif regime_monitor_age <= REGIME_MONITOR_FRESH_OK_H:
-        regime_monitor_status = "OK"
-    else:
-        regime_monitor_status = "WARN"
-
-    # SSOT_STATUS is system-health only; market risk signal is reported separately.
-    overall = _status_max(fresh_status, cov_status, brake_status, regime_monitor_status)
-    regime_signal_line = f"RegimeSignal: {regime_signal_status}"
-    if regime_top_reason:
-        regime_signal_line += f" ({regime_top_reason})"
-
-    return "\n".join(
-        [
-            f"SSOT_STATUS: {overall}",
-            "SSOT_SEMANTICS: SystemHealth only (RegimeSignal is separate trade-risk alert)",
-            f"Freshness: {fresh_status} max_age_h={_fmt_num(max_age)}",
-            f"CoverageMatrix: {cov_status} {done_count}/{total_count} done | max_lag_h={_fmt_num(max_lag)} | rebase={matrix_rebase}",
-            f"Brake: {brake_status}",
-            f"RegimeMonitor: {regime_monitor_status} age_h={_fmt_num(regime_monitor_age)} (<= {REGIME_MONITOR_FRESH_OK_H:.0f}h OK)",
-            regime_signal_line,
-            _status_ssot_sources_line(),
-        ]
-    )
+    rendered = _status_short_report_from_health_pack(health_pack if isinstance(health_pack, dict) else {})
+    if rendered:
+        return rendered
+    return _status_unknown_report([], ["system_health_latest.json"])
 
 
 def _chat_allowed(msg: dict) -> bool:

@@ -10,10 +10,10 @@ These tests validate:
 """
 import json
 import importlib.util
-import os
 import sys
-import time
+import types
 from pathlib import Path
+from typing import Optional
 from unittest.mock import patch, MagicMock
 from _local.telegram_cp.schemas_reasoning import ReasoningAnalysis
 from _local.telegram_cp.prompt_pack import build_system_prompt as build_prompt_pack_system_prompt, select_overlay
@@ -36,6 +36,24 @@ def _sandbox_state(monkeypatch, tmp_path, s):
 
 
 def _load_server():
+    if "_local.telegram_cp.guardrail" not in sys.modules and "guardrail" not in sys.modules:
+        guardrail = types.ModuleType("_local.telegram_cp.guardrail")
+
+        def _is_action_request(text: str) -> bool:
+            raw = str(text or "").lower()
+            return any(token in raw for token in ["重啟", "restart", "買進", "buy", "下單", "execute", "刪除", "delete"])
+
+        guardrail.is_action_request = _is_action_request
+        guardrail.refusal_message = lambda: "read-only"
+        guardrail.redact_secrets = lambda text: text
+        sys.modules["_local.telegram_cp.guardrail"] = guardrail
+        sys.modules["guardrail"] = guardrail
+    if "_local.telegram_cp.router" not in sys.modules and "router" not in sys.modules:
+        router = types.ModuleType("_local.telegram_cp.router")
+        router.should_use_specialist = lambda *_args, **_kwargs: False
+        sys.modules["_local.telegram_cp.router"] = router
+        sys.modules["router"] = router
+
     p = TEST_DIR / "tg_cp_server.py"
     spec = importlib.util.spec_from_file_location("tg_cp_server_testmod", p)
     mod = importlib.util.module_from_spec(spec)
@@ -186,6 +204,53 @@ def _write_status_ssot_sources(repo: Path) -> None:
     )
 
 
+def _write_status_health_pack(
+    repo: Path,
+    *,
+    ssot_status: str = "OK",
+    freshness_status: str = "OK",
+    freshness_max_age_h: float = 1.2,
+    coverage_status: str = "PASS",
+    coverage_done: int = 1,
+    coverage_total: int = 1,
+    coverage_max_lag_h: float = 0.0,
+    coverage_rebase: int = 0,
+    brake_status: str = "OK",
+    regime_monitor_status: str = "OK",
+    regime_monitor_age_h: float = 0.2,
+    regime_monitor_reason: Optional[str] = None,
+) -> None:
+    state_dir = repo / "data/state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "system_health_latest.json").write_text(
+        json.dumps(
+            {
+                "ssot_status": ssot_status,
+                "ssot_semantics": "SystemHealth only",
+                "refresh_hint": "bash scripts/refresh_state.sh",
+                "components": {
+                    "freshness": {"status": freshness_status, "max_age_h": freshness_max_age_h},
+                    "coverage_matrix": {
+                        "status": coverage_status,
+                        "done": coverage_done,
+                        "total": coverage_total,
+                        "max_lag_h": coverage_max_lag_h,
+                        "rebase": coverage_rebase,
+                    },
+                    "brake": {"status": brake_status},
+                    "regime_monitor": {
+                        "status": regime_monitor_status,
+                        "age_h": regime_monitor_age_h,
+                        "ok_within_h": 12,
+                        "reason": regime_monitor_reason,
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def _write_daily_report_ssot(repo: Path) -> None:
     state_dir = repo / "data/state"
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -307,19 +372,19 @@ def test_status_command(monkeypatch, tmp_path):
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
     _write_status_ssot_sources(repo)
+    _write_status_health_pack(repo)
     monkeypatch.setattr(s, "REPO", repo)
 
     resp = s._handle_command(30, "/status")
     assert "SSOT_STATUS:" in resp
     assert "Sources:" in resp
-    assert "freshness_table.json" in resp
-    assert "coverage_matrix_latest.json" in resp
     assert "Dashboard lag 37.5h" not in resp
     assert "SSOT_SEMANTICS: SystemHealth only" in resp
     assert "Freshness:" in resp
     assert "CoverageMatrix: PASS" in resp
     assert "RegimeMonitor:" in resp
-    assert "RegimeSignal:" in resp
+    assert "Sources: system_health_latest.json" in resp
+    assert "RegimeSignal:" not in resp
 
 
 def test_status_command_with_bot_suffix(monkeypatch, tmp_path):
@@ -327,6 +392,7 @@ def test_status_command_with_bot_suffix(monkeypatch, tmp_path):
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
     _write_status_ssot_sources(repo)
+    _write_status_health_pack(repo)
     monkeypatch.setattr(s, "REPO", repo)
 
     resp_plain = s._handle_command(31, "/status")
@@ -334,8 +400,7 @@ def test_status_command_with_bot_suffix(monkeypatch, tmp_path):
     resp_ws = s._handle_command(31, "   /status   ")
     assert resp_plain == resp_suffix == resp_ws
     assert "Sources:" in resp_suffix
-    assert "freshness_table.json" in resp_suffix
-    assert "coverage_matrix_latest.json" in resp_suffix
+    assert "system_health_latest.json" in resp_suffix
     assert "CoverageMatrix: PASS" in resp_suffix
 
 
@@ -349,27 +414,22 @@ def test_status_command_unknown_when_ssot_missing(monkeypatch, tmp_path):
     resp = s._handle_command(32, "/status@HONGSTR_bot")
     assert "SSOT_STATUS: UNKNOWN" in resp
     assert "missing=[" in resp
-    assert "freshness_table.json" in resp
-    assert "coverage_matrix_latest.json" in resp
+    assert "system_health_latest.json" in resp
     assert "RegimeMonitor: UNKNOWN" in resp
-    assert "RegimeSignal: UNKNOWN" in resp
     assert "RefreshHint: Run: `bash scripts/refresh_state.sh`" in resp
     assert "Sources:" in resp
 
 
-def test_status_command_unknown_when_partial_ssot_missing(monkeypatch, tmp_path):
+def test_status_command_unknown_when_health_pack_missing_even_with_component_sources(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
     _write_status_ssot_sources(repo)
     monkeypatch.setattr(s, "REPO", repo)
 
-    state_dir = repo / "data/state"
-    (state_dir / "brake_health_latest.json").unlink()
-
     resp = s._handle_command(32, "/status")
     assert "SSOT_STATUS: UNKNOWN" in resp
-    assert "missing=[brake_health_latest.json]" in resp
+    assert "missing=[system_health_latest.json]" in resp
     assert "RefreshHint: Run: `bash scripts/refresh_state.sh`" in resp
     assert "Dashboard lag" not in resp
 
@@ -382,35 +442,27 @@ def test_status_command_unknown_when_ssot_unreadable(monkeypatch, tmp_path):
     monkeypatch.setattr(s, "REPO", repo)
 
     state_dir = repo / "data/state"
-    (state_dir / "coverage_matrix_latest.json").write_text("{", encoding="utf-8")
+    (state_dir / "system_health_latest.json").write_text("{", encoding="utf-8")
 
     resp = s._handle_command(32, "/status")
     assert "SSOT_STATUS: UNKNOWN" in resp
-    assert "unreadable=[coverage_matrix_latest.json]" in resp
+    assert "unreadable=[system_health_latest.json]" in resp
     assert "RefreshHint: Run: `bash scripts/refresh_state.sh`" in resp
 
 
-def test_status_regime_signal_fail_does_not_flip_ssot(monkeypatch, tmp_path):
+def test_status_health_pack_is_system_health_only(monkeypatch, tmp_path):
     s = _load_server()
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
     _write_status_ssot_sources(repo)
+    _write_status_health_pack(repo, ssot_status="OK", regime_monitor_status="OK", regime_monitor_reason="fresh_regime_monitor")
     monkeypatch.setattr(s, "REPO", repo)
-
-    state_dir = repo / "data/state"
-    (state_dir / "freshness_table.json").write_text(
-        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 1.0, "status": "OK"}]}),
-        encoding="utf-8",
-    )
-    (state_dir / "regime_monitor_latest.json").write_text(
-        json.dumps({"overall": "FAIL", "reason": ["MDD breach"]}),
-        encoding="utf-8",
-    )
 
     resp = s._handle_command(33, "/status")
     assert "SSOT_STATUS: OK" in resp
     assert "RegimeMonitor: OK" in resp
-    assert "RegimeSignal: FAIL (MDD breach)" in resp
+    assert "SSOT_SEMANTICS: SystemHealth only" in resp
+    assert "RegimeSignal:" not in resp
 
 
 def test_status_regime_monitor_stale_affects_health(monkeypatch, tmp_path):
@@ -418,24 +470,19 @@ def test_status_regime_monitor_stale_affects_health(monkeypatch, tmp_path):
     _sandbox_state(monkeypatch, tmp_path, s)
     repo = tmp_path / "repo"
     _write_status_ssot_sources(repo)
+    _write_status_health_pack(
+        repo,
+        ssot_status="WARN",
+        regime_monitor_status="WARN",
+        regime_monitor_age_h=13.0,
+        regime_monitor_reason="regime_monitor_stale:age_h=13.0",
+    )
     monkeypatch.setattr(s, "REPO", repo)
-
-    state_dir = repo / "data/state"
-    (state_dir / "freshness_table.json").write_text(
-        json.dumps({"rows": [{"symbol": "BTCUSDT", "tf": "1m", "age_h": 1.0, "status": "OK"}]}),
-        encoding="utf-8",
-    )
-    (state_dir / "regime_monitor_latest.json").write_text(
-        json.dumps({"overall": "OK"}),
-        encoding="utf-8",
-    )
-    old_ts = time.time() - (13 * 3600)
-    os.utime(state_dir / "regime_monitor_latest.json", (old_ts, old_ts))
 
     resp = s._handle_command(34, "/status")
     assert "SSOT_STATUS: WARN" in resp
     assert "RegimeMonitor: WARN" in resp
-    assert "RegimeSignal: OK" in resp
+    assert "regime_monitor_stale:age_h=13.0" in resp
 
 
 def test_status_prefers_system_health_pack_when_present(monkeypatch, tmp_path):
@@ -445,30 +492,22 @@ def test_status_prefers_system_health_pack_when_present(monkeypatch, tmp_path):
     _write_status_ssot_sources(repo)
     monkeypatch.setattr(s, "REPO", repo)
 
-    state_dir = repo / "data/state"
-    (state_dir / "system_health_latest.json").write_text(
-        json.dumps(
-            {
-                "ssot_status": "WARN",
-                "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
-                "refresh_hint": "bash scripts/refresh_state.sh",
-                "components": {
-                    "freshness": {"status": "OK", "max_age_h": 1.0},
-                    "coverage_matrix": {"status": "WARN", "done": 0, "total": 1, "max_lag_h": 2.5, "rebase": 1},
-                    "brake": {"status": "OK"},
-                    "regime_monitor": {"status": "OK", "age_h": 0.2, "ok_within_h": 12},
-                    "regime_signal": {"status": "FAIL", "top_reason": "MDD breach"},
-                },
-            }
-        ),
-        encoding="utf-8",
+    _write_status_health_pack(
+        repo,
+        ssot_status="WARN",
+        coverage_status="WARN",
+        coverage_done=0,
+        coverage_total=1,
+        coverage_max_lag_h=2.5,
+        coverage_rebase=1,
+        regime_monitor_status="OK",
     )
 
     resp = s._handle_command(35, "/status")
     assert "SSOT_STATUS: WARN" in resp
     assert "CoverageMatrix: WARN 0/1 done | max_lag_h=2.5 | rebase=1" in resp
-    assert "RegimeSignal: FAIL (MDD breach)" in resp
-    assert "Sources: system_health_latest.json (preferred)" in resp
+    assert "RegimeSignal:" not in resp
+    assert "Sources: system_health_latest.json" in resp
 
 
 def test_status_health_pack_overrides_conflicting_component_files(monkeypatch, tmp_path):
@@ -493,28 +532,12 @@ def test_status_health_pack_overrides_conflicting_component_files(monkeypatch, t
         json.dumps({"overall": "FAIL", "reason": ["component says fail"]}),
         encoding="utf-8",
     )
-    (state_dir / "system_health_latest.json").write_text(
-        json.dumps(
-            {
-                "ssot_status": "OK",
-                "ssot_semantics": "SystemHealth only (RegimeSignal is separate trade-risk alert)",
-                "refresh_hint": "bash scripts/refresh_state.sh",
-                "components": {
-                    "freshness": {"status": "OK", "max_age_h": 0.8},
-                    "coverage_matrix": {"status": "PASS", "done": 1, "total": 1, "max_lag_h": 0.0, "rebase": 0},
-                    "brake": {"status": "OK"},
-                    "regime_monitor": {"status": "OK", "age_h": 0.1, "ok_within_h": 12},
-                    "regime_signal": {"status": "OK", "top_reason": None},
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
+    _write_status_health_pack(repo, ssot_status="OK", regime_monitor_status="OK", regime_monitor_age_h=0.1)
 
     resp = s._handle_command(36, "/status")
     assert "SSOT_STATUS: OK" in resp
     assert "CoverageMatrix: PASS 1/1 done | max_lag_h=0.0 | rebase=0" in resp
-    assert "RegimeSignal: OK" in resp
+    assert "RegimeSignal:" not in resp
     assert "component says fail" not in resp
 
 
@@ -907,7 +930,7 @@ def test_snapshot_text_freshness_logic(monkeypatch, tmp_path):
     _sandbox_state(monkeypatch, tmp_path, s)
 
     fake_snap = {
-        "status_report": "SSOT_STATUS: OK\nFreshness: OK max_age_h=1.0\nRegimeSignal: FAIL (MDD breach)",
+        "status_report": "SSOT_STATUS: OK\nFreshness: OK max_age_h=1.0\nRegimeMonitor: OK age_h=0.5 (<= 12h OK)",
         "refresh_hint": "bash scripts/refresh_state.sh",
         "pending_alerts": 2,
     }
@@ -916,7 +939,7 @@ def test_snapshot_text_freshness_logic(monkeypatch, tmp_path):
     text = s._snapshot_text()
     assert "[系統快照 " in text
     assert "SSOT_STATUS: OK" in text
-    assert "RegimeSignal: FAIL (MDD breach)" in text
+    assert "RegimeMonitor: OK age_h=0.5 (<= 12h OK)" in text
     assert "RefreshHint: Run `bash scripts/refresh_state.sh` when SSOT snapshots are missing or stale." in text
     assert "待處理排程告警: 2 筆" in text
     # Legacy dynamic/log-derived summary should not appear in the SSOT-only snapshot text.

@@ -43,8 +43,9 @@ consumer 若需要單一 gate 結論，應讀：
 
 其中：
 
-- `system_health_latest.json` 是 **preferred consumer path**
-- `daily_report_latest.json` 是 companion summary，不得重算 freshness / coverage
+- `system_health_latest.json` 是 **canonical health-pack path**
+- `system_health_latest.json` 僅承載 **SystemHealth**，不得混入 `RegimeSignal` companion payload
+- `daily_report_latest.json` 是 companion summary；如需 `RegimeSignal` 等非 SystemHealth 摘要，應由此 companion path 讀取
 - `freshness_table.json` 與 `coverage_matrix_latest.json` 是 row-level canonical sources
 
 固定欄位語意如下：
@@ -79,7 +80,9 @@ consumer-read 規則：
 
 - consumer 只讀上述 canonical JSON
 - canonical JSON 存在時，不得改讀 log、ad-hoc fields、或自行二次推理 freshness / coverage verdict
-- tg_cp / dashboard 可以保留 fallback，但 fallback 只能在 canonical JSON 缺失時發生，不能變成平行 truth source
+- `/status` 與 web status route 必須先讀 `system_health_latest.json`
+- `system_health_latest.json` 缺失、壞檔、或不可解析時，`/status` 與 web status route 只能 deterministic 回 `UNKNOWN + refresh_hint`
+- consumer 不得在 health pack 缺失時，改用 component files 自行合成 top-level `OK / WARN / FAIL`
 
 ## 運作機制
 
@@ -87,4 +90,4 @@ consumer-read 規則：
 2. **觸發方式**：`bash scripts/refresh_state.sh`。
 3. **Canonical gate**：`system_health_latest.json.components.data_quality_gate` 提供 Stage 1 最小可讀 gate contract；consumer 應只讀，不應自行重新推理缺漏/過舊語義。
 4. **Canonical contract**：`reason / source / evidence` vocabulary 由 producer 在上述 JSON 中直接寫出，供 consumer 只讀。
-5. **前端/TG 顯示**：Dashboard API 與 Telegram `/freshness` 指令均優先讀取此 JSON 快照，確保兩端顯示完全同步。
+5. **前端/TG 顯示**：Dashboard API 與 Telegram `/status` 僅以 `system_health_latest.json` 作為 top-level health source；若 health pack 不可讀，必須直接提示 `bash scripts/refresh_state.sh`。

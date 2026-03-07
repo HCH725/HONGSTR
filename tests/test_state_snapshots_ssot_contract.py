@@ -97,11 +97,17 @@ def test_main_publishes_consistent_ssot_contract_for_readiness_freshness_and_cov
     assert system_health["ssot_source"] == "data/state/system_health_latest.json"
     assert system_health["ssot_evidence"]["type"] == "state_snapshot"
     assert system_health["ssot_evidence"]["ref"] == "data/state/system_health_latest.json#components"
+    assert system_health["contract"]["unknown_on_missing_or_unreadable"] is True
+    assert system_health["contract"]["excluded_companion_components"] == ["regime_signal"]
+    assert "regime_signal" not in system_health["components"]
     assert system_health["components"]["freshness"]["source"] == "data/state/freshness_table.json"
     assert system_health["components"]["freshness"]["evidence"]["ref"] == "data/state/freshness_table.json#quality_gate"
     assert system_health["components"]["coverage_matrix"]["source"] == "data/state/coverage_matrix_latest.json"
     assert system_health["components"]["coverage_matrix"]["evidence"]["ref"] == "data/state/coverage_matrix_latest.json#quality_gate"
+    assert system_health["components"]["regime_monitor"]["source"] == "data/state/regime_monitor_latest.json"
+    assert system_health["components"]["regime_monitor"]["evidence"]["ref"] == "data/state/regime_monitor_latest.json#overall"
 
     assert daily_report["sources"]["system_health_latest"]["path"] == "data/state/system_health_latest.json"
     assert daily_report["sources"]["freshness_table"]["path"] == "data/state/freshness_table.json"
     assert daily_report["sources"]["coverage_matrix_latest"]["path"] == "data/state/coverage_matrix_latest.json"
+    assert "regime_signal" in daily_report["ssot_components"]
