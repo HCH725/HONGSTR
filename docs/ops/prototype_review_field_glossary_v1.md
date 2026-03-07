@@ -630,10 +630,42 @@ Read these rules before using any term below.
   - using `not as a live fill-in field` instead of the canonical direct contrast sentence
   - using `in that non-live context` or `compressed non-live reminder context` instead of `in non-live context`
   - leaving `outside the live field block` implicit when the sentence is specifically excluding bare placeholder snippets from the live field block
+  - treating contrast-sentence combination rules as if they were the contrast sentences themselves
   - treating contrast sentences as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
-- Example value: `use inline placeholder-only fragment only in non-live context and outside the live field block`
+- Example value: `in non-live context, this is not a live fill-in field`
 
-### 3.26 `assessment status`
+### 3.26 `blocker reference contrast sentence combination rule`
+
+- Definition: the normalized rule describing when canonical live-vs-non-live contrast sentences may be combined into one short sentence and when they should be split into two short sentences or rule lines.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, resubmission example, and package-index reminders.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+  - package index
+- Required or optional: required where the docs explain how to combine or split live-vs-non-live contrast sentences.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`
+- Canonical combination rules:
+  - `combine scope + exclusion in one short sentence when one local reminder must name both in non-live context and not a live fill-in field`
+  - `keep placeholder-location contrast as a separate short sentence when outside the live field block is the local point`
+  - `prefer split short sentences once a third contrast point would make the line compound`
+  - `keep only the minimum necessary contrast sentence in template, checklist, or example reminders`
+- Combination rule:
+  - combine `in non-live context` with `not a live fill-in field` only when one short sentence needs both the non-live scope and the live-field exclusion
+  - keep `outside the live field block` separate when the local point is the bare placeholder location
+  - split once a third contrast point would create a long compound sentence
+  - keep only the minimum necessary contrast sentence in the local reminder instead of inventorying all three every time
+- Common misuse:
+  - combining all three contrast sentences into one long reminder line
+  - splitting `in non-live context` and `not a live fill-in field` into separate lines when one short sentence would be clearer
+  - repeating all three contrast sentences in checklist reminders without saying which one is locally needed
+  - treating combination rules as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, placeholder shapes, or the contrast sentences themselves
+- Example value: `in non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
+
+### 3.27 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -655,7 +687,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.27 `reviewer response state`
+### 3.28 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -679,7 +711,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.28 `decision outcome`
+### 3.29 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -705,7 +737,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.29 `next action`
+### 3.30 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -730,7 +762,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.30 `boundary check labels`
+### 3.31 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -772,6 +804,7 @@ Do not let any of these drift patterns enter the package:
 - using ad hoc blocker-reference live-field cue wording instead of the canonical cue phrases
 - using ad hoc blocker-reference explanatory-inline cue wording instead of the canonical non-live cue phrases
 - using ad hoc blocker-reference live-vs-non-live contrast wording instead of the canonical contrast sentences
+- using ad hoc blocker-reference contrast-sentence combination wording instead of the canonical combination rules
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category
