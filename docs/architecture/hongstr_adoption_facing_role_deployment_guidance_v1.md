@@ -91,5 +91,5 @@ The following must **never** be performed autonomously by the agent system at th
 To progress the multi-agent system further within these safe boundaries, the next logical steps are:
 
 - Lightweight enforcement guidance (e.g., scripting the Reviewer's PR checklist automation).
-- Reviewer / Author adoption integration.
+- Reviewer / Author adoption integration: *See [HONGSTR Reviewer Role Deployment Integration v1](./hongstr_reviewer_role_deployment_integration_v1.md)*.
 - Model supplementation trial plans (using an external API to trial a Safety Gatekeeper role in shadow mode).
