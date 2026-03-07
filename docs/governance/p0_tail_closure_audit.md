@@ -24,10 +24,21 @@ The Stage Registry foundation package is already merged:
   - [`docs/governance/stage_rollup_policy.v1.json`](/Users/hong/Projects/HONGSTR/docs/governance/stage_rollup_policy.v1.json)
 - PR `#303` / merge commit `a77a6d76b140afd45c436f494810efb5c6b3b5c3`
   - [`docs/governance/p0_upper_layer_reconciliation.md`](/Users/hong/Projects/HONGSTR/docs/governance/p0_upper_layer_reconciliation.md)
+- PR `#304` / merge commit `e29bf1231bf1405cdcd4d0eef17a4a1997f17613`
+  - this audit note
+  - [`docs/governance/red_lines_ssot_owner_package.md`](/Users/hong/Projects/HONGSTR/docs/governance/red_lines_ssot_owner_package.md)
+  - [`docs/governance/evidence_policy_owner_package.md`](/Users/hong/Projects/HONGSTR/docs/governance/evidence_policy_owner_package.md)
+  - [`docs/governance/linear_first_control_package.md`](/Users/hong/Projects/HONGSTR/docs/governance/linear_first_control_package.md)
 
 ## HONG-5 Audit Verdict
 
 `HONG-5` remains open.
+
+Its old checklist body must not remain a truth source. The active closure verdict is the combination of:
+
+- this audit note
+- merged Stage Registry closure package from PR `#300` / `#301` / `#302`
+- upper-layer reconciliation in PR `#303`
 
 ### Historical reference only
 
@@ -44,14 +55,29 @@ These old checklist narratives must no longer be treated as active truth:
 - `核心交易與治理紅線已在主規格中定義`
   - commit `886ff08f4dc3cf775590c565292c4c7f4d12aa17` provides core trading non-negotiables, but not a full red-lines owner acceptance package on its own
 
-### Still open
+### True remaining blockers
 
 - seed issue / registry sync contract is still missing
+  - no merged PR
+  - no canonical sync contract path
+  - no discrepancy audit artifact
 - red-line drift audit cadence is still missing
+  - no merged PR
+  - no cadence policy path
+  - no scheduled review artifact
+
+### Closure rule
+
+`HONG-5` may move to `Done` only after those two blockers are either:
+
+- closed by merged repo-backed evidence, or
+- explicitly removed by a separately merged governance decision
+
+Neither condition exists in the current repo state.
 
 ## HONG-35 Audit Verdict
 
-`HONG-35` can move to `Done` after this owner package merges.
+`HONG-35` moved to `Done` via PR `#304`.
 
 Repo-backed acceptance package:
 
@@ -59,7 +85,7 @@ Repo-backed acceptance package:
 
 ## HONG-36 Audit Verdict
 
-`HONG-36` can move to `Done` after this owner package merges.
+`HONG-36` moved to `Done` via PR `#304`.
 
 Repo-backed acceptance package:
 
@@ -67,7 +93,7 @@ Repo-backed acceptance package:
 
 ## HONG-43 Audit Verdict
 
-`HONG-43` can move to `Done` after this owner package merges.
+`HONG-43` moved to `Done` via PR `#304`.
 
 Repo-backed acceptance package:
 
@@ -75,10 +101,10 @@ Repo-backed acceptance package:
 
 ## HONG-50 Closure Verdict
 
-`HONG-50` must remain open after this audit unless `HONG-5` is separately closed.
+`HONG-50` remains open.
 
-After this PR merges, the remaining blocker should narrow to:
+After PR `#304` merged, the remaining blocker narrowed to:
 
 - `HONG-5` evidence downgrade and residual open items
 
-This means `HONG-50` can stay `In Progress`, but its tail is reduced and explicitly bounded.
+This means `HONG-50` stays `In Progress` with a single blocker and no further foundation gap.
