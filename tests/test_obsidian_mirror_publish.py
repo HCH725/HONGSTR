@@ -40,7 +40,7 @@ def test_mirror_whitelist_and_excludes(tmp_path: Path) -> None:
     _write(source_vault / "Dashboards" / "overview.md", "dashboard\n")
     _write(source_vault / "Dashboards" / ".obsidian" / "workspace.json", "workspace\n")
     _write(source_vault / "Dashboards" / ".obsidian" / "notehistory.log", "history\n")
-    _write(source_vault / "Daily" / "2026-03-05.md", "not_in_whitelist\n")
+    _write(source_vault / "Daily" / "2026" / "03" / "2026-03-05.md", "daily\n")
 
     result = _run_mirror(
         {
@@ -54,12 +54,12 @@ def test_mirror_whitelist_and_excludes(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert (target_vault / "KB" / "PR" / "PR-0001.md").exists()
     assert (target_vault / "Dashboards" / "overview.md").exists()
+    assert (target_vault / "Daily" / "2026" / "03" / "2026-03-05.md").exists()
     assert not (target_vault / "KB" / "raw" / "private.txt").exists()
     assert not (target_vault / "KB" / "cache" / "tmp.txt").exists()
     assert not (target_vault / "KB" / "state" / "state.json").exists()
     assert not (target_vault / "Dashboards" / ".obsidian" / "workspace.json").exists()
     assert not (target_vault / "Dashboards" / ".obsidian" / "notehistory.log").exists()
-    assert not (target_vault / "Daily" / "2026-03-05.md").exists()
 
 
 def test_mirror_non_blocking_on_missing_source(tmp_path: Path) -> None:
