@@ -74,6 +74,7 @@ Field split rule:
 
 - blocker-reference rendering rules are not blocker-evidence-reference labels
 - blocker-reference rendering rules are not blocker-reference field-caption formatting
+- blocker-reference rendering rules are not blocker-reference live-field cue phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_live_field_cue_alignment_record_v1.md`
 - blocker-reference rendering rules are not blocker-reference-target hint labels
 - blocker-reference rendering rules are not blocker-reference multiplicity hint labels
 - blocker-reference rendering rules are not blocker-reference ordering hint labels

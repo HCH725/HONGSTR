@@ -128,10 +128,12 @@ Blocker-reference field-caption formatting rule:
 
 Blocker-reference rendering rule:
 
-- use stacked field blocks for live blocker-evidence-reference fields in this template
-- compact inline form is allowed only in reminder prose or compact table cells that are not live fill-in fields
+- treat each fillable blocker-proof row here as a `live blocker-evidence-reference field`
+- treat that `live blocker-evidence-reference field` as a `live fill-in field`
+- render that `live fill-in field` as a `live field block`
+- compact inline form is allowed only in reminder prose or compact table cells that are not `live fill-in fields`
 - bare angle-bracket placeholders such as `<single link: ...>` may appear inline only when the doc is describing the placeholder shape
-- if a field caption line or any `Applicability hint:` / `Ordering hint:` line is shown, expand the field to the stacked multi-line block
+- if a field caption line or any `Applicability hint:` / `Ordering hint:` line is shown, keep the `live field block` expanded as a stacked multi-line block
 
 ## 1. Basic Information
 
