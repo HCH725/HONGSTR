@@ -22,10 +22,13 @@ Whenever you generate a Pull Request, the PR description MUST follow this exact 
 - [What happens if this PR fails or is reverted? e.g., Fall back to manual documentation]
 
 ## Kill switch
-- [When should we abort this PR? e.g., If it touches src/hongstr/** or breaks the SSOT writer boundary]
+- [Explicit steps: e.g. "Stop immediately. Do not add further commits. Preserve this branch for human review. If PR is open, close/revert. Output hongstr-handoff-to-codex note."]
+- Trigger conditions: [e.g. If it touches src/hongstr/** or breaks the SSOT writer boundary]
 
 ## Legacy Impact
-- [For larger changes only. Usually N/A for sandbox tasks. State if it impacts older configurations or workflows.]
+- [For governance/.agent/** PRs: Does this conflict with AGENTS.md or existing docs? Does it create a second truth?]
+- [Removal/Rollback Plan: How to cleanly revert this if it causes friction?]
+- [For code: Impacts on older configs or workflows (often N/A for sandbox)]
 ```
 
 ## Additional PR Rules

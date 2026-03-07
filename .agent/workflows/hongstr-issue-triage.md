@@ -35,5 +35,12 @@ A short Triage Report containing:
 - Stop after providing the Triage Report to the user.
 
 **When to Upgrade to Codex:**
+You MUST route the task to Codex (using `hongstr-handoff-to-codex.md`) and stop immediately if the issue:
 
-- N/A for triage, as no code is executed. But advise the user if the issue *would* require Codex.
+- Touches `src/hongstr/**`
+- Touches producer / state semantics / SSOT writer boundary
+- Touches control plane authority / `tg_cp` boundary
+- Touches `.env` / secrets / config loading behavior
+- Requires deploy / rollback / runtime verification
+- Is an ambiguous request crossing multiple boundaries
+- Requires a large refactor or complex logic change

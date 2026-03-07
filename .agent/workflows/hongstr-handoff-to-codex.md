@@ -34,9 +34,13 @@ Provide the following markdown block to the user:
 
 I am unable to proceed with this task, as it violates the HONGSTR read-only/docs-first boundaries for Antigravity. Please hand this context over to **Codex**:
 
-**Task Objective:** [Briefly describe what was trying to be achieved]
-**Reason for Stop:** [Describe the exact rule/checkpoint violated, e.g. "Attempted to modify src/hongstr/engine/matcher.py"]
-**Current State / Files:** [List the files involved and what was requested]
+**Task Summary:** [Briefly describe the overall objective]
+**Exact Boundary Crossed:** [e.g. Attempted to modify src/hongstr/engine/matcher.py or rewrite state semantics]
+**Impacted File Paths:** [List the specific files that need modification]
+**Why Antigravity is Stopping:** [Explicit rule reference, e.g. Rule 00 - Core Engine]
+**Evidence Already Collected:** [List what you have analyzed or discovered so far]
+**Proposed Acceptance Evidence:** [What should Codex produce to prove this is done?]
+**Recommended Next Step:** [What Codex should do first]
 ```
 
 **When to Stop:**
