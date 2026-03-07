@@ -8,6 +8,7 @@ readonly DEFAULT_ICLOUD_OBSIDIAN_ROOT="${HOME}/Library/Mobile Documents/iCloud~m
 readonly DEFAULT_ICLOUD_VAULT_NAME="HONGSTR_MIRROR"
 readonly DEFAULT_MIRROR_ENABLED="1"
 readonly LOCK_DIR="/tmp/${JOB_LABEL}.lock"
+readonly KB_ACTIVE_CONTRACT="KB/{_meta,PR,Runbooks,Incidents,Research-Summaries}"
 
 export PATH="${DEFAULT_PATH}"
 
@@ -65,13 +66,30 @@ resolve_source_vault() {
   return 1
 }
 
-warn_legacy_daily_snapshot() {
+warn_legacy_kb_ssot() {
   local source_vault="$1"
-  local legacy_daily_dir="${source_vault}/KB/SSOT/Daily"
+  local target_vault="$2"
+  local legacy_source_dir="${source_vault}/KB/SSOT"
+  local legacy_target_dir="${target_vault}/KB/SSOT"
 
-  if [[ -d "${legacy_daily_dir}" ]]; then
-    log_warn "legacy_daily_snapshot_present path=${legacy_daily_dir} current_contract=Daily/YYYY/MM authoritative=0"
+  if [[ -d "${legacy_source_dir}" ]]; then
+    log_warn "legacy_kb_ssot_present path=${legacy_source_dir} active_contract=${KB_ACTIVE_CONTRACT} publish_mode=excluded current_daily_contract=Daily/YYYY/MM authoritative=0"
   fi
+
+  if [[ -d "${legacy_target_dir}" ]]; then
+    log_warn "legacy_kb_ssot_target_present path=${legacy_target_dir} active_contract=${KB_ACTIVE_CONTRACT} refresh_mode=disabled delete_mode=disabled authoritative=0"
+  fi
+}
+
+is_optional_rel() {
+  case "$1" in
+    KB/_meta|KB/PR|KB/Runbooks|KB/Incidents|KB/Research-Summaries)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 sync_dir() {
@@ -103,6 +121,10 @@ sync_dir() {
   )
 
   if [[ ! -d "${src}" ]]; then
+    if is_optional_rel "${rel}"; then
+      log_info "source_optional_missing rel=${rel} source=${src}"
+      return 0
+    fi
     log_warn "source_missing rel=${rel} source=${src}"
     return 10
   fi
@@ -145,23 +167,23 @@ main() {
     log_warn "primary_vault_not_found OBSIDIAN_PRIMARY_ROOT=${primary_root}"
     return 0
   fi
-  warn_legacy_daily_snapshot "${source_vault}"
 
   icloud_root="${ICLOUD_OBSIDIAN_ROOT:-${DEFAULT_ICLOUD_OBSIDIAN_ROOT}}"
   vault_name="${ICLOUD_VAULT_NAME:-${DEFAULT_ICLOUD_VAULT_NAME}}"
   target_vault="${icloud_root}/${vault_name}"
-  include_dirs=(KB Dashboards Daily)
+  include_dirs=(KB/_meta KB/PR KB/Runbooks KB/Incidents KB/Research-Summaries Dashboards Daily)
 
   if ! mkdir -p "${target_vault}"; then
     log_warn "target_vault_not_accessible target=${target_vault}"
     return 0
   fi
+  warn_legacy_kb_ssot "${source_vault}" "${target_vault}"
 
   if ! acquire_lock; then
     return 0
   fi
 
-  log_info "start source_vault=${source_vault} target_vault=${target_vault} includes=${include_dirs[*]}"
+  log_info "start source_vault=${source_vault} target_vault=${target_vault} includes=${include_dirs[*]} kb_contract=${KB_ACTIVE_CONTRACT} legacy_contract=KB/SSOT:frozen"
   for rel in "${include_dirs[@]}"; do
     if sync_dir "${source_vault}" "${target_vault}" "${rel}"; then
       ((synced_count += 1))
