@@ -17,6 +17,14 @@ trigger: always_on
 - `scripts/**` ONLY if it does not change production semantics.
   - Do not change ETL/launchd/trading behavior unless explicitly instructed.
 
+## LINEAR-FIRST INTAKE
+
+- Formal HONGSTR execution starts only after a matching Linear item exists.
+- Sandbox work also requires Linear tracking. No orphan work.
+- `Codex` and `antigravity` must stop and treat the task as intake first if no matching Linear item exists yet.
+- Every tracked item must close as `DONE`, `REJECT`, `DEFERRED`, `SANDBOX ONLY`, or `MERGED / SUPERSEDED`.
+- Canonical policy lives in `AGENTS.md` under `Linear-first governance (required)`.
+
 ## REQUIRED CHECKS BEFORE OPENING A PR
 
 - Core diff must be zero:
