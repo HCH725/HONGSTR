@@ -130,6 +130,7 @@ Use this to keep review package naming, title format, and attachment naming cons
 - `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`
+- `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`
 
 ### 3.6 Templates
 
@@ -237,6 +238,7 @@ If any prerequisite fails:
 | see drift-to-canonical blocker-reference explanatory-inline cues | `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference live-vs-non-live contrast sentences | `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference contrast-sentence combination rules | `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md` |
+| see drift-to-canonical blocker-reference contrast-sentence short examples | `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md` |
 | write evidence summary | `docs/templates/prototype_evidence_summary_template_v1.md` |
 | write `upgrade-review` | `docs/templates/prototype_upgrade_review_template_v1.md` |
 | write `retirement-review` | `docs/templates/prototype_retirement_review_template_v1.md` |

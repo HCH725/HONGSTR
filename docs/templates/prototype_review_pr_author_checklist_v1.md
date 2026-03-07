@@ -41,6 +41,7 @@ For canonical blocker-reference live-field cue wording in that resubmission flow
 For canonical blocker-reference explanatory-inline cue wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`.
 For canonical blocker-reference live-vs-non-live contrast wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`.
 For canonical blocker-reference contrast-sentence combination rules in that resubmission flow, use `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`.
+For canonical blocker-reference contrast-sentence short examples in that resubmission flow, use `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`.
 
 It does not replace:
 
@@ -141,7 +142,7 @@ If this is a `retirement-review`:
 - [ ] If this is a resubmission, those evidence references keep the canonical field captions: `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
 - [ ] If this is a resubmission, each `live blocker-evidence-reference field` stays stacked: every `live fill-in field` should appear as a `live field block`, not as non-live `explanatory prose`, a `compact table cell`, or an `inline placeholder-only fragment`.
 - [ ] If this is a resubmission, non-live blocker-reference wording keeps the canonical cues: `explanatory prose`, `compact table cell`, and `inline placeholder-only fragment`.
-- [ ] If this is a resubmission, the contrast-sentence combination rule stays canonical: combine `in non-live context` with `not a live fill-in field` only when one short sentence must name both scope and exclusion; keep `outside the live field block` separate when the bare placeholder location is the local point.
+- [ ] If this is a resubmission, the contrast-sentence combination rule stays canonical: combine `in non-live context` with `not a live fill-in field` only when one short sentence must name both scope and exclusion; keep `outside the live field block` separate when the bare placeholder location is the local point. Canonical short examples: `In non-live context, this is not a live fill-in field.` / `Keep the bare placeholder outside the live field block.`
 - [ ] The observation window is stated clearly.
 - [ ] The current recommendation is stated clearly:
   - `keep`
