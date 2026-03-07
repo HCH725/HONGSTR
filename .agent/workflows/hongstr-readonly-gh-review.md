@@ -18,7 +18,12 @@ Auditing and reviewing Pull Requests against the established HONGSTR Red Lines a
 
 1. Fetch PR details using the GitHub CLI (`gh`).
 2. Read the PR diff, focusing on changed files.
-3. Apply `04-review-checklist.md` rules.
+3. Apply `04-review-checklist.md` rules carefully, specifically ensuring:
+   - No core path touched (`src/hongstr/**`).
+   - No `.env` / secrets behavior changed.
+   - No SSOT writer boundary crossed.
+   - No consumer-side recomputation.
+   - No duplicate policy source / second truth created (esp. against `AGENTS.md`).
 4. Output the validation results in a structured format:
    - Card boundary risks
    - Premature DONE risks

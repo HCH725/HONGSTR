@@ -22,6 +22,7 @@ Evaluating a new Linear issue, aligning it with the Master Overview (HONG-15), a
 3. Check `01-task-routing.md` to determine if it is "Mainline" or "Sandbox".
 4. Determine if it attempts to break the SSOT boundaries, Core Engine, or Control Plane restrictions.
 5. Create or update the Linear tracking item with the triage result.
+   - *Note: Sandbox triage can create/update Linear tracking, but this DOES NOT authorize modifying core logic, `.env`, or state semantics.*
 
 **Output Format:**
 A short Triage Report containing:

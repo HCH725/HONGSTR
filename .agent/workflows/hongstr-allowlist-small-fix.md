@@ -12,6 +12,7 @@ Executing minor fixes or documentation updates that strictly reside within the "
 - ONLY files documented in `.agent/rules/03-safe-edit-allowlist.md`.
 - Read and write access to `docs/**`, `AGENTS.md`, and `.agent/**`.
 - GitHub branch, commit, push, and PR creation (see `05-governance-actions-allowed.md`).
+- **CRITICAL**: GitHub/Linear bounded collaboration is allowed, but this does NOT authorize edits to core code (`src/hongstr/**`), `.env`, producer/state semantics, ETL/backfill, or `tg_cp` boundaries.
 
 **Workflow Steps:**
 
