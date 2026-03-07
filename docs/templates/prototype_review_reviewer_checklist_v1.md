@@ -85,6 +85,7 @@ Use `docs/templates/prototype_review_request_changes_note_template_v1.md` when t
 - [ ] If this is a resubmission, the package includes a `review note reference` back to the governing request-changes note.
 - [ ] If this is a resubmission, the evidence-link hints stay canonical: `PR comment link`, `evidence summary section link`, `template diff link`, or `supporting doc link`.
 - [ ] If this is a resubmission, the evidence-link multiplicity hints stay canonical: `single link`, `multiple links`, or `one-or-more links`.
+- [ ] If this is a resubmission and multiple blocker evidence references appear together, the ordering hints stay canonical: `review note first`, `closure evidence next`, `fix evidence next`, `supporting evidence last`.
 - [ ] The review package cites the governing docs:
   - `docs/architecture/prototype_evidence_collection_plan_v1.md`
   - `docs/architecture/prototype_retirement_criteria_v1.md`

@@ -97,6 +97,7 @@ Use only canonical request-changes-reason labels in the structured reason field.
 Use canonical required-fix labels in the fix section.
 Use canonical blocker-closure-status labels when marking each request-changes item.
 Use canonical blocker-evidence-reference labels, canonical target hints, and canonical multiplicity hints when pointing to the note, evidence summary, template diff, or supporting docs for each blocker.
+When multiple blocker evidence references appear together, keep the canonical ordering hints: `review note first`, `closure evidence next`, `fix evidence next`, `supporting evidence last`.
 Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
@@ -181,7 +182,7 @@ Author action:
 - use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`
 - close each request explicitly
 - mark every item `completed`, `not completed`, `not applicable`, or `unresolved`
-- keep the `review note reference` and update the blocker evidence references
+- keep the `review note reference` first, then add `closure evidence reference` and `fix evidence reference` as applicable, with `supporting evidence reference` last
 - stop if any blocking item is still `unresolved`
 
 ### Step 3: Author Updates Package Materials
