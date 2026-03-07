@@ -97,6 +97,14 @@ Blocker-evidence-reference rule:
   - `review note reference`
   - `supporting evidence reference`
 
+Blocker-reference-target hint rule:
+
+- when the doc is hinting what kind of blocker-proof link should be pasted, use:
+  - `PR comment link`
+  - `evidence summary section link`
+  - `template diff link`
+  - `supporting doc link`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.
@@ -114,11 +122,11 @@ Blocker-evidence-reference rule:
 
 Review note reference:
 
-- `<link to the governing request-changes note / review comment>`
+- `<PR comment link>`
 
 Closure evidence reference:
 
-- `<links showing each blocker item and its current closure status>`
+- `<supporting doc link>`
 
 ## 2. Evidence Refresh
 
@@ -138,7 +146,7 @@ Closure evidence reference:
 
 Fix evidence reference:
 
-- `<links to the updated evidence summary / review template / diff>`
+- `<evidence summary section link / template diff link>`
 
 ## 3. Package Consistency
 
@@ -154,7 +162,7 @@ Fix evidence reference:
 
 Supporting evidence reference:
 
-- `<additional docs / PR / section links supporting the resubmission>`
+- `<supporting doc link>`
 
 ## 4. Boundary Re-Check
 

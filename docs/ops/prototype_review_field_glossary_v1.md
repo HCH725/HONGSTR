@@ -355,10 +355,35 @@ Read these rules before using any term below.
 - Common misuse:
   - using labels such as `request-changes closure note`, `evidence refresh note`, `re-review note`, or `updated evidence summary attached` as if they were interchangeable evidence-reference fields
   - using generic `attached or linked` prose where the blocker-specific evidence reference should be named explicitly
+  - using raw target-hint prose such as `request-changes note / PR comment / review thread` or `updated evidence summary / review template / diff` instead of the canonical blocker-reference-target hint labels
   - using blocker-closure-status labels or required-fix labels as if they were evidence-reference labels
 - Example value: `fix evidence reference = docs/reviews/prototype-central-steward-shadow/evidence-summary.md#canonical-overlap`
 
-### 3.16 `assessment status`
+### 3.16 `blocker reference target hint`
+
+- Definition: the normalized hint label describing what kind of link target should be supplied after a blocker-evidence-reference field.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+- Required or optional: required where the docs provide a placeholder or reminder for what kind of blocker-proof link should be pasted.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_target_hint_alignment_record_v1.md`
+- Allowed values:
+  - `PR comment link`
+  - `evidence summary section link`
+  - `template diff link`
+  - `supporting doc link`
+- Common misuse:
+  - using prose such as `request-changes note / PR comment / review thread` instead of the normalized `PR comment link`
+  - using broad mixed hints such as `updated evidence summary / template / diff` instead of naming `evidence summary section link` or `template diff link`
+  - using target-hint labels as if they were blocker-evidence-reference labels themselves
+- Example value: `review note reference = PR comment link`
+
+### 3.17 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -380,7 +405,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.17 `reviewer response state`
+### 3.18 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -404,7 +429,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.18 `decision outcome`
+### 3.19 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -430,7 +455,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.19 `next action`
+### 3.20 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -455,7 +480,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.20 `boundary check labels`
+### 3.21 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -487,6 +512,7 @@ Do not let any of these drift patterns enter the package:
 - using `reviewer`, `author`, and `review_author` inconsistently without context
 - changing enum labels between templates
 - using ad hoc blocker-proof labels instead of the canonical blocker-evidence-reference labels
+- using ad hoc link-target prose instead of the canonical blocker-reference-target hint labels
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category

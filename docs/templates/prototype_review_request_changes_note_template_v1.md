@@ -86,6 +86,14 @@ Blocker-evidence-reference rule:
   - `review note reference`
   - `supporting evidence reference`
 
+Blocker-reference-target hint rule:
+
+- when the doc is hinting what kind of blocker-proof link should be pasted, use:
+  - `PR comment link`
+  - `evidence summary section link`
+  - `template diff link`
+  - `supporting doc link`
+
 ## 1. Basic Information
 
 | Field | Value |
@@ -95,8 +103,8 @@ Blocker-evidence-reference rule:
 | `reviewer` | `<name or handle>` |
 | `author` | `<name or handle>` |
 | `related_prs` | `<PR links>` |
-| `review note reference` | `<link to this request-changes note / PR comment / review thread>` |
-| `supporting evidence reference` | `<related evidence summary / docs / diff links>` |
+| `review note reference` | `<PR comment link>` |
+| `supporting evidence reference` | `<supporting doc link>` |
 | `related_docs` | `docs/templates/prototype_review_reviewer_checklist_v1.md`, `docs/templates/prototype_review_decision_record_template_v1.md`, `docs/ops/prototype_review_kickoff_sop_v1.md` |
 
 ## 2. Request-Changes Reason
@@ -161,7 +169,7 @@ If `yes`, split guidance:
 
 Fix evidence reference:
 
-- `<where the updated evidence summary / template / diff should be linked during resubmission>`
+- `<evidence summary section link / template diff link>`
 
 ## 4. Re-Review Conditions
 
@@ -186,7 +194,7 @@ Evidence summary needs to be resubmitted:
 
 Closure evidence reference:
 
-- `<where the resubmission should point once each blocker is marked completed or not applicable>`
+- `<supporting doc link>`
 
 ## 5. Kill Switch / Stop Condition
 
