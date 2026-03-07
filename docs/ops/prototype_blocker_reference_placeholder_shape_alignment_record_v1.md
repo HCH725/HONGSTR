@@ -75,6 +75,7 @@ Field split rule:
 
 - placeholder shapes are not blocker-evidence-reference labels
 - placeholder shapes are not blocker-reference field-caption formatting; that formatting is governed by `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md`
+- placeholder shapes are not blocker-reference rendering rules; those rules are governed by `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md`
 - placeholder shapes are not blocker-reference-target hint labels
 - placeholder shapes are not blocker-reference multiplicity hint labels
 - placeholder shapes are not blocker-reference ordering hint labels

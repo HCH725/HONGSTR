@@ -519,10 +519,35 @@ Read these rules before using any term below.
   - using lowercase caption forms such as `review note reference:`
   - dropping the trailing colon from a displayed blocker-reference field caption
   - abbreviating captions such as `review note ref:`
-  - treating caption formatting as if it were the blocker-evidence-reference label, target hint label, multiplicity hint label, ordering hint label, applicability hint label, or placeholder shape
+  - treating caption formatting as if it were the blocker-evidence-reference label, target hint label, multiplicity hint label, ordering hint label, applicability hint label, placeholder shape, or rendering rule
 - Example value: `Review note reference:`
 
-### 3.22 `assessment status`
+### 3.22 `blocker reference rendering rule`
+
+- Definition: the normalized rule describing when a blocker-evidence-reference field may appear as an explanatory inline fragment and when it must be rendered as a stacked multi-line field block.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+- Required or optional: required where the docs distinguish explanatory placeholder prose from live blocker-evidence-reference field rendering.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md`
+- Canonical rendering rules:
+  - `inline placeholder-only fragment allowed in explanatory prose`
+  - `stacked field block required for live blocker-evidence-reference fields`
+  - `compact inline form allowed only in reminder prose or compact table cells`
+  - `expand to multi-line block when field caption or hint lines are shown`
+- Common misuse:
+  - treating inline `field: <...>` examples as if they were the canonical live field rendering
+  - treating bare angle-bracket placeholders as if they were a complete live blocker-evidence-reference field
+  - saying inline form is acceptable without stating that it is limited to explanatory prose or compact table cells
+  - treating rendering rules as if they were field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
+- Example value: `live blocker-evidence-reference field -> stacked field block required for live blocker-evidence-reference fields`
+
+### 3.23 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -544,7 +569,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.23 `reviewer response state`
+### 3.24 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -568,7 +593,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.24 `decision outcome`
+### 3.25 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -594,7 +619,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.25 `next action`
+### 3.26 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -619,7 +644,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.26 `boundary check labels`
+### 3.27 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -657,6 +682,7 @@ Do not let any of these drift patterns enter the package:
 - using ad hoc blocker-proof applicability prose instead of the canonical blocker-reference applicability hint labels
 - using ad hoc blocker-reference placeholder formatting instead of the canonical placeholder shape
 - using ad hoc blocker-reference caption case, punctuation, or abbreviations instead of the canonical field-caption formatting
+- using ad hoc inline-vs-stacked blocker-reference rendering prose instead of the canonical rendering rules
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category
