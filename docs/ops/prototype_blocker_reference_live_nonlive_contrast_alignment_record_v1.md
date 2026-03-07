@@ -79,6 +79,7 @@ Field split rule:
 - live-vs-non-live contrast sentences are not blocker-reference contrast-sentence combination rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`
 - live-vs-non-live contrast sentences are not blocker-reference contrast-sentence example values; those examples are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`
 - live-vs-non-live contrast sentences are not blocker-reference contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
+- live-vs-non-live contrast sentences are not blocker-reference short-example labels; those labels are governed by `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`
 - live-vs-non-live contrast sentences are not blocker-reference-target hint labels
 - live-vs-non-live contrast sentences are not blocker-reference multiplicity hint labels
 - live-vs-non-live contrast sentences are not blocker-reference ordering hint labels
