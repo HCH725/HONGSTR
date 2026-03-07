@@ -40,7 +40,7 @@ It does not:
 The current docs had recurring drift in these patterns:
 
 - some docs used long rule prose as if it were the short example value
-- some docs used a scope+exclusion example in one file but a placeholder-location example in another with no shared canonical example set
+- some docs used a `Scope plus exclusion short example:` in one file but a `Placeholder location short example:` in another with no shared canonical example set
 - some docs used lower-case short examples while others used full-sentence short examples
 - some docs used a long combined example where one or two shorter canonical examples would be clearer
 
@@ -48,25 +48,25 @@ The current docs had recurring drift in these patterns:
 
 | Drift / old example wording | Canonical short example | Notes |
 |---|---|---|
-| `in non-live context, treat non-live blocker-reference wording here as explanatory prose or a compact table cell; it is not a live fill-in field` | `In non-live context, this is not a live fill-in field.` | Use as the canonical scope+exclusion short example. |
-| `use inline placeholder-only fragment only for the bare angle-bracket placeholder outside the live field block` | `Keep the bare placeholder outside the live field block.` | Use as the canonical placeholder-location short example. |
+| `in non-live context, treat non-live blocker-reference wording here as explanatory prose or a compact table cell; it is not a live fill-in field` | `In non-live context, this is not a live fill-in field.` | Use as the canonical `Scope plus exclusion short example:` value. |
+| `use inline placeholder-only fragment only for the bare angle-bracket placeholder outside the live field block` | `Keep the bare placeholder outside the live field block.` | Use as the canonical `Placeholder location short example:` value. |
 | `in non-live context, this is not a live fill-in field` | `In non-live context, this is not a live fill-in field.` | Normalize capitalization and terminal punctuation. |
-| `in non-live context, this is not a live fill-in field. keep the bare placeholder outside the live field block.` | `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.` | Use as the canonical combined live-vs-non-live short example. |
+| `in non-live context, this is not a live fill-in field. keep the bare placeholder outside the live field block.` | `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.` | Use as the canonical `Live versus non-live short example:` value. |
 | long prose that inventories scope, exclusion, and placeholder location in one line | `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.` | Keep the example short and sentence-bounded. |
 
 ## 3. Canonical Short Examples
 
 Use these canonical short examples:
 
-- scope + exclusion short example: `In non-live context, this is not a live fill-in field.`
-- placeholder-location short example: `Keep the bare placeholder outside the live field block.`
-- live-vs-non-live short example: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
+- `Scope plus exclusion short example:` `In non-live context, this is not a live fill-in field.`
+- `Placeholder location short example:` `Keep the bare placeholder outside the live field block.`
+- `Live versus non-live short example:` `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
 
 Example-value rule:
 
-- use the scope+exclusion short example when the local point is non-live scope plus live-field exclusion
-- use the placeholder-location short example when the local point is where the bare placeholder may appear
-- use the combined live-vs-non-live short example only when one local example needs both short examples together
+- use the `Scope plus exclusion short example:` value when the local point is non-live scope plus live-field exclusion
+- use the `Placeholder location short example:` value when the local point is where the bare placeholder may appear
+- use the `Live versus non-live short example:` value only when one local example needs both short examples together
 - keep these short examples short; do not replace them with longer rule prose
 
 Field split rule:
@@ -76,6 +76,7 @@ Field split rule:
 - contrast-sentence example values are not blocker-reference live-vs-non-live contrast sentences; those sentences are governed by `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
 - contrast-sentence example values are not blocker-reference contrast-sentence combination rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`
 - contrast-sentence example values are not blocker-reference contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
+- contrast-sentence example values are not blocker-reference short-example labels; those labels are governed by `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`
 
 ## 4. Legacy Examples No Longer Recommended
 
@@ -108,9 +109,9 @@ Aligned:
 
 Very-thin grammatical variation is allowed only when needed by the local structure:
 
-- templates may list the scope+exclusion and placeholder-location short examples separately
+- templates may list the `Scope plus exclusion short example:` and `Placeholder location short example:` values separately
 - checklists may cite one or two canonical short examples in parentheses
-- examples may show the combined live-vs-non-live short example when both short examples are needed together
+- examples may show the `Live versus non-live short example:` value when both short examples are needed together
 
 Even with those thin variations:
 

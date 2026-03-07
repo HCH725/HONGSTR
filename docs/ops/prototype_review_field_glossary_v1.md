@@ -668,12 +668,21 @@ Read these rules before using any term below.
 - Example display rule:
   - if multiple short examples are shown together, place them on separate labeled lines
   - use `Scope plus exclusion short example:`, `Placeholder location short example:`, and `Live versus non-live short example:`
+  - use `plus`, not `+`
+  - use `versus`, not `vs`
+  - keep `short example` in the label
+  - keep the trailing colon
+- Short-example label wording rule:
+  - short-example label wording is governed by `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`
+  - short-example labels are not the example values themselves
+  - short-example labels are not the punctuation/style rules themselves
 - Common misuse:
   - combining all three contrast sentences into one long reminder line
   - splitting `in non-live context` and `not a live fill-in field` into separate lines when one short sentence would be clearer
   - repeating all three contrast sentences in checklist reminders without saying which one is locally needed
   - treating contrast-sentence example values as if they were the combination rules themselves
   - treating contrast-sentence punctuation/style rules as if they were the combination rules themselves
+  - using `scope + exclusion` or `live vs non-live` in active short-example labels
   - treating combination rules as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, placeholder shapes, or the contrast sentences themselves
 - Example value: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
 

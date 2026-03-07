@@ -79,6 +79,7 @@ Field split rule:
 - contrast-sentence combination rules are not blocker-reference live-vs-non-live contrast sentences; those sentences are governed by `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
 - contrast-sentence combination rules are not blocker-reference contrast-sentence example values; those examples are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`
 - contrast-sentence combination rules are not blocker-reference contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
+- contrast-sentence combination rules are not blocker-reference short-example labels; those labels are governed by `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`
 - contrast-sentence combination rules are not blocker-reference-target hint labels
 - contrast-sentence combination rules are not blocker-reference multiplicity hint labels
 - contrast-sentence combination rules are not blocker-reference ordering hint labels
@@ -126,7 +127,7 @@ Very-thin grammatical variation is allowed only when needed by the local structu
 
 - templates may use two short rule lines instead of two prose sentences
 - checklists may summarize the combination rule in one reminder bullet
-- examples may demonstrate the combination rule by using one short scope+exclusion sentence plus one short placeholder-location sentence
+- examples may demonstrate the combination rule by using one `Scope plus exclusion short example:` value plus one `Placeholder location short example:` value
 
 Even with those thin variations:
 
