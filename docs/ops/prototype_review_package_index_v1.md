@@ -122,6 +122,7 @@ Use this to keep review package naming, title format, and attachment naming cons
 - `docs/ops/prototype_blocker_reference_target_hint_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_reference_ordering_hint_alignment_record_v1.md`
+- `docs/ops/prototype_blocker_reference_applicability_hint_alignment_record_v1.md`
 
 ### 3.6 Templates
 

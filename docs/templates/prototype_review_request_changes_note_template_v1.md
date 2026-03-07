@@ -109,6 +109,14 @@ Blocker-reference ordering hint rule:
   - `fix evidence next`
   - `supporting evidence last`
 
+Blocker-reference applicability hint rule:
+
+- when the doc is hinting whether a blocker-proof field should be filled or may remain blank, use:
+  - `if applicable`
+  - `when requested`
+  - `if present`
+  - `only when closure proof exists`
+
 ## 1. Basic Information
 
 | Field | Value |
@@ -184,6 +192,7 @@ If `yes`, split guidance:
 
 Fix evidence reference:
 
+- Applicability hint: `when requested`
 - `<one-or-more links: evidence summary section link / template diff link>`
 
 ## 4. Re-Review Conditions
@@ -209,6 +218,7 @@ Evidence summary needs to be resubmitted:
 
 Closure evidence reference:
 
+- Applicability hint: `only when closure proof exists`
 - `<one-or-more links: supporting doc link>`
 
 ## 5. Kill Switch / Stop Condition

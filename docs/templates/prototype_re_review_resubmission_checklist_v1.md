@@ -120,6 +120,14 @@ Blocker-reference ordering hint rule:
   - `fix evidence next`
   - `supporting evidence last`
 
+Blocker-reference applicability hint rule:
+
+- when the doc is hinting whether a blocker-proof field should be filled or may remain blank, use:
+  - `if applicable`
+  - `when requested`
+  - `if present`
+  - `only when closure proof exists`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.
@@ -138,10 +146,12 @@ Blocker-reference ordering hint rule:
 
 Review note reference:
 
+- Applicability hint: `if present`
 - `<single link: PR comment link>`
 
 Closure evidence reference:
 
+- Applicability hint: `only when closure proof exists`
 - `<one-or-more links: supporting doc link>`
 
 ## 2. Evidence Refresh
@@ -162,6 +172,7 @@ Closure evidence reference:
 
 Fix evidence reference:
 
+- Applicability hint: `when requested`
 - `<one-or-more links: evidence summary section link / template diff link>`
 
 ## 3. Package Consistency
@@ -178,6 +189,7 @@ Fix evidence reference:
 
 Supporting evidence reference:
 
+- Applicability hint: `if applicable`
 - `<multiple links: supporting doc link>`
 
 ## 4. Boundary Re-Check
