@@ -1,0 +1,132 @@
+{
+  "artifact_id": "stage_registry.v1",
+  "artifact_type": "stage_registry_schema_baseline",
+  "schema_version": "1.0.0",
+  "ssot_role": "Canonical SSOT for HONG-21 (P0-SREG-01). HONG-22 and HONG-23 must extend this artifact without redefining the required field vocabulary.",
+  "scope_status": "BASELINE_ONLY",
+  "scope_note": "This v1 artifact fixes schema and vocabulary only. Mapping rules and rollup policy remain open work.",
+  "allowed_layers": [
+    "Layer1",
+    "Layer2",
+    "Layer3",
+    "Layer4"
+  ],
+  "allowed_status_semantics": [
+    "TODO",
+    "IN_PROGRESS",
+    "BLOCKED",
+    "DONE"
+  ],
+  "allowed_owner_planes": [
+    "GOVERNANCE",
+    "DATA",
+    "STATE",
+    "CONTROL",
+    "EXECUTION",
+    "RESEARCH"
+  ],
+  "allowed_evidence_types": [
+    "merged_pr",
+    "commit_sha",
+    "files_changed",
+    "repo_path",
+    "ssot_path_key"
+  ],
+  "required_fields": [
+    "stage_id",
+    "stage_name",
+    "registry_id",
+    "item_id",
+    "item_title",
+    "layer",
+    "owner_plane",
+    "status_semantics",
+    "evidence_type",
+    "evidence_ref",
+    "degrade_rule",
+    "kill_switch",
+    "blocked_by",
+    "next_action"
+  ],
+  "field_semantics": {
+    "stage_id": {
+      "type": "string",
+      "description": "Stage key such as P0 or P1."
+    },
+    "stage_name": {
+      "type": "string",
+      "description": "Human-readable stage name."
+    },
+    "registry_id": {
+      "type": "string",
+      "description": "Stable registry identifier governed by this schema baseline."
+    },
+    "item_id": {
+      "type": "string",
+      "description": "Stable item identifier used by downstream mapping and rollup work."
+    },
+    "item_title": {
+      "type": "string",
+      "description": "Canonical item title."
+    },
+    "layer": {
+      "type": "string",
+      "description": "Fixed layer vocabulary: Layer1, Layer2, Layer3, or Layer4."
+    },
+    "owner_plane": {
+      "type": "string",
+      "description": "Owning plane for the item."
+    },
+    "status_semantics": {
+      "type": "string",
+      "description": "Fixed status vocabulary shared by downstream registry consumers."
+    },
+    "evidence_type": {
+      "type": "string",
+      "description": "Evidence category used to justify completion state."
+    },
+    "evidence_ref": {
+      "type": "string",
+      "description": "Repo path, PR reference, commit SHA, or SSOT path-key."
+    },
+    "degrade_rule": {
+      "type": "string",
+      "description": "Fallback behavior when evidence or schema validity degrades."
+    },
+    "kill_switch": {
+      "type": "string",
+      "description": "Hard stop condition when the registry becomes unsafe to use."
+    },
+    "blocked_by": {
+      "type": "array[string]",
+      "description": "Explicit blocker identifiers; empty list when no blocker is active."
+    },
+    "next_action": {
+      "type": "string",
+      "description": "Single next action for closure."
+    }
+  },
+  "naming_rules": {
+    "stage_id_pattern": "^P[0-9]+$",
+    "registry_id_pattern": "^P[0-9]+(?:-[A-Z]+)+-[0-9]+[A-Z]?$",
+    "item_id_pattern": "^P[0-9]+(?:-[A-Z]+)+-[0-9]+[A-Z]?$"
+  },
+  "baseline_entries": [
+    {
+      "stage_id": "P0",
+      "stage_name": "P0 Foundation",
+      "registry_id": "P0-SREG-01",
+      "item_id": "P0-SREG-01",
+      "item_title": "Stage Registry Spec",
+      "layer": "Layer1",
+      "owner_plane": "GOVERNANCE",
+      "status_semantics": "IN_PROGRESS",
+      "evidence_type": "repo_path",
+      "evidence_ref": "docs/governance/stage_registry.v1.json",
+      "degrade_rule": "If the baseline schema drifts or fails validation, downgrade downstream usage to TODO and resume manual audit.",
+      "kill_switch": "If more than one competing stage registry baseline exists, stop downstream adoption until one validated file remains.",
+      "blocked_by": [],
+      "next_action": "HONG-22 and HONG-23 must extend this baseline for mapping and rollup without redefining field names or vocabularies."
+    }
+  ]
+}
