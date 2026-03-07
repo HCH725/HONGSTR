@@ -43,6 +43,14 @@ MAX_RETRIES = 3
 TIMEOUT_SEC = 15
 
 
+def _is_tier_gated_http_403(error_reason: Optional[str]) -> bool:
+    return error_reason == "HTTP 403"
+
+
+def _format_tier_gated_reason(components: list[str]) -> str:
+    return f"tier_gated:{','.join(sorted(set(components)))}"
+
+
 def _get_git_commit() -> str:
     try:
         import subprocess
@@ -81,8 +89,10 @@ def _fetch_api_with_retry(endpoint: str, api_key: str, params: Optional[dict] = 
                 data = json.loads(resp.read().decode("utf-8"))
                 return data, None
         except urllib.error.HTTPError as e:
-            if e.code in (401, 403):
-                return None, f"HTTP {e.code} (Tier Gated or Unauthorized)"
+            if e.code == 403:
+                return None, "HTTP 403"
+            if e.code == 401:
+                return None, "HTTP 401"
             if e.code == 429:
                 log.warning("Rate limit hit, retrying if possible...")
             else:
@@ -182,31 +192,39 @@ def main() -> int:
         coverage["items"]["macro_events_count"] = len(macro_payload) if isinstance(macro_payload, list) else 0
 
     # Determine aggregated status
-    reasons = []
-    has_fail = False
-    
+    warn_reasons = []
+    fail_reasons = []
+    tier_gated_components = []
+
     if n_err:
-        reasons.append(f"Narratives Failed: {n_err}")
-        has_fail = True
+        if _is_tier_gated_http_403(n_err):
+            tier_gated_components.append("narratives")
+        else:
+            fail_reasons.append(f"narratives:{n_err}")
     elif coverage["items"]["narratives_count"] == 0:
-        reasons.append("Narratives Empty (Endpoint stubbed or no data)")
+        warn_reasons.append("Narratives Empty (Endpoint stubbed or no data)")
 
     if m_err:
-        reasons.append(f"Macro Failed: {m_err}")
-        # Not a complete fail if it's just tier gated, but counts as error. We'll set WARN if tier gated, FAIL otherwise.
-        if "Tier Gated" in m_err or "Unauthorized" in m_err:
-            reasons.append("(Macro tier gated)")
+        if _is_tier_gated_http_403(m_err):
+            tier_gated_components.append("macro_events")
         else:
-            has_fail = True
+            fail_reasons.append(f"macro_events:{m_err}")
     elif coverage["items"]["macro_events_count"] == 0:
-        reasons.append("Macro Events Empty (Not exposed or Tier Gated)")
+        warn_reasons.append("Macro Events Empty (Not exposed or Tier Gated)")
 
-    if has_fail:
+    if fail_reasons:
         coverage["status"] = "FAIL"
+        reasons = []
+        if tier_gated_components:
+            reasons.append(_format_tier_gated_reason(tier_gated_components))
+        reasons.extend(sorted(fail_reasons))
         coverage["reason"] = " | ".join(reasons)
-    elif reasons:
+    elif tier_gated_components:
         coverage["status"] = "WARN"
-        coverage["reason"] = " | ".join(reasons)
+        coverage["reason"] = _format_tier_gated_reason(tier_gated_components)
+    elif warn_reasons:
+        coverage["status"] = "WARN"
+        coverage["reason"] = " | ".join(warn_reasons)
 
     # Write derived files
     n_path = DERIVED_ROOT_NARRATIVES / f"{ts_utc}.json"
