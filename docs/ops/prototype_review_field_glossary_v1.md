@@ -492,7 +492,37 @@ Read these rules before using any term below.
   - treating placeholder shape parts as if they were blocker-evidence-reference labels or hint-label enums
 - Example value: `Review note reference:` + `Applicability hint: if present` + `Ordering hint: review note first` + `<single link: PR comment link>`
 
-### 3.21 `assessment status`
+### 3.21 `blocker reference field caption formatting`
+
+- Definition: the normalized displayed caption formatting used for blocker-evidence-reference field names in stacked field blocks and example snippets.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+- Required or optional: required where the docs display blocker-evidence-reference field captions as standalone caption lines.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md`
+- Canonical field captions:
+  - `Review note reference:`
+  - `Closure evidence reference:`
+  - `Fix evidence reference:`
+  - `Supporting evidence reference:`
+- Formatting rule:
+  - use sentence case, not title case
+  - capitalize the first word only
+  - keep the trailing colon
+  - do not abbreviate the caption
+- Common misuse:
+  - using lowercase caption forms such as `review note reference:`
+  - dropping the trailing colon from a displayed blocker-reference field caption
+  - abbreviating captions such as `review note ref:`
+  - treating caption formatting as if it were the blocker-evidence-reference label, target hint label, multiplicity hint label, ordering hint label, applicability hint label, or placeholder shape
+- Example value: `Review note reference:`
+
+### 3.22 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -514,7 +544,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.22 `reviewer response state`
+### 3.23 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -538,7 +568,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.23 `decision outcome`
+### 3.24 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -564,7 +594,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.24 `next action`
+### 3.25 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -589,7 +619,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.25 `boundary check labels`
+### 3.26 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -626,6 +656,7 @@ Do not let any of these drift patterns enter the package:
 - using ad hoc blocker-proof ordering prose instead of the canonical blocker-reference ordering hint labels
 - using ad hoc blocker-proof applicability prose instead of the canonical blocker-reference applicability hint labels
 - using ad hoc blocker-reference placeholder formatting instead of the canonical placeholder shape
+- using ad hoc blocker-reference caption case, punctuation, or abbreviations instead of the canonical field-caption formatting
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category
