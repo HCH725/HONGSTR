@@ -25,6 +25,9 @@ Boundary reminder:
 
 This glossary standardizes the recurring fields and terms used across the central steward shadow/prototype review package.
 
+For blocker-reference closure status, canonical-layer inventory, and reopen baseline, use `docs/ops/prototype_blocker_reference_governance_landing_v1.md`.
+For read-only blocker-reference adoption and reopen guidance after that closure, use `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`.
+
 Use it to answer:
 
 - what a field means

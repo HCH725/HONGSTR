@@ -25,6 +25,8 @@ Boundary reminder:
 
 This landing doc closes the current blocker-reference docs/governance line for prototype review/package materials.
 
+For read-only adoption, review-entry, and reopen guidance after this Phase A closure candidate, see `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`.
+
 Its purpose is to:
 
 - summarize what canonical layers have already been landed
@@ -170,6 +172,8 @@ The next phase should move toward the smallest safe runtime/adoption/governance-
 - read-only governance enforcement or linting against the landed blocker-reference rules
 - template/checklist adoption support so reviewers/authors can apply the landed rules consistently
 - minimal runtime-facing safeguards only if they preserve Stage 2 single-writer / canonical-SSOT boundaries, Stage 7 read-only reporting, and Stage 8 prototype/report-only posture
+
+For the Phase B read-only adoption/enforcement-stub entrypoint, see `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`.
 
 The next phase must still keep these guardrails:
 

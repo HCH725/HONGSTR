@@ -54,6 +54,7 @@ Do not use this example as:
 - a substitute for the governing templates
 
 If you need the whole doc map first, start with `docs/ops/prototype_review_package_index_v1.md`.
+If blocker-reference wording, reopen, or adoption guidance is the issue, use `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`.
 
 ## 2. Minimal Flow
 

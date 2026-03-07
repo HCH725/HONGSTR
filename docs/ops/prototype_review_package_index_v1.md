@@ -104,12 +104,14 @@ Use this to decide whether a review PR may start at all.
 
 - `docs/ops/prototype_review_kickoff_sop_v1.md`
 
-### 3.5 Naming Convention
+### 3.5 Naming Convention And Blocker-Reference Governance Mapping
 
-Use this to keep review package naming, title format, and attachment naming consistent.
+Use this to keep review package naming, title format, and attachment naming consistent, and to route blocker-reference canonical/reopen guidance.
 
 - `docs/ops/prototype_review_package_naming_convention_v1.md`
 - `docs/ops/prototype_review_field_glossary_v1.md`
+- `docs/ops/prototype_blocker_reference_governance_landing_v1.md`
+- `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`
 - `docs/ops/prototype_enum_alignment_record_v1.md`
 - `docs/ops/prototype_boundary_check_row_alignment_record_v1.md`
 - `docs/ops/prototype_decision_next_action_alignment_record_v1.md`
@@ -202,6 +204,7 @@ When a future author actually wants to open a review PR, use this minimum flow.
 12. use `docs/ops/prototype_review_field_glossary_v1.md` if any field meaning or enum label is unclear
 13. use `docs/examples/prototype_review_package_example_v1.md` if the initial package still feels unclear
 14. use `docs/examples/prototype_resubmission_example_v1.md` if the re-review flow still feels unclear
+15. if the PR only proposes blocker-reference wording churn, read `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md` before reopening the line
 
 If any prerequisite fails:
 
@@ -221,6 +224,8 @@ If any prerequisite fails:
 | know whether review may start | `docs/ops/prototype_review_kickoff_sop_v1.md` |
 | standardize package naming | `docs/ops/prototype_review_package_naming_convention_v1.md` |
 | standardize recurring field meanings | `docs/ops/prototype_review_field_glossary_v1.md` |
+| see blocker-reference closure status, canonical-layer inventory, and reopen baseline | `docs/ops/prototype_blocker_reference_governance_landing_v1.md` |
+| see non-blocking blocker-reference adoption / reopen guidance | `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md` |
 | see drift-to-canonical enum mapping | `docs/ops/prototype_enum_alignment_record_v1.md` |
 | see drift-to-canonical assessment-status mapping | `docs/ops/prototype_assessment_status_alignment_record_v1.md` |
 | see drift-to-canonical reviewer-response-state mapping | `docs/ops/prototype_reviewer_response_state_alignment_record_v1.md` |

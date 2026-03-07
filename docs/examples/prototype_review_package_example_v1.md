@@ -56,6 +56,7 @@ Do not use this example package as:
 
 If you need the full document map first, start with `docs/ops/prototype_review_package_index_v1.md`.
 If any field label or enum meaning is unclear, use `docs/ops/prototype_review_field_glossary_v1.md`.
+If blocker-reference wording, reopen, or adoption guidance is the issue, use `docs/ops/prototype_blocker_reference_governance_enforcement_stub_v1.md`.
 If you need the post-`request-changes note` flow specifically, use `docs/examples/prototype_resubmission_example_v1.md`.
 
 For title, attachment, and section-order conventions, see `docs/ops/prototype_review_package_naming_convention_v1.md`.
