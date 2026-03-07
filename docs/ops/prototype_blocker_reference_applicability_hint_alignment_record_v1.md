@@ -69,6 +69,7 @@ Field split rule:
 - blocker-reference applicability hint labels are not blocker-reference-target hint labels
 - blocker-reference applicability hint labels are not blocker-reference multiplicity hint labels
 - blocker-reference applicability hint labels are not blocker-reference ordering hint labels
+- blocker-reference applicability hint labels are not blocker-reference placeholder shapes; those shapes are governed by `docs/ops/prototype_blocker_reference_placeholder_shape_alignment_record_v1.md`
 - blocker-reference applicability hint labels are not blocker-closure-status labels
 
 ## 4. Legacy Aliases No Longer Recommended

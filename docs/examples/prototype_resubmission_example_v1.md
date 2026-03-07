@@ -86,9 +86,22 @@ Required fixes:
 - rollout wording removed: remove rollout-oriented wording from next action
 
 Re-review conditions:
-- review note reference: <single link: PR comment link>
-- fix evidence reference: <one-or-more links: evidence summary section link / template diff link>
-- supporting evidence reference: <multiple links: supporting doc link>
+
+Review note reference:
+- Applicability hint: `if present`
+- Ordering hint: `review note first`
+- `<single link: PR comment link>`
+
+Fix evidence reference:
+- Applicability hint: `when requested`
+- Ordering hint: `fix evidence next`
+- `<one-or-more links: evidence summary section link / template diff link>`
+
+Supporting evidence reference:
+- Applicability hint: `if applicable`
+- Ordering hint: `supporting evidence last`
+- `<multiple links: supporting doc link>`
+
 - boundary wording clarified
 - request-changes items marked `completed`, `not completed`, `not applicable`, or `unresolved` as applicable
 ```
@@ -99,6 +112,7 @@ Use canonical blocker-closure-status labels when marking each request-changes it
 Use canonical blocker-evidence-reference labels, canonical target hints, and canonical multiplicity hints when pointing to the note, evidence summary, template diff, or supporting docs for each blocker.
 When multiple blocker evidence references appear together, keep the canonical ordering hints: `review note first`, `closure evidence next`, `fix evidence next`, `supporting evidence last`.
 Use canonical applicability hints when a blocker evidence reference may be omitted or carried forward: `if applicable`, `when requested`, `if present`, and `only when closure proof exists`.
+Keep the placeholder shape stable: `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder.
 Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
@@ -107,10 +121,27 @@ Keep prose such as `add missing canonical_overlap explanation` as supporting det
 ## Request-Changes Closure
 - [x] responded to every requested item
 - [x] marked each item `completed`, `not completed`, `not applicable`, or `unresolved`
-- review note reference: <single link: PR comment link>
-- closure evidence reference: <one-or-more links: supporting doc link>
-- fix evidence reference: <one-or-more links: evidence summary section link / template diff link>
-- supporting evidence reference: <multiple links: supporting doc link>
+
+Review note reference:
+- Applicability hint: `if present`
+- Ordering hint: `review note first`
+- `<single link: PR comment link>`
+
+Closure evidence reference:
+- Applicability hint: `only when closure proof exists`
+- Ordering hint: `closure evidence next`
+- `<one-or-more links: supporting doc link>`
+
+Fix evidence reference:
+- Applicability hint: `when requested`
+- Ordering hint: `fix evidence next`
+- `<one-or-more links: evidence summary section link / template diff link>`
+
+Supporting evidence reference:
+- Applicability hint: `if applicable`
+- Ordering hint: `supporting evidence last`
+- `<multiple links: supporting doc link>`
+
 - [x] added requested docs clarifications
 
 ## Evidence Refresh
@@ -184,6 +215,7 @@ Author action:
 - close each request explicitly
 - mark every item `completed`, `not completed`, `not applicable`, or `unresolved`
 - keep the `review note reference` first if present, then add `closure evidence reference` only when closure proof exists, `fix evidence reference` when requested, and `supporting evidence reference` if applicable
+- keep the placeholder shape stacked as `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder
 - stop if any blocking item is still `unresolved`
 
 ### Step 3: Author Updates Package Materials
