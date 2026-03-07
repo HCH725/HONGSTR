@@ -172,4 +172,6 @@ Note: High-Level Guidance Only; Subject to Change.
 
 With the Roster defined, the immediate next step is **adoption, lightweight enforcement, and operating guidance**. This means ensuring existing workflows recognize these roles.
 *For practical deployment and operational status, see [HONGSTR Adoption-Facing Role Deployment Guidance v1](./hongstr_adoption_facing_role_deployment_guidance_v1.md).*
+
+- To evaluate future roles not currently listed, see the *[HONGSTR Inspiration Mapping / Role Backlog v1](./hongstr_inspiration_mapping_role_backlog_v1.md)*.
 *Do not expand this phase into further wording churn or granular document splitting.*
