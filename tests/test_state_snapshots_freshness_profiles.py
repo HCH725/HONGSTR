@@ -56,6 +56,7 @@ def test_canonicalize_row_enforces_deterministic_schema_and_defaults():
         "status",
         "source",
         "reason",
+        "evidence",
         "is_usable",
         "unusable_reason",
     ]
@@ -74,7 +75,12 @@ def test_canonicalize_row_enforces_deterministic_schema_and_defaults():
 
         expected = case["expected"]
         for key in expected_keys:
+            if key == "evidence":
+                continue
             assert row[key] == expected[key], f"{case['name']}::{key}"
+        assert row["evidence"]["type"] == "path_mtime", case["name"]
+        assert row["evidence"]["ref"] == expected["source"], case["name"]
+        assert row["evidence"]["observed_ts_utc"] is None, case["name"]
 
 
 def test_build_freshness_table_includes_required_top_level_keys():
@@ -94,11 +100,18 @@ def test_build_freshness_table_includes_required_top_level_keys():
     assert "generated_utc" in table
     assert "ts_utc" in table
     assert "thresholds" in table
+    assert "contract" in table
     assert "quality_gate" in table
     assert "rows" in table
     assert table["generated_utc"] == "2026-02-26T00:00:00Z"
     assert table["ts_utc"] == "2026-02-26T00:00:00Z"
     assert isinstance(table["thresholds"], dict)
+    assert table["contract"]["version"] == mod.DATA_PLANE_SSOT_CONTRACT_VERSION
+    assert table["contract"]["canonical_path"] == "data/state/freshness_table.json"
+    assert table["contract"]["consumer_mode"] == "read_only"
+    assert table["contract"]["reason_field"] == "rows[].reason"
+    assert table["contract"]["source_field"] == "rows[].source"
+    assert table["contract"]["evidence_field"] == "rows[].evidence"
     assert table["quality_gate"]["rule"] == "non_ok_or_missing_row => is_usable=false"
     assert table["quality_gate"]["is_usable"] is False
     assert table["quality_gate"]["usable_rows"] == 0
