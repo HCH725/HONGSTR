@@ -38,6 +38,7 @@ For canonical blocker-reference placeholder shape wording in that resubmission f
 For canonical blocker-reference field-caption formatting in that resubmission flow, use `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md`.
 For canonical blocker-reference rendering rules in that resubmission flow, use `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md`.
 For canonical blocker-reference live-field cue wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_live_field_cue_alignment_record_v1.md`.
+For canonical blocker-reference explanatory-inline cue wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`.
 
 It does not replace:
 
@@ -136,7 +137,8 @@ If this is a `retirement-review`:
 - [ ] If this is a resubmission, those evidence references keep canonical applicability hints such as `if applicable`, `when requested`, `if present`, and `only when closure proof exists`.
 - [ ] If this is a resubmission, those evidence references keep the canonical placeholder shape: `Applicability hint: ...`, `Ordering hint: ...`, then `<single link: ...>` / `<multiple links: ...>` / `<one-or-more links: ...>`.
 - [ ] If this is a resubmission, those evidence references keep the canonical field captions: `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
-- [ ] If this is a resubmission, each `live blocker-evidence-reference field` stays stacked: every `live fill-in field` should appear as a `live field block`, not as a compact inline fragment.
+- [ ] If this is a resubmission, each `live blocker-evidence-reference field` stays stacked: every `live fill-in field` should appear as a `live field block`, not as non-live `explanatory prose`, a `compact table cell`, or an `inline placeholder-only fragment`.
+- [ ] If this is a resubmission, non-live blocker-reference wording keeps the canonical cues: `explanatory prose`, `compact table cell`, and `inline placeholder-only fragment`.
 - [ ] The observation window is stated clearly.
 - [ ] The current recommendation is stated clearly:
   - `keep`

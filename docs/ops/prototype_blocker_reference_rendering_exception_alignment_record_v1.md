@@ -41,7 +41,7 @@ The current docs had recurring drift in these patterns:
 
 - some docs treated inline `field: <...>` examples as if they were acceptable live blocker-evidence-reference field rendering
 - some docs implied that a bare angle-bracket placeholder such as `<single link: ...>` could stand in for a full live field block
-- some table or prose reminders used compact inline wording without saying that the compact form was explanatory only
+- some table or prose reminders used compact inline wording without saying that the compact form belonged to `explanatory prose` or a `compact table cell`
 - some placeholder-shape guidance and caption guidance did not explicitly say when a live field must expand to a stacked multi-line block
 
 ## 2. Drift To Canonical Mapping
@@ -50,7 +50,7 @@ The current docs had recurring drift in these patterns:
 |---|---|---|
 | `field: <...>` shown as if it were a live blocker-evidence-reference field | `stacked field block required for live blocker-evidence-reference fields` | Live fill-in fields use standalone caption lines plus the local hint lines. |
 | bare `<single link: ...>` or `<one-or-more links: ...>` treated as the whole live field | `inline placeholder-only fragment allowed in explanatory prose` | Bare angle-bracket placeholders may appear only when the doc is describing the shape, not rendering the field itself. |
-| prose or table reminder that says inline is fine without naming the condition | `compact inline form allowed only in reminder prose or compact table cells` | Compact inline form is explanatory only, not the default live field rendering. |
+| prose or table reminder that says inline is fine without naming the condition | `compact inline form allowed only in explanatory prose or a compact table cell` | Compact inline form is explanatory only, not the default live field rendering. |
 | local field block shows a caption or any `Applicability hint:` / `Ordering hint:` line but stays compressed to one line | `expand to multi-line block when field caption or hint lines are shown` | Once caption or hint lines are present, render the field as a stacked block. |
 | grouped blocker-proof section uses several evidence-reference fields in one local sequence but leaves rendering style implicit | `stacked field block required for live blocker-evidence-reference fields` | Grouped blocker-proof fields should stay visibly separate and fillable. |
 
@@ -60,21 +60,22 @@ Use these canonical blocker-reference rendering rules:
 
 - `inline placeholder-only fragment allowed in explanatory prose`
 - `stacked field block required for live blocker-evidence-reference fields`
-- `compact inline form allowed only in reminder prose or compact table cells`
+- `compact inline form allowed only in explanatory prose or a compact table cell`
 - `expand to multi-line block when field caption or hint lines are shown`
 
 Rendering rule:
 
 - use stacked field blocks in templates and live example snippets where the reader is expected to fill or inspect a blocker-evidence-reference field
-- allow compact inline form only when the doc is giving a reminder sentence, a compact table cell, or a drift-mapping example rather than rendering a live field
+- allow compact inline form only inside explanatory prose, a compact table cell, or another non-live example context rather than rendering a live field
 - if a field shows a standalone caption line or any `Applicability hint:` / `Ordering hint:` line, expand it to the canonical stacked multi-line block
-- do not treat explanatory inline fragments as a substitute for live field rendering
+- do not treat `inline placeholder-only fragment` as a substitute for live field rendering
 
 Field split rule:
 
 - blocker-reference rendering rules are not blocker-evidence-reference labels
 - blocker-reference rendering rules are not blocker-reference field-caption formatting
 - blocker-reference rendering rules are not blocker-reference live-field cue phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_live_field_cue_alignment_record_v1.md`
+- blocker-reference rendering rules are not blocker-reference explanatory-inline cue phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`
 - blocker-reference rendering rules are not blocker-reference-target hint labels
 - blocker-reference rendering rules are not blocker-reference multiplicity hint labels
 - blocker-reference rendering rules are not blocker-reference ordering hint labels
@@ -87,7 +88,7 @@ These old renderings or sayings should not be introduced in new or updated packa
 
 - inline `field: <...>` shown as the default live field form
 - bare angle-bracket placeholder treated as the complete live field
-- `inline is fine` or similar wording without saying it is limited to explanatory prose or compact table cells
+- `inline is fine` or similar wording without saying it is limited to explanatory prose or a compact table cell
 - compressed one-line field rendering after caption or hint lines have already been introduced
 
 These may remain in historical PR discussion or drift tables, but not as active rendering guidance in the normalized repo docs after this PR.
@@ -118,7 +119,7 @@ Very-thin grammatical variation is allowed only when needed by the local structu
 
 - templates may state the canonical rendering rules inside one rule block
 - checklists may mention the canonical rendering rules inside a reminder sentence
-- examples may contrast explanatory inline fragments with live stacked field blocks
+- examples may contrast `inline placeholder-only fragment` inside `explanatory prose` with live stacked field blocks
 
 Even with those thin variations:
 
@@ -138,4 +139,4 @@ Blocker-reference rendering-rule alignment helps because:
 
 ## 8. Canonical Answer
 
-Yes. The prototype review/package docs can and should use one canonical blocker-reference rendering-rule set so inline placeholder-only fragments stay limited to explanatory prose, compact inline forms stay limited to reminder prose or compact table cells, and live blocker-evidence-reference fields expand to stacked multi-line blocks whenever field captions or hint lines are shown.
+Yes. The prototype review/package docs can and should use one canonical blocker-reference rendering-rule set so `inline placeholder-only fragment` stays limited to `explanatory prose`, compact inline forms stay limited to `explanatory prose` or a `compact table cell`, and live blocker-evidence-reference fields expand to stacked multi-line blocks whenever field captions or hint lines are shown.

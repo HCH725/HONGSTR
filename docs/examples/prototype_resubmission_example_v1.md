@@ -115,6 +115,7 @@ Use canonical applicability hints when a blocker evidence reference may be omitt
 Keep the placeholder shape stable: `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder.
 Keep the displayed field captions fixed as `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
 Use compact inline forms only in explanatory prose; keep each `live blocker-evidence-reference field` as a `live fill-in field` rendered as a `live field block`.
+Use `compact table cell` only for compressed non-live reminder context, and use `inline placeholder-only fragment` only for the bare angle-bracket placeholder in that non-live context.
 Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
@@ -219,7 +220,8 @@ Author action:
 - keep the `review note reference` first if present, then add `closure evidence reference` only when closure proof exists, `fix evidence reference` when requested, and `supporting evidence reference` if applicable
 - keep the placeholder shape stacked as `Applicability hint: ...`, `Ordering hint: ...`, then the angle-bracket placeholder
 - keep the displayed field captions fixed as `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`
-- keep compact inline forms only in explanatory prose or compact table cells; keep each `live blocker-evidence-reference field` as a `live fill-in field` rendered as a `live field block`
+- keep compact inline forms only in explanatory prose or a `compact table cell`; keep each `live blocker-evidence-reference field` as a `live fill-in field` rendered as a `live field block`
+- use `inline placeholder-only fragment` only when citing the bare angle-bracket placeholder outside the live field block
 - stop if any blocking item is still `unresolved`
 
 ### Step 3: Author Updates Package Materials
