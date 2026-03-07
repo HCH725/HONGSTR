@@ -136,7 +136,7 @@ While not a runtime implementation, future script integrations driving these tri
 
 With the Trial Plan established, actionable next steps include:
 
-- Executing a **Reviewer supplementation advisory trial task** (shadow testing an external model on a closed PR).
+- Executing a **Reviewer supplementation advisory trial task** (shadow testing an external model on a closed PR). *See [HONGSTR Reviewer Supplementation Advisory Trial v1](./hongstr_reviewer_supplementation_advisory_trial_v1.md)*.
 - Executing a **Safety Gatekeeper advisory trial task**.
 - Drafting concrete **lightweight enforcement guidance** (the actual read-only scripts that would invoke these trial models).
 *(Do not expand backward into wording churn on blocker-reference documents).*

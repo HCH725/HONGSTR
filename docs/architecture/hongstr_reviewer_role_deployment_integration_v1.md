@@ -100,7 +100,7 @@ Following this integration document, the logical progression is:
 
 - **Author/Reviewer Checklist Integration**: Updating the GitHub PR templates or local checklist stubs to formally request these Memos.
 - **Lightweight Enforcement Guidance**: Creating the actual (read-only) script that generates the `Evidence Sufficiency Memo`.
-- **Model Supplementation Trial Plan**: Testing external higher-tier models for complex multi-hop evidence review.
+- **Model Supplementation Trial Plan**: Testing external higher-tier models for complex multi-hop evidence review. *See [HONGSTR Reviewer Supplementation Advisory Trial v1](./hongstr_reviewer_supplementation_advisory_trial_v1.md)*.
 *(Do not revert to wording adjustments or blocker-reference churn).*
 
 ---
