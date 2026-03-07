@@ -105,6 +105,13 @@ Blocker-reference-target hint rule:
   - `template diff link`
   - `supporting doc link`
 
+Blocker-reference multiplicity hint rule:
+
+- when the doc is hinting how many blocker-proof links belong in a field, use:
+  - `single link`
+  - `multiple links`
+  - `one-or-more links`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.
@@ -122,11 +129,11 @@ Blocker-reference-target hint rule:
 
 Review note reference:
 
-- `<PR comment link>`
+- `<single link: PR comment link>`
 
 Closure evidence reference:
 
-- `<supporting doc link>`
+- `<one-or-more links: supporting doc link>`
 
 ## 2. Evidence Refresh
 
@@ -146,7 +153,7 @@ Closure evidence reference:
 
 Fix evidence reference:
 
-- `<evidence summary section link / template diff link>`
+- `<one-or-more links: evidence summary section link / template diff link>`
 
 ## 3. Package Consistency
 
@@ -162,7 +169,7 @@ Fix evidence reference:
 
 Supporting evidence reference:
 
-- `<supporting doc link>`
+- `<multiple links: supporting doc link>`
 
 ## 4. Boundary Re-Check
 

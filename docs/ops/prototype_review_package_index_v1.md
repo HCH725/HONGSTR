@@ -120,6 +120,7 @@ Use this to keep review package naming, title format, and attachment naming cons
 - `docs/ops/prototype_blocker_closure_status_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_evidence_reference_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_reference_target_hint_alignment_record_v1.md`
+- `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md`
 
 ### 3.6 Templates
 
@@ -217,6 +218,7 @@ If any prerequisite fails:
 | see drift-to-canonical blocker-closure-status mapping | `docs/ops/prototype_blocker_closure_status_alignment_record_v1.md` |
 | see drift-to-canonical blocker-evidence-reference mapping | `docs/ops/prototype_blocker_evidence_reference_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference-target hint mapping | `docs/ops/prototype_blocker_reference_target_hint_alignment_record_v1.md` |
+| see drift-to-canonical blocker-reference multiplicity hint mapping | `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md` |
 | write evidence summary | `docs/templates/prototype_evidence_summary_template_v1.md` |
 | write `upgrade-review` | `docs/templates/prototype_upgrade_review_template_v1.md` |
 | write `retirement-review` | `docs/templates/prototype_retirement_review_template_v1.md` |

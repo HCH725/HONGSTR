@@ -380,10 +380,34 @@ Read these rules before using any term below.
 - Common misuse:
   - using prose such as `request-changes note / PR comment / review thread` instead of the normalized `PR comment link`
   - using broad mixed hints such as `updated evidence summary / template / diff` instead of naming `evidence summary section link` or `template diff link`
+  - using raw singular/plural `link` or `links` where the doc should also declare the canonical blocker-reference multiplicity hint
   - using target-hint labels as if they were blocker-evidence-reference labels themselves
 - Example value: `review note reference = PR comment link`
 
-### 3.17 `assessment status`
+### 3.17 `blocker reference multiplicity hint`
+
+- Definition: the normalized hint label describing whether a blocker-evidence-reference field expects a single link, multiple links, or one-or-more links.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+- Required or optional: required where the docs provide a placeholder or reminder for how many blocker-proof links may be pasted.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md`
+- Allowed values:
+  - `single link`
+  - `multiple links`
+  - `one-or-more links`
+- Common misuse:
+  - using bare `link` or `links` without the canonical multiplicity hint label
+  - using prose such as `plus any needed` instead of the normalized `one-or-more links`
+  - using multiplicity hints as if they were blocker-evidence-reference labels or blocker-reference-target hint labels
+- Example value: `fix evidence reference = one-or-more links + evidence summary section link / template diff link`
+
+### 3.18 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -405,7 +429,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.18 `reviewer response state`
+### 3.19 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -429,7 +453,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.19 `decision outcome`
+### 3.20 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -455,7 +479,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.20 `next action`
+### 3.21 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -480,7 +504,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.21 `boundary check labels`
+### 3.22 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -513,6 +537,7 @@ Do not let any of these drift patterns enter the package:
 - changing enum labels between templates
 - using ad hoc blocker-proof labels instead of the canonical blocker-evidence-reference labels
 - using ad hoc link-target prose instead of the canonical blocker-reference-target hint labels
+- using ad hoc singular/plural link prose instead of the canonical blocker-reference multiplicity hint labels
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category

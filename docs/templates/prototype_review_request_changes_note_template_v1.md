@@ -94,6 +94,13 @@ Blocker-reference-target hint rule:
   - `template diff link`
   - `supporting doc link`
 
+Blocker-reference multiplicity hint rule:
+
+- when the doc is hinting how many blocker-proof links belong in a field, use:
+  - `single link`
+  - `multiple links`
+  - `one-or-more links`
+
 ## 1. Basic Information
 
 | Field | Value |
@@ -103,8 +110,8 @@ Blocker-reference-target hint rule:
 | `reviewer` | `<name or handle>` |
 | `author` | `<name or handle>` |
 | `related_prs` | `<PR links>` |
-| `review note reference` | `<PR comment link>` |
-| `supporting evidence reference` | `<supporting doc link>` |
+| `review note reference` | `<single link: PR comment link>` |
+| `supporting evidence reference` | `<multiple links: supporting doc link>` |
 | `related_docs` | `docs/templates/prototype_review_reviewer_checklist_v1.md`, `docs/templates/prototype_review_decision_record_template_v1.md`, `docs/ops/prototype_review_kickoff_sop_v1.md` |
 
 ## 2. Request-Changes Reason
@@ -169,7 +176,7 @@ If `yes`, split guidance:
 
 Fix evidence reference:
 
-- `<evidence summary section link / template diff link>`
+- `<one-or-more links: evidence summary section link / template diff link>`
 
 ## 4. Re-Review Conditions
 
@@ -194,7 +201,7 @@ Evidence summary needs to be resubmitted:
 
 Closure evidence reference:
 
-- `<supporting doc link>`
+- `<one-or-more links: supporting doc link>`
 
 ## 5. Kill Switch / Stop Condition
 
