@@ -538,12 +538,12 @@ Read these rules before using any term below.
 - Canonical rendering rules:
   - `inline placeholder-only fragment allowed in explanatory prose`
   - `stacked field block required for live blocker-evidence-reference fields`
-  - `compact inline form allowed only in reminder prose or compact table cells`
+  - `compact inline form allowed only in explanatory prose or a compact table cell`
   - `expand to multi-line block when field caption or hint lines are shown`
 - Common misuse:
   - treating inline `field: <...>` examples as if they were the canonical live field rendering
   - treating bare angle-bracket placeholders as if they were a complete live blocker-evidence-reference field
-  - saying inline form is acceptable without stating that it is limited to explanatory prose or compact table cells
+  - saying inline form is acceptable without stating that it is limited to explanatory prose or a compact table cell
   - treating rendering rules as if they were field-caption formatting, live-field cue phrases, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
 - Example value: `live blocker-evidence-reference field -> stacked field block required for live blocker-evidence-reference fields`
 
@@ -571,10 +571,37 @@ Read these rules before using any term below.
 - Common misuse:
   - using broad phrases such as `live field` or `actual field to fill` instead of the canonical cue phrases
   - switching between `entry` and `field` with no stable cue rule
-  - treating live-field cue phrases as if they were rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
+  - treating live-field cue phrases as if they were explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
 - Example value: `render the live blocker-evidence-reference field as a live field block`
 
-### 3.24 `assessment status`
+### 3.24 `blocker reference explanatory-inline cue phrase`
+
+- Definition: the normalized cue phrase used to tell the reader that the current blocker-reference wording is explanatory-only and not a live field to fill.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, and resubmission examples.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+- Required or optional: required where the docs need to distinguish explanatory-only blocker-reference wording from a live blocker-evidence-reference field.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`
+- Canonical cue phrases:
+  - `explanatory prose`
+  - `compact table cell`
+  - `inline placeholder-only fragment`
+- Cue rule:
+  - use `explanatory prose` as the primary non-live cue phrase
+  - use `compact table cell` when the non-live explanation is compressed into one small table cell
+  - use `inline placeholder-only fragment` when the non-live wording is only the bare angle-bracket placeholder snippet
+  - keep these cue phrases distinct from `live blocker-evidence-reference field`, `live fill-in field`, and `live field block`
+- Common misuse:
+  - using `reminder prose`, `table-cell reminder`, or `inline fragment` instead of the canonical cue phrases
+  - treating explanatory-inline cue phrases as if they were live-field cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
+- Example value: `use inline placeholder-only fragment only in explanatory prose`
+
+### 3.25 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -596,7 +623,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.25 `reviewer response state`
+### 3.26 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -620,7 +647,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.26 `decision outcome`
+### 3.27 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -646,7 +673,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.27 `next action`
+### 3.28 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -671,7 +698,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.28 `boundary check labels`
+### 3.29 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -711,6 +738,7 @@ Do not let any of these drift patterns enter the package:
 - using ad hoc blocker-reference caption case, punctuation, or abbreviations instead of the canonical field-caption formatting
 - using ad hoc inline-vs-stacked blocker-reference rendering prose instead of the canonical rendering rules
 - using ad hoc blocker-reference live-field cue wording instead of the canonical cue phrases
+- using ad hoc blocker-reference explanatory-inline cue wording instead of the canonical non-live cue phrases
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category

@@ -131,7 +131,9 @@ Blocker-reference rendering rule:
 - treat each fillable blocker-proof row here as a `live blocker-evidence-reference field`
 - treat that `live blocker-evidence-reference field` as a `live fill-in field`
 - render that `live fill-in field` as a `live field block`
-- compact inline form is allowed only in reminder prose or compact table cells that are not `live fill-in fields`
+- treat non-live blocker-reference wording here as `explanatory prose` or a `compact table cell`, not as a `live fill-in field`
+- use `inline placeholder-only fragment` only when citing the bare angle-bracket placeholder in that non-live context
+- compact inline form is allowed only in `explanatory prose` or a `compact table cell`, never in a `live fill-in field`
 - bare angle-bracket placeholders such as `<single link: ...>` may appear inline only when the doc is describing the placeholder shape
 - if a field caption line or any `Applicability hint:` / `Ordering hint:` line is shown, keep the `live field block` expanded as a stacked multi-line block
 

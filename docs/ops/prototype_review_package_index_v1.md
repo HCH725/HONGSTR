@@ -127,6 +127,7 @@ Use this to keep review package naming, title format, and attachment naming cons
 - `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md`
 - `docs/ops/prototype_blocker_reference_live_field_cue_alignment_record_v1.md`
+- `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`
 
 ### 3.6 Templates
 
@@ -231,6 +232,7 @@ If any prerequisite fails:
 | see drift-to-canonical blocker-reference field-caption formatting | `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference rendering rules | `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference live-field cues | `docs/ops/prototype_blocker_reference_live_field_cue_alignment_record_v1.md` |
+| see drift-to-canonical blocker-reference explanatory-inline cues | `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md` |
 | write evidence summary | `docs/templates/prototype_evidence_summary_template_v1.md` |
 | write `upgrade-review` | `docs/templates/prototype_upgrade_review_template_v1.md` |
 | write `retirement-review` | `docs/templates/prototype_retirement_review_template_v1.md` |

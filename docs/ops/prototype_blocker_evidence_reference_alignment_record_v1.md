@@ -70,6 +70,7 @@ Field split rule:
 - blocker-evidence-reference labels are not blocker-reference field-caption formatting; that formatting is governed by `docs/ops/prototype_blocker_reference_field_caption_casing_alignment_record_v1.md`
 - blocker-evidence-reference labels are not blocker-reference rendering rules; those rules are governed by `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md`
 - blocker-evidence-reference labels are not blocker-reference live-field cue phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_live_field_cue_alignment_record_v1.md`
+- blocker-evidence-reference labels are not blocker-reference explanatory-inline cue phrases; those phrases are governed by `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`
 - blocker-evidence-reference labels are not blocker-reference-target hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_target_hint_alignment_record_v1.md`
 - blocker-evidence-reference labels are not blocker-reference multiplicity hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_multiplicity_hint_alignment_record_v1.md`
 - blocker-evidence-reference labels are not blocker-reference ordering hint labels; those hints are governed by `docs/ops/prototype_blocker_reference_ordering_hint_alignment_record_v1.md`
