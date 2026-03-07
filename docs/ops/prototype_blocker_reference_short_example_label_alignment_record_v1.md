@@ -78,6 +78,7 @@ Label wording rule:
 Field split rule:
 
 - short-example labels are not the short-example values themselves; those values are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md`
+- short-example labels are not short-example placement rules; those rules are governed by `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`
 - short-example labels are not contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
 - short-example labels are not contrast-sentence combination rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`
 - short-example labels are not live-vs-non-live contrast sentences; those sentences are governed by `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
@@ -120,14 +121,13 @@ Already conform; checked and left unchanged:
 
 Very-thin grammatical variation is allowed only when needed by the local structure:
 
-- templates may show one or two labeled short examples
-- examples may show all three labeled short examples when demonstrating the full canonical set
-- checklists may keep the label on a continuation line under one governing rule bullet
+- local docs may show one, two, or all three canonical short-example labels depending on which examples are needed
+- placement of those labels is governed separately by `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`
 
 Even with those thin variations:
 
 - the canonical label wording itself should stay recognizable
-- label wording must not replace the example value, punctuation/style rule, combination rule, live-field cue wording, or explanatory-inline cue wording
+- label wording must not replace the example value, placement rule, punctuation/style rule, combination rule, live-field cue wording, or explanatory-inline cue wording
 - label wording must not be used as rollout or canonical-state language
 
 ## 7. Why This Alignment Helps

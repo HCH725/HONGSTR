@@ -75,6 +75,7 @@ Field split rule:
 - contrast-sentence example values are not blocker-reference explanatory-inline cue phrases
 - contrast-sentence example values are not blocker-reference live-vs-non-live contrast sentences; those sentences are governed by `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
 - contrast-sentence example values are not blocker-reference contrast-sentence combination rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md`
+- contrast-sentence example values are not blocker-reference short-example placement rules; those rules are governed by `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`
 - contrast-sentence example values are not blocker-reference contrast-sentence punctuation/style rules; those rules are governed by `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md`
 - contrast-sentence example values are not blocker-reference short-example labels; those labels are governed by `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`
 
@@ -109,9 +110,9 @@ Aligned:
 
 Very-thin grammatical variation is allowed only when needed by the local structure:
 
-- templates may list the `Scope plus exclusion short example:` and `Placeholder location short example:` values separately
-- checklists may cite one or two canonical short examples in parentheses
+- templates may show one or two canonical short-example values
 - examples may show the `Live versus non-live short example:` value when both short examples are needed together
+- placement of label-plus-value lines is governed by `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`
 
 Even with those thin variations:
 
