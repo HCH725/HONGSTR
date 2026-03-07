@@ -311,7 +311,30 @@ Read these rules before using any term below.
   - using next-action labels such as `extend evidence window` as if they were required-fix completion labels
 - Example value: `boundary wording clarified`
 
-### 3.14 `assessment status`
+### 3.14 `blocker closure status`
+
+- Definition: the normalized per-blocker status used during resubmission to show whether a requested fix is done, not done, not applicable, or still unresolved.
+- When used: re-review resubmission checklist, reviewer guidance for re-review, request-changes note closure tracking, and resubmission examples.
+- Templates using it:
+  - re-review resubmission checklist
+  - request-changes note
+  - reviewer checklist
+  - resubmission example
+- Required or optional: required where blocker items are tracked with explicit closure status instead of prose only.
+- Governing record:
+  - `docs/ops/prototype_blocker_closure_status_alignment_record_v1.md`
+- Allowed values:
+  - `completed`
+  - `not completed`
+  - `not applicable`
+  - `unresolved`
+- Common misuse:
+  - using prose such as `closed`, `fully addressed`, or `materially unresolved` instead of the canonical labels
+  - using combined shorthand such as `completed / not applicable` instead of one explicit status per blocker item
+  - using required-fix labels or request-changes reasons as if they were blocker-closure-status labels
+- Example value: `completed`
+
+### 3.15 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -333,7 +356,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.15 `reviewer response state`
+### 3.16 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -357,7 +380,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.16 `decision outcome`
+### 3.17 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -383,7 +406,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.17 `next action`
+### 3.18 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -408,7 +431,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.18 `boundary check labels`
+### 3.19 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.

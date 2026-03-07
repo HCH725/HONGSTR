@@ -70,6 +70,14 @@ Required-fix label rule:
   - `canonical overlap explanation added`
   - `observation window extended`
 
+Blocker-closure-status rule:
+
+- when blocker items are later tracked item-by-item in resubmission flow, use:
+  - `completed`
+  - `not completed`
+  - `not applicable`
+  - `unresolved`
+
 ## 1. Basic Information
 
 | Field | Value |
