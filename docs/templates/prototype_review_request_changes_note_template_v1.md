@@ -126,6 +126,13 @@ Blocker-reference field-caption formatting rule:
   - `Supporting evidence reference:`
 - keep sentence case, keep the trailing colon, and do not abbreviate the caption
 
+Blocker-reference rendering rule:
+
+- use stacked field blocks for live blocker-evidence-reference fields in this template
+- compact inline form is allowed only in reminder prose or compact table cells that are not live fill-in fields
+- bare angle-bracket placeholders such as `<single link: ...>` may appear inline only when the doc is describing the placeholder shape
+- if a field caption line or any `Applicability hint:` / `Ordering hint:` line is shown, expand the field to the stacked multi-line block
+
 ## 1. Basic Information
 
 | Field | Value |

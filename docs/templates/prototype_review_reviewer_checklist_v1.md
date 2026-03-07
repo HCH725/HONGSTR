@@ -89,6 +89,7 @@ Use `docs/templates/prototype_review_request_changes_note_template_v1.md` when t
 - [ ] If this is a resubmission, the evidence-reference applicability hints stay canonical: `if applicable`, `when requested`, `if present`, or `only when closure proof exists`.
 - [ ] If this is a resubmission, the placeholder shape stays canonical: `Applicability hint: ...`, `Ordering hint: ...`, then `<single link: ...>` / `<multiple links: ...>` / `<one-or-more links: ...>`.
 - [ ] If this is a resubmission, the field captions stay canonical: `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
+- [ ] If this is a resubmission, live blocker-evidence-reference fields stay stacked; compact inline form appears only in reminder prose or compact table cells that are not live field blocks.
 - [ ] The review package cites the governing docs:
   - `docs/architecture/prototype_evidence_collection_plan_v1.md`
   - `docs/architecture/prototype_retirement_criteria_v1.md`

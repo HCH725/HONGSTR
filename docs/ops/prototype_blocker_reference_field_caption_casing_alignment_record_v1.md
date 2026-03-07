@@ -75,6 +75,7 @@ Formatting rule:
 Field split rule:
 
 - blocker-reference field captions are not blocker-evidence-reference labels
+- blocker-reference field captions are not blocker-reference rendering rules; those rules are governed by `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md`
 - blocker-reference field captions are not blocker-reference-target hint labels
 - blocker-reference field captions are not blocker-reference multiplicity hint labels
 - blocker-reference field captions are not blocker-reference ordering hint labels
