@@ -571,6 +571,7 @@ Read these rules before using any term below.
 - Common misuse:
   - using broad phrases such as `live field` or `actual field to fill` instead of the canonical cue phrases
   - switching between `entry` and `field` with no stable cue rule
+  - using live-field cue phrases when the local need is a direct live-vs-non-live contrast sentence
   - treating live-field cue phrases as if they were explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
 - Example value: `render the live blocker-evidence-reference field as a live field block`
 
@@ -598,10 +599,41 @@ Read these rules before using any term below.
   - keep these cue phrases distinct from `live blocker-evidence-reference field`, `live fill-in field`, and `live field block`
 - Common misuse:
   - using `reminder prose`, `table-cell reminder`, or `inline fragment` instead of the canonical cue phrases
+  - using explanatory-inline cue phrases when the local need is a direct live-vs-non-live contrast sentence
   - treating explanatory-inline cue phrases as if they were live-field cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
 - Example value: `use inline placeholder-only fragment only in explanatory prose`
 
-### 3.25 `assessment status`
+### 3.25 `blocker reference live-vs-non-live contrast sentence`
+
+- Definition: the normalized sentence used when a doc directly contrasts live blocker-evidence-reference fields with non-live / explanatory-inline blocker-reference wording.
+- When used: request-changes note, re-review resubmission checklist, reviewer reminders about resubmission evidence links, author reminders for resubmission, resubmission example, and package-index reminders.
+- Templates using it:
+  - request-changes note
+  - re-review resubmission checklist
+  - reviewer checklist
+  - author checklist
+  - resubmission example
+  - package index
+- Required or optional: required where the docs directly compare live-field wording against explanatory-inline wording.
+- Governing record:
+  - `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`
+- Canonical contrast sentences:
+  - `not a live fill-in field`
+  - `outside the live field block`
+  - `in non-live context`
+- Contrast rule:
+  - use `not a live fill-in field` when the sentence must explicitly exclude non-live wording from live fillability
+  - use `outside the live field block` when the sentence must explicitly exclude a bare placeholder snippet from the stacked live field block
+  - use `in non-live context` when the sentence must explicitly name the explanatory-inline scope
+  - keep these contrast sentences distinct from `live blocker-evidence-reference field`, `live fill-in field`, `live field block`, `explanatory prose`, `compact table cell`, and `inline placeholder-only fragment`
+- Common misuse:
+  - using `not as a live fill-in field` instead of the canonical direct contrast sentence
+  - using `in that non-live context` or `compressed non-live reminder context` instead of `in non-live context`
+  - leaving `outside the live field block` implicit when the sentence is specifically excluding bare placeholder snippets from the live field block
+  - treating contrast sentences as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, or placeholder shapes
+- Example value: `use inline placeholder-only fragment only in non-live context and outside the live field block`
+
+### 3.26 `assessment status`
 
 - Definition: the provisional evidence-summary posture recorded before a final review decision exists.
 - When used: evidence summary and package assembly examples when the docs are still expressing review readiness rather than a final outcome.
@@ -623,7 +655,7 @@ Read these rules before using any term below.
   - leaving the field unlabeled so assessment status, decision outcome, and next action blur together
 - Example value: `continue observation`
 
-### 3.26 `reviewer response state`
+### 3.27 `reviewer response state`
 
 - Definition: the normalized reviewer-side workflow state used when the package is being returned, gated for re-review, or handed off to the final decision record.
 - When used: reviewer checklist, request-changes note, resubmission flow, and resubmission example.
@@ -647,7 +679,7 @@ Read these rules before using any term below.
   - leaving the state implied by prose only when a structured label is available
 - Example value: `ready for decision record`
 
-### 3.27 `decision outcome`
+### 3.28 `decision outcome`
 
 - Definition: the fixed governance result recorded after review or re-review.
 - When used: reviewer checklist, decision record, and review templates.
@@ -673,7 +705,7 @@ Read these rules before using any term below.
   - combining `insufficient evidence` with `continue observation` into one pseudo-enum
 - Example value: `keep`
 
-### 3.28 `next action`
+### 3.29 `next action`
 
 - Definition: the smallest allowed follow-on step after the current review state or decision.
 - When used: evidence summary, review templates, decision record, reviewer notes.
@@ -698,7 +730,7 @@ Read these rules before using any term below.
   - skipping the action even when the decision is recorded
 - Example value: `continue observation`
 
-### 3.29 `boundary check labels`
+### 3.30 `boundary check labels`
 
 - Definition: the canonical wording used for structured boundary-check rows, field labels, and checklist labels across the prototype review/package docs.
 - When used: evidence summary, upgrade-review, retirement-review, decision record, author checklist, reviewer checklist, resubmission checklist, and examples.
@@ -739,6 +771,7 @@ Do not let any of these drift patterns enter the package:
 - using ad hoc inline-vs-stacked blocker-reference rendering prose instead of the canonical rendering rules
 - using ad hoc blocker-reference live-field cue wording instead of the canonical cue phrases
 - using ad hoc blocker-reference explanatory-inline cue wording instead of the canonical non-live cue phrases
+- using ad hoc blocker-reference live-vs-non-live contrast wording instead of the canonical contrast sentences
 - using `decision_value` as a synonym for “I like this”
 - using `canonical_overlap` without saying what it overlaps with
 - using `request changes` prose without a fixed reason category
