@@ -91,6 +91,7 @@ Use `docs/templates/prototype_review_request_changes_note_template_v1.md` when t
 - [ ] If this is a resubmission, the field captions stay canonical: `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
 - [ ] If this is a resubmission, each `live blocker-evidence-reference field` stays stacked: every `live fill-in field` should appear as a `live field block`, not as non-live `explanatory prose`, a `compact table cell`, or an `inline placeholder-only fragment`.
 - [ ] If this is a resubmission, non-live blocker-reference wording keeps the canonical cues: `explanatory prose`, `compact table cell`, and `inline placeholder-only fragment`.
+- [ ] If this is a resubmission, the contrast sentences stay canonical: use `not a live fill-in field`, `outside the live field block`, and `in non-live context` when directly comparing live vs non-live blocker-reference wording.
 - [ ] The review package cites the governing docs:
   - `docs/architecture/prototype_evidence_collection_plan_v1.md`
   - `docs/architecture/prototype_retirement_criteria_v1.md`

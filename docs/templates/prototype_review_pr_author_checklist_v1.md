@@ -39,6 +39,7 @@ For canonical blocker-reference field-caption formatting in that resubmission fl
 For canonical blocker-reference rendering rules in that resubmission flow, use `docs/ops/prototype_blocker_reference_rendering_exception_alignment_record_v1.md`.
 For canonical blocker-reference live-field cue wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_live_field_cue_alignment_record_v1.md`.
 For canonical blocker-reference explanatory-inline cue wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md`.
+For canonical blocker-reference live-vs-non-live contrast wording in that resubmission flow, use `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md`.
 
 It does not replace:
 
@@ -139,6 +140,7 @@ If this is a `retirement-review`:
 - [ ] If this is a resubmission, those evidence references keep the canonical field captions: `Review note reference:`, `Closure evidence reference:`, `Fix evidence reference:`, and `Supporting evidence reference:`.
 - [ ] If this is a resubmission, each `live blocker-evidence-reference field` stays stacked: every `live fill-in field` should appear as a `live field block`, not as non-live `explanatory prose`, a `compact table cell`, or an `inline placeholder-only fragment`.
 - [ ] If this is a resubmission, non-live blocker-reference wording keeps the canonical cues: `explanatory prose`, `compact table cell`, and `inline placeholder-only fragment`.
+- [ ] If this is a resubmission, the contrast sentences stay canonical: use `not a live fill-in field`, `outside the live field block`, and `in non-live context` when directly comparing live vs non-live blocker-reference wording.
 - [ ] The observation window is stated clearly.
 - [ ] The current recommendation is stated clearly:
   - `keep`
