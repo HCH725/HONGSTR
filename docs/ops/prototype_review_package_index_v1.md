@@ -239,6 +239,7 @@ If any prerequisite fails:
 | see drift-to-canonical blocker-reference explanatory-inline cues | `docs/ops/prototype_blocker_reference_explanatory_inline_cue_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference live-vs-non-live contrast sentences | `docs/ops/prototype_blocker_reference_live_nonlive_contrast_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference contrast-sentence combination rules | `docs/ops/prototype_blocker_reference_contrast_sentence_combination_rule_alignment_record_v1.md` |
+| see drift-to-canonical blocker-reference contrast-sentence short-example label placement | `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference contrast-sentence short-example labels | `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference contrast-sentence short examples | `docs/ops/prototype_blocker_reference_contrast_sentence_example_value_alignment_record_v1.md` |
 | see drift-to-canonical blocker-reference contrast-sentence punctuation/style | `docs/ops/prototype_blocker_reference_contrast_sentence_punctuation_style_alignment_record_v1.md` |

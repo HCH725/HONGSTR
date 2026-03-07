@@ -676,6 +676,13 @@ Read these rules before using any term below.
   - short-example label wording is governed by `docs/ops/prototype_blocker_reference_short_example_label_alignment_record_v1.md`
   - short-example labels are not the example values themselves
   - short-example labels are not the punctuation/style rules themselves
+- Short-example label placement rule:
+  - short-example label placement is governed by `docs/ops/prototype_blocker_reference_short_example_label_placement_alignment_record_v1.md`
+  - keep the label and example value on the same physical line whenever the short example is rendered
+  - use a continuation line under the governing bullet in reviewer/author checklists
+  - use a bullet line when the short example is itself a sibling item in a bullet-driven template list
+  - use an example block when all three canonical short examples are shown together
+  - compact table cells may reference the canonical short-example set, but should not render the full trio in-cell
 - Common misuse:
   - combining all three contrast sentences into one long reminder line
   - splitting `in non-live context` and `not a live fill-in field` into separate lines when one short sentence would be clearer
@@ -683,6 +690,8 @@ Read these rules before using any term below.
   - treating contrast-sentence example values as if they were the combination rules themselves
   - treating contrast-sentence punctuation/style rules as if they were the combination rules themselves
   - using `scope + exclusion` or `live vs non-live` in active short-example labels
+  - splitting a short-example label and value across separate physical lines
+  - packing the full three labeled short examples into a compact table cell
   - treating combination rules as if they were live-field cue phrases, explanatory-inline cue phrases, rendering rules, field-caption formatting, evidence-reference labels, target hint labels, multiplicity hint labels, ordering hint labels, applicability hint labels, placeholder shapes, or the contrast sentences themselves
 - Example value: `In non-live context, this is not a live fill-in field. Keep the bare placeholder outside the live field block.`
 
