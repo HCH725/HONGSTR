@@ -52,7 +52,7 @@ Use the prototype review docs in this order for resubmission:
 
 Rule:
 
-- do not resubmit until the blocking request-changes items are closed or explicitly marked `not applicable` with explanation
+- do not resubmit until each blocking request-changes item is marked `completed` or `not applicable`; if any item remains `not completed` or `unresolved`, stop
 
 Reviewer response-state rule:
 
@@ -81,6 +81,14 @@ Required-fix label rule:
   - `canonical overlap explanation added`
   - `observation window extended`
 
+Blocker-closure-status rule:
+
+- use one canonical closure status per blocker item:
+  - `completed`
+  - `not completed`
+  - `not applicable`
+  - `unresolved`
+
 ## 1. Request-Changes Closure
 
 - [ ] I have reviewed the latest `request-changes note`.
@@ -88,15 +96,16 @@ Required-fix label rule:
 - [ ] I have marked each request-changes item as:
   - `completed`
   - `not completed`
-  - or `not applicable`
-- [ ] Every `not applicable` item includes a written reason.
+  - `not applicable`
+  - or `unresolved`
+- [ ] Every item marked `not completed`, `not applicable`, or `unresolved` includes a written reason.
 - [ ] I have added the evidence, explanation, or docs updates the reviewer explicitly requested.
-- [ ] I am not resubmitting with unresolved blocking items hidden in prose.
-- [ ] I can map the completed blocker-closure work to the canonical required-fix labels above.
+- [ ] I am not resubmitting with `unresolved` blocking items hidden in prose.
+- [ ] I can map each blocker item to the canonical required-fix labels above.
 
 Request-changes closure note:
 
-- `<summary of what was closed>`
+- `<summary of each blocker closure status>`
 
 ## 2. Evidence Refresh
 
@@ -175,7 +184,7 @@ Re-review readiness note:
 
 ## 6. Kill Switch / Stop Condition
 
-- [ ] If the request-changes items are still materially unresolved, I will stop and not resubmit yet.
+- [ ] If any request-changes item is still `unresolved`, I will stop and not resubmit yet.
 - [ ] If the boundary is still unclear, I will return to docs clarification before asking for re-review.
 - [ ] If rollout scope has drifted in, I will split it into a separate PR before resubmitting.
 - [ ] If canonical-state language has drifted in, I will remove it before resubmitting.
@@ -202,7 +211,7 @@ State explicitly:
 | `review_type` | `<upgrade-review / retirement-review>` |
 | `author` | `<name or handle>` |
 | `date` | `<YYYY-MM-DD>` |
-| `request_changes_fully_addressed` | `<yes / no>` |
+| `blocker_closure_status` | `<completed / not completed / not applicable / unresolved>` |
 | `boundary_rechecked` | `<yes / no>` |
 | `requested_reviewer_response_state` | `<re-review allowed after fixes / return for fixes>` |
 | `rollout_mixed_in` | `<yes / no>` |

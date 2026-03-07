@@ -88,11 +88,12 @@ Required fixes:
 Re-review conditions:
 - updated evidence summary attached
 - boundary wording clarified
-- request-changes items marked completed or not applicable
+- request-changes items marked `completed`, `not completed`, `not applicable`, or `unresolved` as applicable
 ```
 
 Use only canonical request-changes-reason labels in the structured reason field.
 Use canonical required-fix labels in the fix section.
+Use canonical blocker-closure-status labels when marking each request-changes item.
 Keep prose such as `add missing canonical_overlap explanation` as supporting detail under the canonical fix label, not as a replacement label.
 
 ### 3.2 Resubmission Checklist Snippet
@@ -100,7 +101,7 @@ Keep prose such as `add missing canonical_overlap explanation` as supporting det
 ```md
 ## Request-Changes Closure
 - [x] responded to every requested item
-- [x] marked each item completed / not applicable
+- [x] marked each item `completed`, `not completed`, `not applicable`, or `unresolved`
 - [x] added requested docs clarifications
 
 ## Evidence Refresh
@@ -172,8 +173,8 @@ Author action:
 
 - use `docs/templates/prototype_re_review_resubmission_checklist_v1.md`
 - close each request explicitly
-- mark every item `completed`, `not completed`, or `not applicable`
-- stop if any blocking item is still unresolved
+- mark every item `completed`, `not completed`, `not applicable`, or `unresolved`
+- stop if any blocking item is still `unresolved`
 
 ### Step 3: Author Updates Package Materials
 
@@ -200,7 +201,7 @@ Author must still confirm:
 Reviewer action:
 
 - re-run `docs/templates/prototype_review_reviewer_checklist_v1.md`
-- verify the blocking reasons are actually closed
+- verify the blocking items are actually `completed` or `not applicable`
 - stop again if the package still has missing evidence or mixed rollout scope
 
 ### Step 5: Reviewer Records The Final Result

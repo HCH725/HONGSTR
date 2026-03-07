@@ -219,6 +219,15 @@ Required-fix label rule:
   - `canonical overlap explanation added`
   - `observation window extended`
 
+Blocker-closure-status rule:
+
+- when reviewer-side re-check inspects blocker closure, use:
+  - `completed`
+  - `not completed`
+  - `not applicable`
+  - `unresolved`
+- resubmission should normally advance only when blocker items are `completed` or `not applicable`
+
 Reviewer rationale:
 
 - `<reason 1>`

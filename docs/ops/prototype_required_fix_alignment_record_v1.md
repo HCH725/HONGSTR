@@ -77,6 +77,7 @@ Field split rule:
 - required-fix label is not a request-changes reason
 - required-fix label is not a reviewer response-state enum
 - required-fix label is not a next-action enum
+- blocker-closure-status labels are governed separately by `docs/ops/prototype_blocker_closure_status_alignment_record_v1.md`
 - `observation window extended` remains separate from next-action `extend evidence window`
 
 ## 4. Legacy Aliases No Longer Recommended
@@ -115,7 +116,7 @@ Aligned:
 Very-thin grammatical variation is allowed only when needed by the local structure:
 
 - prose may still describe the concrete fix details under each label
-- checklists may mark a canonical label as completed or not completed
+- checklists may pair a canonical required-fix label with a separate blocker-closure-status label from `docs/ops/prototype_blocker_closure_status_alignment_record_v1.md`
 - examples may show the label in `request_changes_reason` follow-up snippets or fix-completion notes
 
 Even with those thin variations:
