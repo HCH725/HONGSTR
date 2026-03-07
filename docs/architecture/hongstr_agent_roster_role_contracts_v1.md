@@ -154,6 +154,8 @@ HONGSTR operates on a graded autonomy scale. Currently, the system functions pri
 
 Note: High-Level Guidance Only; Subject to Change.
 
+*For detailed model assignments and bottleneck analysis, see [HONGSTR Role × Model Fit Matrix v1](./hongstr_role_model_fit_matrix_v1.md).*
+
 - **Coding-oriented models** are best suited for: Lead Implementation Engineer, Research Operations Assistant, Safety Gatekeeper (where strict rigid parsing of code/diffs is required).
 - **General reasoning / Synthesis models** are best suited for: Chief Steward, Director of Quant Research, Governance Librarian, Ops Observer (where context synthesis, rule interpretation, and ambiguity resolution are needed).
 - **No role** should be fully autonomous (Level 4+). Human-in-the-loop (via PR review or explicit run commands) is required for state mutation.
