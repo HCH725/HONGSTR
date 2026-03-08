@@ -33,4 +33,12 @@ Executing minor fixes or documentation updates that strictly reside within the "
 
 **When to Upgrade to Codex:**
 
-- If applying the change requires altering scripts, python configurations, environmental variables, or execution logic.
+You MUST route the task to Codex (using `hongstr-handoff-to-codex.md`) and stop immediately if the issue:
+
+- Touches `src/hongstr/**`
+- Touches producer / state semantics / SSOT writer boundary
+- Touches control plane authority / `tg_cp` boundary
+- Touches `.env` / secrets / config loading behavior
+- Requires deploy / rollback / runtime verification
+- Is an ambiguous request crossing multiple boundaries
+- Requires a large refactor or complex logic change

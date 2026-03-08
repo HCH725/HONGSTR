@@ -12,6 +12,8 @@ Auditing existing markdown documents, reports, and governance specs against the 
 - Reading and writing `docs/**`
 - Reading `.agent/rules/`
 - Reading PRs and issues via Linear or GitHub CLI
+- Read-only GitHub / Linear inspection is allowed.
+- Create/update Linear tracking is allowed only for sandbox/governance tracking. This does NOT authorize core code changes.
 - NO core code modifications.
 
 **Workflow Steps:**
@@ -33,5 +35,4 @@ Auditing existing markdown documents, reports, and governance specs against the 
 
 **When to Upgrade to Codex:**
 
-- If the text in the document suggests a necessary change in the actual core engine (`src/hongstr/**`) or runtime scripts (`scripts/refresh_state.sh`).
-- Output the `hongstr-handoff-to-codex.md` note and do not apply code changes.
+- If document findings imply core engine / producer / runtime / `.env` / control-plane authority changes, stop and output `hongstr-handoff-to-codex.md`.

@@ -46,3 +46,6 @@ I am unable to proceed with this task, as it violates the HONGSTR read-only/docs
 **When to Stop:**
 
 - Stop immediately after outputting this note.
+- After emitting the handoff note, do not add further commits.
+- Do not continue editing.
+- If a PR already exists, preserve branch for human review and recommend a close/revert path if needed.
