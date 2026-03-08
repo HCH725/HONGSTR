@@ -88,3 +88,52 @@ consumer-read 規則：
 3. **Canonical gate**：`system_health_latest.json.components.data_quality_gate` 提供 Stage 1 最小可讀 gate contract；consumer 應只讀，不應自行重新推理缺漏/過舊語義。
 4. **Canonical contract**：`reason / source / evidence` vocabulary 由 producer 在上述 JSON 中直接寫出，供 consumer 只讀。
 5. **前端/TG 顯示**：Dashboard API 與 Telegram `/freshness` 指令均優先讀取此 JSON 快照，確保兩端顯示完全同步。
+
+## Stage 2 Card A: canonical state writer boundary
+
+State Plane 的 writer / orchestrator 邊界固定如下：
+
+- designated writer: `scripts/state_snapshots.py`
+- designated orchestrator: `scripts/refresh_state.sh`
+- machine-checkable inventory + ownership mapping:
+  - `scripts/state_writer_inventory.py`
+- machine-checkable guardrail:
+  - `python3 scripts/check_state_writer_boundary.py --strict`
+
+Card A 規則：
+
+- `scripts/state_snapshots.py` 是唯一允許寫 canonical `data/state/*` 的 non-test path
+- `scripts/refresh_state.sh` 只負責呼叫 atomic producers 與 canonical writer，不得自己寫 canonical state
+- canonical inventory 必須完整覆蓋 `state_snapshots.py` 實際寫出的 artifacts；inventory 漏列或 stale path 都應判 `FAIL`
+
+目前 inventory 涵蓋的 canonical / governed outputs 包含：
+
+- `system_health_latest.json`
+- `daily_report_latest.json`
+- `freshness_table.json`
+- `coverage_matrix_latest.json`
+- `coverage_table.jsonl`
+- `coverage_latest.json`
+- `coverage_summary.json`
+- `strategy_pool_summary.json`
+- `regime_monitor_latest.json`
+- `regime_monitor_summary.json`
+- `execution_mode.json`
+- `services_heartbeat.json`
+- `brake_health_latest.json`
+- `watchdog_status_latest.json`
+- `cost_sensitivity_matrix_latest.json`
+- `data_catalog_latest.json`
+- `data_catalog_changes_latest.json`
+- `changes_latest.json`
+- `okx_public_coverage_latest.json`
+- `bitfinex_public_coverage_latest.json`
+- `cmc_market_intel_coverage_latest.json`
+- `strategy_dashboard_latest.json`
+- `data/state/_history/data_catalog_prev.json`
+
+Card A 不處理：
+
+- `refresh_state` partial-failure publish semantics（Stage 2 / Card B）
+- `/status` health-pack consumer fallback（Stage 2 / Card C）
+- `/daily` final acceptance audit（Stage 2 / Card D）
